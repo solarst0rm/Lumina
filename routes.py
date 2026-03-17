@@ -49,8 +49,23 @@ def _read_text_if_exists(path: str | Path) -> str:
 
 
 def _validate_upload_file(file) -> str | None:
-    filename = secure_filename(file.filename or "")
-    if not filename:
+    original_filename = (file.filename or "").strip()
+    original_path = Path(original_filename)
+    extension = original_path.suffix.lower().lstrip(".")
+    safe_stem = secure_filename(original_path.stem) or "upload"
+    filename = f"{safe_stem}.{extension}" if extension else ""
+    if not original_filename:
+        return "请选择要上传的文件。"
+    if not extension:
+        return "识别不到文件后缀，请重新选择文件后再试。"
+    if extension == "ppt":
+        return "暂不支持旧版 .ppt 文件，请先另存为 .pptx 后再上传。"
+    if extension not in ALLOWED_EXTENSIONS:
+        return (
+            "暂不支持该文件格式。请上传 PDF、DOCX、PPTX/PPTM/PPSX/PPSM/POTX/POTM，"
+            "或 JPG/JPEG/PNG/BMP/WEBP/GIF/TIFF 图片。"
+        )
+    if not original_filename:
         return "请选择要上传的文件。"
 
     extension = Path(filename).suffix.lower().lstrip(".")
