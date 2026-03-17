@@ -65,6 +65,20 @@ def _validate_upload_file(file) -> str | None:
             "暂不支持该文件格式。请上传 PDF、DOCX、PPTX/PPTM/PPSX/PPSM/POTX/POTM，"
             "或 JPG/JPEG/PNG/BMP/WEBP/GIF/TIFF 图片。"
         )
+    setattr(file, "_display_filename", original_filename)
+    file.filename = filename
+    return None
+    if not original_filename:
+        return "请选择要上传的文件。"
+    if not extension:
+        return "识别不到文件后缀，请重新选择文件后再试。"
+    if extension == "ppt":
+        return "暂不支持旧版 .ppt 文件，请先另存为 .pptx 后再上传。"
+    if extension not in ALLOWED_EXTENSIONS:
+        return (
+            "暂不支持该文件格式。请上传 PDF、DOCX、PPTX/PPTM/PPSX/PPSM/POTX/POTM，"
+            "或 JPG/JPEG/PNG/BMP/WEBP/GIF/TIFF 图片。"
+        )
     if not original_filename:
         return "请选择要上传的文件。"
 
@@ -167,6 +181,9 @@ def register_routes(app, db, User, Note, MistakeRecord):
     basedir = app.config["BASEDIR"]
 
     def _start_processing_job(file_storage, prompt: str, user_id: int) -> str:
+        display_filename = (
+            getattr(file_storage, "_display_filename", "") or file_storage.filename or "upload.bin"
+        )
         filename = secure_filename(file_storage.filename or "upload.bin") or "upload.bin"
         job_id = uuid.uuid4().hex
         upload_dir = Path(basedir) / "uploads"
@@ -180,7 +197,7 @@ def register_routes(app, db, User, Note, MistakeRecord):
             {
                 "job_id": job_id,
                 "status": "processing",
-                "uploaded_filename": filename,
+                "uploaded_filename": display_filename,
                 "summary": "",
                 "exercise": "",
                 "error": "",
@@ -197,7 +214,7 @@ def register_routes(app, db, User, Note, MistakeRecord):
                     with app.app_context():
                         user = db.session.get(User, int(user_id))
                         if user and summary:
-                            db.session.add(Note(title=filename, content=summary, author=user))
+                            db.session.add(Note(title=display_filename, content=summary, author=user))
                             db.session.commit()
 
                     _write_job_status(
@@ -206,7 +223,7 @@ def register_routes(app, db, User, Note, MistakeRecord):
                         {
                             "job_id": job_id,
                             "status": "completed",
-                            "uploaded_filename": filename,
+                            "uploaded_filename": display_filename,
                             "summary": summary,
                             "exercise": exercise,
                             "error": "",
@@ -221,7 +238,7 @@ def register_routes(app, db, User, Note, MistakeRecord):
                     {
                         "job_id": job_id,
                         "status": "failed",
-                        "uploaded_filename": filename,
+                        "uploaded_filename": display_filename,
                         "summary": "",
                         "exercise": "",
                         "error": result.get("error", "处理失败"),
@@ -235,7 +252,7 @@ def register_routes(app, db, User, Note, MistakeRecord):
                     {
                         "job_id": job_id,
                         "status": "failed",
-                        "uploaded_filename": filename,
+                        "uploaded_filename": display_filename,
                         "summary": "",
                         "exercise": "",
                         "error": str(exc),
@@ -514,6 +531,9 @@ def register_routes(app, db, User, Note, MistakeRecord):
             except json.JSONDecodeError:
                 options = []
 
+            if source_name in {"当前练习", "瑜版挸澧犵紒鍐х瘎"}:
+                source_name = "未命名文档"
+
             if source_name not in group_index_by_name:
                 group_index_by_name[source_name] = len(mistake_groups)
                 mistake_groups.append(
@@ -607,6 +627,8 @@ def register_routes(app, db, User, Note, MistakeRecord):
             return jsonify({"success": False, "error": "错题内容不完整"})
 
         source_filename = (payload.get("source_filename") or "").strip() or "当前练习"
+        if source_filename in {"当前练习", "瑜版挸澧犵紒鍐х瘎"}:
+            source_filename = "未命名文档"
         difficulty = (payload.get("difficulty") or "").strip()
         explanation = (payload.get("explanation") or "").strip()
         last_selected_answer = (payload.get("selected_answer") or "").strip()
@@ -662,7 +684,8 @@ def register_routes(app, db, User, Note, MistakeRecord):
             os.path.join(basedir, "uploads"),
         )
         if summary:
-            db.session.add(Note(title=file.filename, content=summary, author=current_user))
+            note_title = getattr(file, "_display_filename", "") or file.filename
+            db.session.add(Note(title=note_title, content=summary, author=current_user))
             db.session.commit()
             summary_html, summary_toc_html = _render_summary_markdown(summary)
             return jsonify(

@@ -132,6 +132,44 @@ def validate_exercise_payload(payload: dict) -> dict:
     return normalized
 
 
+def _rotate_options(question: dict, shift: int) -> None:
+    if not shift:
+        return
+
+    original_options = list(question["options"])
+    rotated_options = [None] * len(original_options)
+    for old_index, option in enumerate(original_options):
+        new_index = (old_index + shift) % len(original_options)
+        rotated_options[new_index] = option["text"]
+
+    question["options"] = [
+        {"key": OPTION_KEYS[index], "text": rotated_options[index]}
+        for index in range(len(OPTION_KEYS))
+    ]
+
+
+def rebalance_answer_distribution(payload: dict) -> dict:
+    """Reorder options so correct answers stay closer to an even A/B/C/D distribution."""
+    answer_counts = {key: 0 for key in OPTION_KEYS}
+    ordered_questions: list[dict] = []
+
+    for difficulty in DIFFICULTY_ORDER:
+        ordered_questions.extend(payload["difficulties"].get(difficulty, []))
+
+    for question in ordered_questions:
+        current_key = question["answer"]
+        if current_key not in OPTION_KEYS:
+            continue
+
+        target_key = min(OPTION_KEYS, key=lambda key: (answer_counts[key], OPTION_KEYS.index(key)))
+        shift = (OPTION_KEYS.index(target_key) - OPTION_KEYS.index(current_key)) % len(OPTION_KEYS)
+        _rotate_options(question, shift)
+        question["answer"] = target_key
+        answer_counts[target_key] += 1
+
+    return payload
+
+
 def structured_exercises_to_markdown(payload: dict) -> str:
     """Convert structured exercise data back to Markdown."""
     lines = [f"# {payload.get('title', '练习闯关')}", ""]
@@ -301,6 +339,7 @@ def generate_valid_exercises(
         try:
             print(f"正在生成练习题，第 {retry_index} 次尝试...")
             payload = validate_exercise_payload(generate_exercise_payload(summary_text, safe_mode=safe_mode))
+            payload = rebalance_answer_distribution(payload)
             markdown_content = structured_exercises_to_markdown(payload)
             save_exercises(markdown_content, payload)
             return payload, markdown_content

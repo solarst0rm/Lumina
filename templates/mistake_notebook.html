@@ -468,6 +468,97 @@ function initializeNotebookState() {
     announceNotebook(buildGroupSpeech(getCurrentGroup()));
 }
 
+const sourceNamePlaceholders = new Set(['当前练习', '当前文档', '未命名文档', '瑜版挸澧犵紒鍐х瘎']);
+
+function getDisplaySourceName(sourceFile) {
+    const normalized = (sourceFile || '').trim();
+    if (!normalized) {
+        return '未命名文档';
+    }
+    return sourceNamePlaceholders.has(normalized) ? '未命名文档' : normalized;
+}
+
+function buildGroupSpeech(group) {
+    const count = (group.mistakes || []).length;
+    const sourceName = getDisplaySourceName(group.source_file);
+    return '文档名：' + sourceName + '。共 ' + count + ' 道错题。按上或下方向键开始浏览题目，按回车重做当前错题。';
+}
+
+function buildMistakeSpeech(group, mistake, index) {
+    const sourceName = getDisplaySourceName(group.source_file);
+    const parts = [
+        '文档名：' + sourceName,
+        '第 ' + (index + 1) + ' 题，共 ' + group.mistakes.length + ' 题'
+    ];
+
+    if (mistake.difficulty) {
+        parts.push('难度：' + mistake.difficulty);
+    }
+
+    parts.push('题目。' + mistake.question_text);
+
+    if (mistake.options && mistake.options.length) {
+        parts.push(
+            '选项。' + mistake.options.map(function(option) {
+                return option.key + '，' + option.text;
+            }).join('。')
+        );
+    }
+
+    parts.push('正确答案：' + (mistake.correct_answer || '未记录'));
+
+    if (mistake.explanation) {
+        parts.push('解析。' + mistake.explanation);
+    }
+
+    parts.push('按回车可以重做当前错题。');
+    return parts.join('。');
+}
+
+function updateQuestionView() {
+    const group = getCurrentGroup();
+    const mistake = getCurrentMistake();
+    if (!group) {
+        return;
+    }
+
+    const sourceName = getDisplaySourceName(group.source_file);
+    docPosition.textContent = '文档 ' + (mistakeState.groupIndex + 1) + ' / ' + MISTAKE_GROUPS.length;
+    docName.textContent = sourceName;
+    docCount.textContent = '错题数：' + (group.mistakes || []).length;
+
+    docPrevButton.disabled = mistakeState.groupIndex <= 0;
+    docNextButton.disabled = mistakeState.groupIndex >= MISTAKE_GROUPS.length - 1;
+
+    if (!mistake) {
+        emptyState.style.display = 'block';
+        contentState.style.display = 'none';
+        currentQuestionState.textContent = '按上下方向键浏览《' + sourceName + '》下的错题';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    contentState.style.display = 'block';
+    currentQuestionState.textContent = '已定位到《' + sourceName + '》中的第 ' + (mistakeState.mistakeIndex + 1) + ' 题';
+
+    questionProgress.textContent = '第 ' + (mistakeState.mistakeIndex + 1) + ' / ' + group.mistakes.length + ' 题';
+    questionDifficulty.textContent = mistake.difficulty || '错题';
+    questionText.textContent = mistake.question_text || '';
+    correctAnswer.textContent = mistake.correct_answer || '未记录';
+    lastAnswer.textContent = mistake.last_selected_answer || '未记录';
+    explanation.textContent = mistake.explanation || '暂无解析';
+    meta.textContent = '错误次数：' + mistake.wrong_count + '\n首次记录：' + mistake.first_wrong_at + '\n最近出错：' + mistake.last_wrong_at;
+    redoLink.href = mistake.redo_url;
+
+    optionsBox.innerHTML = '';
+    (mistake.options || []).forEach(function(option) {
+        const item = document.createElement('div');
+        item.className = 'mistake-option-item';
+        item.textContent = option.key + '. ' + option.text;
+        optionsBox.appendChild(item);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeNotebookState();
 

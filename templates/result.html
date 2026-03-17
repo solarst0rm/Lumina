@@ -358,11 +358,11 @@
             点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按上下箭头调整语速。
         </p>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            快捷键：B 生成总结盲文，D 下载总结文档，右箭头生成练习题，R 上传新文件。
+            快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题，R 上传新文件。
         </p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a id="btn-gen-exercise" class="btn btn-success" href="{% if uploaded_filename %}{{ url_for('exercise_challenge', source_file=uploaded_filename) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" title="快捷键 右箭头">
-                <i class="fas fa-pencil-alt"></i> 生成练习题 [→]
+            <a id="btn-gen-exercise" class="btn btn-success" href="{% if uploaded_filename %}{{ url_for('exercise_challenge', source_file=uploaded_filename) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" title="快捷键 E">
+                <i class="fas fa-pencil-alt"></i> 前往例题 [E]
             </a>
             <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 R">
                 <i class="fas fa-upload"></i> 上传新文件 [R]
@@ -702,7 +702,7 @@ function initResultSpeechController() {
             return;
         }
 
-        if (!event.repeat && event.code === 'ArrowRight' && triggerResultAction(generateExerciseButton, event)) {
+        if (!event.repeat && event.code === 'KeyE' && triggerResultAction(generateExerciseButton, event)) {
             return;
         }
 
