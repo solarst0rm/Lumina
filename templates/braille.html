@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block page_title %}盲文转换结果{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>
+        <i class="fas fa-braille"></i>
+        {{ '总结' if type=='summary' else '例题' }} 盲文转换结果
+    </h2>
+    <p style="color: var(--text-secondary); margin-bottom: 25px;">
+        以下是转换后的盲文内容，可以直接复制或下载BRF文件用于盲文阅读器
+    </p>
+
+    <div class="form-group">
+        <label style="font-weight: bold; color: var(--primary-color);">
+            <i class="fas fa-eye-slash"></i> 盲文内容：
+        </label>
+        <textarea
+            rows="15"
+            style="width:100%; font-family: 'Courier New', monospace; background-color: var(--background-color); border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; resize: vertical;"
+            readonly
+        >{{ braille }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 15px; margin-top: 25px;">
+        {% if brf %}
+            <a href="{{ url_for('download_file', filename=brf) }}" class="btn btn-success">
+                <i class="fas fa-download"></i> 下载BRF文件
+            </a>
+        {% endif %}
+
+        <button class="btn btn-secondary" onclick="copyToClipboard()">
+            <i class="fas fa-copy"></i> 复制盲文
+        </button>
+
+        <button class="btn" onclick="history.back()">
+            <i class="fas fa-arrow-left"></i> 返回上一页
+        </button>
+    </div>
+</div>
+
+<!-- 使用说明 -->
+<div class="card">
+    <h3 style="color: var(--primary-color); margin-bottom: 15px;">
+        <i class="fas fa-info-circle"></i> 盲文使用说明
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div>
+            <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
+                <i class="fas fa-download"></i> 下载BRF文件
+            </h4>
+            <p>BRF格式文件可直接在盲文阅读器或盲文打印机上使用</p>
+        </div>
+        <div>
+            <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
+                <i class="fas fa-copy"></i> 复制使用
+            </h4>
+            <p>复制盲文文本，可粘贴到其他盲文处理软件中使用</p>
+        </div>
+        <div>
+            <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
+                <i class="fas fa-print"></i> 打印盲文
+            </h4>
+            <p>使用专用盲文打印机可将BRF文件打印成可触摸的盲文</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const textarea = document.querySelector('textarea');
+    textarea.select();
+    document.execCommand('copy');
+
+    // 显示复制成功提示
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    btn.style.backgroundColor = 'var(--success-color)';
+
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.backgroundColor = '';
+    }, 2000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+:root {
+    --primary: #3478F6; /* Lower saturation blue */
+    --primary-light: #5A9BFF;
+    --primary-dark: #2A64D4;
+    --success: #00C853; /* High-saturation green */
+    --warning: #FFD700; /* Gold */
+    --danger: #FF1744;
+    --bg: #ffffff; /* Pure white background */
+    --sidebar-bg: linear-gradient(180deg, #3478F6 0%, #5A9BFF 100%);
+    --card-bg: #ffffff;
+    --text: #000000; /* Pure black for maximum contrast */
+    --text-light: #333333;
+    --shadow: 0 8px 24px rgba(52, 120, 246, 0.15);
+    --radius: 16px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
+.layout { display: flex; height: 100vh; }
+
+/* 侧边栏 */
+.sidebar {
+    width: 380px; /* Wider sidebar */
+    background: var(--sidebar-bg);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 6px 0 30px rgba(52, 120, 246, 0.2);
+    border-right: 4px solid var(--primary-light);
+    position: relative;
+    transition: width 0.3s ease;
+    min-width: 60px;
+    max-width: 600px;
+}
+.sidebar.collapsed {
+    width: 60px;
+}
+.sidebar-header {
+    padding: 30px;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    overflow: hidden;
+    white-space: nowrap;
+}
+.sidebar.collapsed .sidebar-header {
+    padding: 20px 10px;
+}
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 20px; /* More moderate heading */
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s;
+}
+.sidebar.collapsed .sidebar-header h2 {
+    opacity: 0;
+}
+
+/* 侧边栏缩放控制 */
+.sidebar-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s;
+}
+.sidebar-resize-handle:hover {
+    background: rgba(90, 155, 255, 0.5);
+}
+.sidebar-resize-handle::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+}
+
+/* 折叠按钮 */
+.sidebar-toggle {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border: 3px solid white;
+    border-radius: 50%;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(52, 120, 246, 0.3);
+    transition: all 0.2s;
+}
+.sidebar-toggle:hover {
+    background: var(--primary-dark);
+    transform: translateY(-50%) scale(1.1);
+}
+.sidebar-toggle:focus {
+    outline: 4px solid var(--warning);
+    outline-offset: 3px;
+}
+.sidebar.collapsed .sidebar-toggle {
+    right: -20px;
+}
+
+/* 读屏控制面板 */
+.tts-panel {
+    padding: 25px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+}
+.tts-panel h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px; /* More moderate heading */
+    font-weight: 700;
+    opacity: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.tts-panel h3::before {
+    content: "";
+    display: inline-block;
+    width: 28px; /* Larger icon */
+    height: 28px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* 进度条 */
+.progress-wrapper {
+    margin-bottom: 20px;
+}
+.progress-bar {
+    height: 10px; /* Thicker progress bar */
+    background: rgba(255,255,255,0.25);
+    border-radius: 5px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: height 0.2s;
+    border: 2px solid rgba(255,255,255,0.3);
+}
+.progress-bar:hover {
+    height: 14px;
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFD700, #FFA500); /* Gold gradient */
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px; /* Larger font */
+    margin-top: 10px;
+    opacity: 1;
+    font-weight: 600;
+}
+
+/* 控制按钮 */
+.tts-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.tts-btn {
+    flex: 1;
+    padding: 14px 8px; /* More moderate padding */
+    border: 3px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    font-size: 14px; /* More moderate font */
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: none; /* Reduced motion */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+}
+.tts-btn:focus {
+    outline: 4px solid var(--warning);
+    outline-offset: 3px;
+}
+.tts-btn-play {
+    background: var(--success);
+    color: #000000;
+    border-color: var(--success);
+}
+.tts-btn-play:hover { background: #00A843; }
+.tts-btn-nav {
+    background: rgba(255,255,255,0.25);
+    color: white;
+    flex: 0 0 56px;
+    border-color: rgba(255,255,255,0.4);
+}
+.tts-btn-nav:hover { background: rgba(255,255,255,0.35); }
+.tts-btn-stop {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    flex: 0 0 56px;
+    border-color: rgba(255,255,255,0.4);
+}
+.tts-btn-stop:hover { background: rgba(255,68,68,0.8); }
+
+/* 语速控制 */
+.speed-control {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.25);
+}
+.speed-control label {
+    font-size: 18px; /* Larger font */
+    opacity: 1;
+    white-space: nowrap;
+    font-weight: 700;
+}
+.speed-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px; /* Thicker slider */
+    background: rgba(255,255,255,0.3);
+    border-radius: 3px;
+    outline: none;
+}
+.speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px; /* Larger thumb */
+    height: 24px;
+    background: var(--warning);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    border: 3px solid white;
+}
+.speed-value {
+    font-size: 18px; /* Larger font */
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* 快捷键提示 */
+.shortcuts {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    font-size: 15px; /* Larger font */
+    opacity: 1;
+    line-height: 1.8;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+.shortcuts kbd {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 6px;
+    font-family: inherit;
+    margin: 0 4px;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* 目录导航 */
+.toc-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 25px;
+}
+.toc-nav::-webkit-scrollbar { width: 8px; }
+.toc-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.4); border-radius: 4px; }
+.toc-nav::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
+.toc-nav ul { padding-left: 0; margin: 0; list-style: none; }
+.toc-nav li { margin: 8px 0; }
+.toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.toc-nav a {
+    flex: 1;
+    display: block;
+    padding: 12px 16px;
+    color: rgba(255,255,255,0.95);
+    text-decoration: none;
+    border-radius: 10px;
+    font-size: 17px; /* Larger font */
+    transition: none;
+    font-weight: 500;
+    border: 2px solid transparent;
+}
+.toc-nav a:hover {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border-color: rgba(255,255,255,0.3);
+}
+.toc-nav a.active {
+    background: rgba(255,255,255,0.25);
+    color: white;
+    font-weight: 700;
+    border-color: var(--warning);
+}
+.toc-nav ul ul { padding-left: 20px; }
+.toc-nav ul ul a { font-size: 16px; opacity: 0.95; }
+/* 目录播放按钮 */
+.toc-play-btn {
+    width: 36px; /* Larger button */
+    height: 36px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: none;
+    flex-shrink: 0;
+    font-weight: 700;
+}
+.toc-play-btn:hover {
+    background: var(--success);
+    color: #000000;
+    border-color: var(--success);
+}
+.toc-play-btn:focus {
+    outline: 3px solid var(--warning);
+    outline-offset: 2px;
+}
+
+/* 主内容区 */
+.content {
+    flex: 1;
+    padding: 40px 50px; /* Smaller padding for better mobile display */
+    overflow-y: auto;
+    background: var(--bg);
+    position: relative;
+}
+.content::-webkit-scrollbar { width: 16px; }
+.content::-webkit-scrollbar-track { background: #F0F5FF; border-radius: 8px; }
+.content::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 8px; border: 3px solid #ffffff; }
+.content::-webkit-scrollbar-thumb:hover { background: var(--primary-dark); }
+
+/* 分页模式 */
+.content.pagination-mode {
+    overflow: hidden;
+}
+.content-page {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+.content-page.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 分页导航 */
+.pagination-nav {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: white;
+    padding: 20px 30px;
+    border-radius: 50px;
+    box-shadow: var(--shadow);
+    border: 4px solid var(--primary);
+    z-index: 200;
+}
+.pagination-nav.hidden {
+    display: none;
+}
+.page-nav-btn {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--primary);
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: none;
+    font-weight: 700;
+}
+.page-nav-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.1);
+}
+.page-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.page-nav-btn:focus {
+    outline: 4px solid var(--warning);
+    outline-offset: 3px;
+}
+.page-info {
+    font-size: 18px; /* Smaller page info for better mobile display */
+    font-weight: 700;
+    color: var(--text);
+    min-width: 120px;
+    text-align: center;
+}
+.pagination-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px; /* Smaller padding */
+    background: var(--primary);
+    color: white;
+    border: 2px solid var(--primary-light); /* Thinner border */
+    border-radius: 8px; /* Smaller radius */
+    font-size: 16px; /* Smaller font */
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 150;
+    box-shadow: var(--shadow);
+    transition: none;
+}
+.pagination-toggle:hover {
+    background: var(--primary-dark);
+}
+.pagination-toggle:focus {
+    outline: 4px solid var(--warning);
+    outline-offset: 3px;
+}
+
+.content h1 {
+    font-size: 1.8em; /* More moderate heading */
+    color: var(--primary);
+    border-bottom: 5px solid var(--primary-light);
+    padding-bottom: 16px;
+    margin: 1.5em 0 0.8em;
+    font-weight: 700;
+}
+.content h2 {
+    font-size: 1.4em; /* More moderate heading */
+    color: var(--text);
+    border-left: 6px solid var(--primary);
+    padding-left: 20px;
+    margin: 1.8em 0 0.6em;
+    font-weight: 700;
+}
+.content h3 {
+    font-size: 1.2em; /* More moderate heading */
+    color: var(--text-light);
+    margin: 1.4em 0 0.5em;
+    font-weight: 600;
+}
+.content p { 
+    margin: 0 0 1.4em 0; 
+    line-height: 1.9;
+    font-size: 16px; /* Smaller paragraph font */
+}
+
+/* 当前朗读高亮 */
+.reading-highlight {
+    background: linear-gradient(90deg, #FFF4CC, #FFE999) !important;
+    border-left: 6px solid var(--warning);
+    padding: 12px 16px 12px 24px;
+    margin: 6px -16px;
+    border-radius: 0 12px 12px 0;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+/* 无障碍跳转链接 */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 20px;
+    background: var(--primary);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 0 0 12px 12px;
+    z-index: 1000;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 18px;
+    border: 3px solid var(--primary-light);
+}
+.skip-link:focus { 
+    top: 0;
+    outline: 4px solid var(--warning);
+    outline-offset: 3px;
+}
+
+/* 章节指示器 */
+.section-indicator {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--card-bg);
+    padding: 18px 28px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-size: 18px; /* Larger font */
+    color: var(--text);
+    display: none;
+    z-index: 100;
+    border: 4px solid var(--primary);
+    font-weight: 600;
+}
+.section-indicator.visible { display: block; }
+.section-indicator strong { color: var(--primary); font-weight: 700; }
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 220px; /* More moderate sidebar for tablets */
+    }
+    .content {
+        padding: 20px 20px;
+    }
+    .sidebar-header h2 {
+        font-size: 18px;
+    }
+    .tts-btn {
+        padding: 10px 6px;
+        font-size: 13px;
+        min-height: 40px;
+    }
+}
+
+@media (max-width: 768px) {
+    .layout {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        max-height: 40vh; /* Smaller sidebar on mobile */
+        min-height: 200px; /* Ensure minimum height */
+    }
+    .content {
+        padding: 15px 10px;
+        font-size: 15px; /* Smaller text on mobile */
+    }
+    .content h1 {
+        font-size: 1.6em; /* Smaller heading */
+    }
+    .content h2 {
+        font-size: 1.3em; /* Smaller heading */
+    }
+    .content h3 {
+        font-size: 1.1em; /* Smaller heading */
+    }
+    .tts-controls {
+        flex-wrap: wrap;
+        gap: 8px; /* Smaller gap */
+    }
+    .tts-btn {
+        font-size: 14px; /* Smaller font */
+        padding: 10px 6px; /* Smaller padding */
+        min-height: 40px;
+        flex: 1 1 calc(50% - 4px); /* Two buttons per row */
+    }
+    .sidebar-header h2 {
+        font-size: 18px; /* Smaller header */
+    }
+    .tts-panel h3 {
+        font-size: 16px; /* Smaller heading */
+    }
+    .pagination-toggle {
+        top: 10px; /* Smaller margin */
+        right: 10px;
+        padding: 10px 15px; /* Smaller button */
+        font-size: 14px; /* Smaller font */
+    }
+}
+
+/* Very small screens (phones) */
+@media (max-width: 480px) {
+    .sidebar {
+        width: 100%;
+        max-height: 35vh; /* Even smaller sidebar on very small screens */
+        min-height: 150px;
+    }
+    .content {
+        padding: 10px 8px;
+        font-size: 13px; /* More moderate text */
+    }
+    .content h1 {
+        font-size: 1.3em; /* More moderate heading */
+    }
+    .content h2 {
+        font-size: 1.1em; /* More moderate heading */
+    }
+    .content h3 {
+        font-size: 1em; /* Normal font size for h3 */
+    }
+    .tts-controls {
+        gap: 6px; /* Smaller gap */
+    }
+    .tts-btn {
+        font-size: 12px; /* More moderate font */
+        padding: 6px 4px; /* More moderate padding */
+        min-height: 34px;
+        flex: 1 1 calc(50% - 3px); /* Two buttons per row */
+    }
+    .sidebar-header h2 {
+        font-size: 15px; /* More moderate header */
+    }
+    .tts-panel h3 {
+        font-size: 13px; /* More moderate heading */
+    }
+    .pagination-toggle {
+        top: 8px;
+        right: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    .pagination-nav {
+        padding: 15px 20px;
+        border-radius: 40px;
+    }
+    .page-nav-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    .page-info {
+        font-size: 14px;
+        min-width: 100px;
+    }
+}
+
+/* 减少动画效果 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 焦点指示器 */
+button:focus,
+input:focus,
+a:focus {
+    outline: 4px solid var(--warning) !important;
+    outline-offset: 3px !important;
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    :root {
+        --primary: #2A64D4;
+        --text: #000000;
+    }
+    .sidebar {
+        border-right: 6px solid #000000;
+    }
+    .tts-btn {
+        border-width: 4px;
+    }
+}
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-link">跳转到主要内容</a>
+
+<!-- 分页切换按钮 -->
+<button class="pagination-toggle" id="pagination-toggle" aria-label="切换分页模式">
+    分页浏览
+</button>
+
+<div class="layout">
+    <aside class="sidebar" id="sidebar">
+        <!-- 折叠按钮 -->
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="展开/收起侧边栏" title="展开/收起侧边栏">
+            ◀
+        </button>
+        
+        <!-- 缩放控制条 -->
+        <div class="sidebar-resize-handle" id="sidebar-resize"></div>
+        
+        <div class="sidebar-header">
+            <h2>{{ title }}</h2>
+        </div>
+        
+        <div class="tts-panel" role="region" aria-label="读屏控制">
+            <h3>语音朗读</h3>
+            
+            <!-- 进度条 -->
+            <div class="progress-wrapper">
+                <div class="progress-bar" id="progress-bar" onclick="seekProgress(event)" role="progressbar" aria-label="朗读进度">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="current-section">准备就绪</span>
+                    <span id="progress-text">0 / 0</span>
+                </div>
+            </div>
+            
+            <!-- 控制按钮 -->
+            <div class="tts-controls">
+                <button class="tts-btn tts-btn-nav" id="tts-prev" onclick="ttsPrev()" aria-label="上一章节" title="上一章节 (左方向键)">
+                    ◀
+                </button>
+                <button class="tts-btn tts-btn-play" id="tts-play" onclick="ttsToggle()" aria-label="播放/暂停">
+                    <span id="play-icon">▶</span>
+                    <span id="play-text">播放</span>
+                </button>
+                <button class="tts-btn tts-btn-nav" id="tts-next" onclick="ttsNext()" aria-label="下一章节" title="下一章节 (右方向键)">
+                    ▶
+                </button>
+                <button class="tts-btn tts-btn-stop" id="tts-stop" onclick="ttsStop()" aria-label="停止" title="停止 (Esc)">
+                    ■
+                </button>
+            </div>
+            
+            <!-- 语速控制 -->
+            <div class="speed-control">
+                <label for="tts-rate">语速</label>
+                <input type="range" class="speed-slider" id="tts-rate" min="0.5" max="2" step="0.1" value="1" oninput="updateRate(this.value)">
+                <span class="speed-value" id="rate-display">1.0x</span>
+            </div>
+            
+            <!-- 快捷键提示 -->
+            <div class="shortcuts">
+                <kbd>空格</kbd> 播放/暂停 &nbsp;
+                <kbd>←</kbd><kbd>→</kbd> 切换章节<br>
+                <kbd>↑</kbd><kbd>↓</kbd> 调节语速 &nbsp;
+                <kbd>Esc</kbd> 停止
+            </div>
+        </div>
+        
+        <nav class="toc-nav" aria-label="文档目录">
+            {{ toc_html|safe }}
+        </nav>
+    </aside>
+    
+    <main class="content" id="main-content">
+        {{ content_html|safe }}
+    </main>
+</div>
+
+<!-- 分页导航 -->
+<div class="pagination-nav hidden" id="pagination-nav">
+    <button class="page-nav-btn" id="page-prev" aria-label="上一页">◀</button>
+    <div class="page-info" id="page-info">1 / 1</div>
+    <button class="page-nav-btn" id="page-next" aria-label="下一页">▶</button>
+</div>
+
+<!-- 章节指示器 -->
+<div class="section-indicator" id="section-indicator" aria-live="polite"></div>
+
+<script>
+// 读屏功能实现
+let synth = window.speechSynthesis;
+let utterance = null;
+let currentRate = 1.0;
+let isPaused = false;
+let isPlaying = false;
+let readableElements = [];
+let sectionElements = [];
+let currentIndex = 0;
+let currentSectionIndex = 0;
+
+// 侧边栏功能
+let sidebarWidth = 380;
+let isResizing = false;
+let isSidebarCollapsed = false;
+
+// 分页功能
+let isPaginationMode = false;
+let contentPages = [];
+let currentPage = 0;
+
+// 初始化
+function initReadableElements() {
+    const content = document.getElementById('main-content');
+    readableElements = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li'));
+    sectionElements = Array.from(content.querySelectorAll('h1, h2, h3'));
+    updateProgressDisplay();
+}
+
+// 更新进度显示
+function updateProgressDisplay() {
+    const total = readableElements.length;
+    const current = currentIndex + 1;
+    const percent = total > 0 ? (current / total) * 100 : 0;
+    
+    document.getElementById('progress-fill').style.width = percent + '%';
+    document.getElementById('progress-text').textContent = current + ' / ' + total;
+    
+    // 更新当前章节名称
+    let sectionName = '准备就绪';
+    for (let i = sectionElements.length - 1; i >= 0; i--) {
+        const secIdx = readableElements.indexOf(sectionElements[i]);
+        if (secIdx <= currentIndex) {
+            sectionName = sectionElements[i].textContent.substring(0, 20);
+            if (sectionElements[i].textContent.length > 20) sectionName += '...';
+            currentSectionIndex = i;
+            break;
+        }
+    }
+    document.getElementById('current-section').textContent = sectionName;
+    
+    // 更新目录高亮
+    updateTocHighlight();
+}
+
+// 更新目录高亮
+function updateTocHighlight() {
+    document.querySelectorAll('.toc-nav a').forEach(a => a.classList.remove('active'));
+    if (currentIndex >= 0 && sectionElements[currentSectionIndex]) {
+        const currentId = sectionElements[currentSectionIndex].id;
+        const activeLink = document.querySelector('.toc-nav a[href="#' + currentId + '"]');
+        if (activeLink) activeLink.classList.add('active');
+    }
+}
+
+// 更新按钮状态
+function updatePlayButton() {
+    const icon = document.getElementById('play-icon');
+    const text = document.getElementById('play-text');
+    const btn = document.getElementById('tts-play');
+    
+    if (isPlaying && !isPaused) {
+        icon.textContent = '⏸';
+        text.textContent = '暂停';
+        btn.style.background = '#f59e0b';
+    } else {
+        icon.textContent = '▶';
+        text.textContent = isPaused ? '继续' : '播放';
+        btn.style.background = '#10b981';
+    }
+}
+
+// 高亮当前朗读元素
+function highlightElement(index) {
+    readableElements.forEach(el => el.classList.remove('reading-highlight'));
+    if (index >= 0 && index < readableElements.length) {
+        readableElements[index].classList.add('reading-highlight');
+        readableElements[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    updateProgressDisplay();
+}
+
+// 显示章节提示
+function showSectionIndicator(text) {
+    const indicator = document.getElementById('section-indicator');
+    indicator.innerHTML = '<strong>跳转到：</strong>' + text;
+    indicator.classList.add('visible');
+    setTimeout(() => indicator.classList.remove('visible'), 2000);
+}
+
+// 朗读单个元素
+function speakElement(index) {
+    if (index >= readableElements.length) {
+        ttsStop();
+        document.getElementById('current-section').textContent = '朗读完成';
+        return;
+    }
+    
+    currentIndex = index;
+    highlightElement(index);
+    
+    const text = readableElements[index].textContent.trim();
+    if (!text) {
+        speakElement(index + 1);
+        return;
+    }
+    
+    utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = currentRate;
+    
+    utterance.onend = function() {
+        if (isPlaying && !isPaused) {
+            speakElement(currentIndex + 1);
+        }
+    };
+    
+    utterance.onerror = function(e) {
+        if (isPlaying) speakElement(currentIndex + 1);
+    };
+    
+    synth.speak(utterance);
+}
+
+// 播放/暂停切换
+function ttsToggle() {
+    if (!isPlaying) {
+        ttsPlay(currentIndex);
+    } else if (isPaused) {
+        ttsResume();
+    } else {
+        ttsPause();
+    }
+}
+
+// 开始朗读
+function ttsPlay(startIndex = 0) {
+    if (readableElements.length === 0) initReadableElements();
+    
+    synth.cancel();
+    isPlaying = true;
+    isPaused = false;
+    currentIndex = startIndex;
+    
+    updatePlayButton();
+    speakElement(startIndex);
+}
+
+// 暂停朗读
+function ttsPause() {
+    synth.pause();
+    isPaused = true;
+    updatePlayButton();
+}
+
+// 继续朗读
+function ttsResume() {
+    synth.resume();
+    isPaused = false;
+    updatePlayButton();
+}
+
+// 停止朗读
+function ttsStop() {
+    synth.cancel();
+    isPlaying = false;
+    isPaused = false;
+    currentIndex = 0;
+    
+    readableElements.forEach(el => el.classList.remove('reading-highlight'));
+    updatePlayButton();
+    updateProgressDisplay();
+}
+
+// 上一章节
+function ttsPrev() {
+    if (readableElements.length === 0) initReadableElements();
+    if (sectionElements.length === 0) return;
+    
+    // 先找到当前所在的章节索引
+    let currentSecIdx = -1;
+    for (let i = sectionElements.length - 1; i >= 0; i--) {
+        const secPos = readableElements.indexOf(sectionElements[i]);
+        if (secPos <= currentIndex) {
+            currentSecIdx = i;
+            break;
+        }
+    }
+    
+    // 跳到前一个章节
+    let targetSecIdx = currentSecIdx - 1;
+    if (targetSecIdx < 0) targetSecIdx = 0;
+    
+    const targetIdx = readableElements.indexOf(sectionElements[targetSecIdx]);
+    if (targetIdx >= 0) {
+        showSectionIndicator(sectionElements[targetSecIdx].textContent.substring(0, 25));
+        if (isPlaying) {
+            synth.cancel();
+            speakElement(targetIdx);
+        } else {
+            currentIndex = targetIdx;
+            highlightElement(targetIdx);
+        }
+    }
+}
+
+// 下一章节
+function ttsNext() {
+    if (readableElements.length === 0) initReadableElements();
+    if (sectionElements.length === 0) return;
+    
+    // 先找到当前所在的章节索引
+    let currentSecIdx = -1;
+    for (let i = sectionElements.length - 1; i >= 0; i--) {
+        const secPos = readableElements.indexOf(sectionElements[i]);
+        if (secPos <= currentIndex) {
+            currentSecIdx = i;
+            break;
+        }
+    }
+    
+    // 跳到下一个章节
+    let targetSecIdx = currentSecIdx + 1;
+    if (targetSecIdx >= sectionElements.length) {
+        showSectionIndicator('已是最后章节');
+        return;
+    }
+    
+    const targetIdx = readableElements.indexOf(sectionElements[targetSecIdx]);
+    if (targetIdx >= 0) {
+        showSectionIndicator(sectionElements[targetSecIdx].textContent.substring(0, 25));
+        if (isPlaying) {
+            synth.cancel();
+            speakElement(targetIdx);
+        } else {
+            currentIndex = targetIdx;
+            highlightElement(targetIdx);
+        }
+    }
+}
+
+// 从指定章节开始朗读
+function readFromSection(targetId) {
+    if (readableElements.length === 0) initReadableElements();
+    
+    const targetElement = document.getElementById(targetId);
+    if (!targetElement) {
+        ttsPlay(0);
+        return;
+    }
+    
+    // 找到目标元素在readableElements中的索引
+    let startIndex = readableElements.indexOf(targetElement);
+    if (startIndex === -1) {
+        // 如果目标元素不在列表中，找到它后面最近的元素
+        for (let i = 0; i < readableElements.length; i++) {
+            if (targetElement.compareDocumentPosition(readableElements[i]) & Node.DOCUMENT_POSITION_FOLLOWING) {
+                startIndex = i;
+                break;
+            }
+        }
+        if (startIndex === -1) startIndex = 0;
+    }
+    
+    ttsPlay(startIndex);
+}
+
+// 进度条点击跳转
+function seekProgress(event) {
+    const bar = document.getElementById('progress-bar');
+    const rect = bar.getBoundingClientRect();
+    const percent = (event.clientX - rect.left) / rect.width;
+    const targetIdx = Math.floor(percent * readableElements.length);
+    
+    if (isPlaying) {
+        synth.cancel();
+        speakElement(targetIdx);
+    } else {
+        currentIndex = targetIdx;
+        highlightElement(targetIdx);
+    }
+}
+
+// 更新语速
+function updateRate(value) {
+    currentRate = parseFloat(value);
+    document.getElementById('rate-display').textContent = currentRate.toFixed(1) + 'x';
+    
+    if (isPlaying && !isPaused) {
+        synth.cancel();
+        speakElement(currentIndex);
+    }
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    switch(e.code) {
+        case 'Space':
+            e.preventDefault();
+            ttsToggle();
+            break;
+        case 'Escape':
+            ttsStop();
+            break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            ttsPrev();
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            ttsNext();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            const newRateUp = Math.min(2, currentRate + 0.1);
+            document.getElementById('tts-rate').value = newRateUp;
+            updateRate(newRateUp);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            const newRateDown = Math.max(0.5, currentRate - 0.1);
+            document.getElementById('tts-rate').value = newRateDown;
+            updateRate(newRateDown);
+            break;
+    }
+});
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initReadableElements();
+    enhanceTocLinks();
+    
+    if (!('speechSynthesis' in window)) {
+        document.getElementById('current-section').textContent = '浏览器不支持语音功能';
+        document.querySelectorAll('.tts-btn').forEach(btn => btn.disabled = true);
+    }
+});
+
+// 为目录链接添加播放按钮
+function enhanceTocLinks() {
+    const tocLinks = document.querySelectorAll('.toc-nav a');
+    tocLinks.forEach(link => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'toc-item';
+        
+        const playBtn = document.createElement('button');
+        playBtn.className = 'toc-play-btn';
+        playBtn.innerHTML = '▶';
+        playBtn.setAttribute('aria-label', '从' + link.textContent + '开始朗读');
+        playBtn.setAttribute('title', '从此处朗读');
+        
+        const href = link.getAttribute('href');
+        const targetId = href ? href.substring(1) : '';
+        
+        playBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            readFromSection(targetId);
+        };
+        
+        link.parentNode.insertBefore(wrapper, link);
+        wrapper.appendChild(link);
+        wrapper.appendChild(playBtn);
+    });
+}
+
+// ========== 侧边栏功能 ==========
+
+// 侧边栏折叠/展开
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    isSidebarCollapsed = !isSidebarCollapsed;
+    
+    if (isSidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        toggleBtn.innerHTML = '▶';
+        toggleBtn.setAttribute('title', '展开侧边栏');
+    } else {
+        sidebar.classList.remove('collapsed');
+        toggleBtn.innerHTML = '◀';
+        toggleBtn.setAttribute('title', '收起侧边栏');
+    }
+}
+
+// 侧边栏缩放
+function initSidebarResize() {
+    const sidebar = document.getElementById('sidebar');
+    const resizeHandle = document.getElementById('sidebar-resize');
+    
+    resizeHandle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        
+        const newWidth = e.clientX;
+        if (newWidth >= 60 && newWidth <= 600) {
+            sidebarWidth = newWidth;
+            sidebar.style.width = newWidth + 'px';
+            
+            // 自动折叠/展开
+            if (newWidth < 150 && !isSidebarCollapsed) {
+                toggleSidebar();
+            } else if (newWidth >= 150 && isSidebarCollapsed) {
+                toggleSidebar();
+            }
+        }
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
+}
+
+// ========== 分页功能 ==========
+
+// 初始化分页
+function initPagination() {
+    const content = document.getElementById('main-content');
+    const headers = Array.from(content.querySelectorAll('h1, h2'));
+    
+    if (headers.length === 0) {
+        console.log('没有找到标题，无法分页');
+        return;
+    }
+    
+    contentPages = [];
+    let currentPageContent = [];
+    
+    // 按照标题分页
+    Array.from(content.children).forEach(child => {
+        if ((child.tagName === 'H1' || child.tagName === 'H2') && currentPageContent.length > 0) {
+            contentPages.push(currentPageContent);
+            currentPageContent = [child];
+        } else {
+            currentPageContent.push(child);
+        }
+    });
+    
+    if (currentPageContent.length > 0) {
+        contentPages.push(currentPageContent);
+    }
+    
+    console.log('分页成功，共 ' + contentPages.length + ' 页');
+}
+
+// 切换分页模式
+function togglePaginationMode() {
+    isPaginationMode = !isPaginationMode;
+    const content = document.getElementById('main-content');
+    const paginationNav = document.getElementById('pagination-nav');
+    const toggleBtn = document.getElementById('pagination-toggle');
+    
+    if (isPaginationMode) {
+        // 开启分页模式
+        if (contentPages.length === 0) {
+            initPagination();
+        }
+        
+        if (contentPages.length === 0) {
+            alert('无法分页：文档中没有找到标题');
+            isPaginationMode = false;
+            return;
+        }
+        
+        content.classList.add('pagination-mode');
+        paginationNav.classList.remove('hidden');
+        toggleBtn.textContent = '连续浏览';
+        
+        // 包装每一页
+        wrapPages();
+        showPage(0);
+    } else {
+        // 关闭分页模式
+        content.classList.remove('pagination-mode');
+        paginationNav.classList.add('hidden');
+        toggleBtn.textContent = '分页浏览';
+        
+        // 恢复原始结构
+        unwrapPages();
+    }
+}
+
+// 包装页面
+function wrapPages() {
+    const content = document.getElementById('main-content');
+    const originalChildren = Array.from(content.children);
+    
+    // 清空内容
+    content.innerHTML = '';
+    
+    // 为每一页创建包装器
+    contentPages.forEach((pageElements, index) => {
+        const pageWrapper = document.createElement('div');
+        pageWrapper.className = 'content-page';
+        pageWrapper.id = 'page-' + index;
+        
+        pageElements.forEach(el => {
+            pageWrapper.appendChild(el.cloneNode(true));
+        });
+        
+        content.appendChild(pageWrapper);
+    });
+}
+
+// 解包页面
+function unwrapPages() {
+    const content = document.getElementById('main-content');
+    const pages = Array.from(content.querySelectorAll('.content-page'));
+    
+    // 收集所有元素
+    const allElements = [];
+    pages.forEach(page => {
+        Array.from(page.children).forEach(el => {
+            allElements.push(el.cloneNode(true));
+        });
+    });
+    
+    // 清空并恢复
+    content.innerHTML = '';
+    allElements.forEach(el => content.appendChild(el));
+}
+
+// 显示指定页
+function showPage(pageIndex) {
+    if (pageIndex < 0 || pageIndex >= contentPages.length) return;
+    
+    currentPage = pageIndex;
+    
+    // 隐藏所有页
+    document.querySelectorAll('.content-page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    // 显示当前页
+    const currentPageEl = document.getElementById('page-' + pageIndex);
+    if (currentPageEl) {
+        currentPageEl.classList.add('active');
+        currentPageEl.scrollTop = 0;
+    }
+    
+    // 更新导航
+    updatePaginationNav();
+}
+
+// 更新分页导航
+function updatePaginationNav() {
+    const pageInfo = document.getElementById('page-info');
+    const prevBtn = document.getElementById('page-prev');
+    const nextBtn = document.getElementById('page-next');
+    
+    pageInfo.textContent = (currentPage + 1) + ' / ' + contentPages.length;
+    
+    prevBtn.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage === contentPages.length - 1;
+}
+
+// 上一页
+function prevPage() {
+    if (currentPage > 0) {
+        showPage(currentPage - 1);
+    }
+}
+
+// 下一页
+function nextPage() {
+    if (currentPage < contentPages.length - 1) {
+        showPage(currentPage + 1);
+    }
+}
+
+// ========== 事件监听 ==========
+
+// 侧边栏折叠按钮
+document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+// 分页切换按钮
+document.getElementById('pagination-toggle').addEventListener('click', togglePaginationMode);
+
+// 分页导航按钮
+document.getElementById('page-prev').addEventListener('click', prevPage);
+document.getElementById('page-next').addEventListener('click', nextPage);
+
+// 键盘快捷键增强
+const originalKeyHandler = document.onkeydown;
+document.addEventListener('keydown', function(e) {
+    // 分页模式下的快捷键
+    if (isPaginationMode && !e.ctrlKey && !e.metaKey) {
+        if (e.code === 'PageUp' || e.code === 'ArrowUp') {
+            e.preventDefault();
+            prevPage();
+        } else if (e.code === 'PageDown' || e.code === 'ArrowDown') {
+            e.preventDefault();
+            nextPage();
+        }
+    }
+    
+    // Ctrl+B 切换侧边栏
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyB') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+    
+    // Ctrl+P 切换分页模式
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyP') {
+        e.preventDefault();
+        togglePaginationMode();
+    }
+});
+
+// 初始化侧边栏缩放
+initSidebarResize();
+</script>
+</body>
+</html>

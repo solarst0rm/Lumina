@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block page_title %}我的笔记{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2><i class="fas fa-book"></i> 我的笔记</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 25px;">
+        查看您保存的所有学习笔记和处理记录
+    </p>
+
+    {% if notes %}
+        <div style="display: grid; gap: 20px;">
+            {% for note in notes %}
+            <div class="card" style="margin: 0; padding: 20px; background-color: var(--background-color);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <h3 style="color: var(--primary-color); margin: 0; flex: 1;">
+                        <i class="fas fa-file-alt"></i> {{ note.title }}
+                    </h3>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                        <i class="fas fa-calendar"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </span>
+                </div>
+                <div style="border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; background-color: white; max-height: 200px; overflow-y: auto;">
+                    <pre style="margin: 0; white-space: pre-wrap; font-family: inherit; color: var(--text-primary);">{{ note.content }}</pre>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <form action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
+                        <input type="hidden" name="text" value="{{ note.content }}">
+                        <button type="submit" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-braille"></i> 转换为盲文
+                        </button>
+                    </form>
+                    <button class="btn btn-danger btn-sm" onclick="deleteNote({{ note.id }})">
+                        <i class="fas fa-trash"></i> 删除
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+            <i class="fas fa-book-open" style="font-size: 4rem; color: var(--border-color); margin-bottom: 20px;"></i>
+            <h3>暂无笔记</h3>
+            <p>开始上传学习资料，系统会自动为您生成笔记</p>
+            <a href="{{ url_for('index') }}" class="btn" style="margin-top: 20px;">
+                <i class="fas fa-upload"></i> 上传第一个文件
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function deleteNote(noteId) {
+    if (confirm('确定要删除这条笔记吗？')) {
+        // 这里可以添加删除笔记的AJAX请求
+        // 暂时显示提示信息
+        alert('删除功能开发中，请联系管理员');
+    }
+}
+
+// 添加小按钮样式
+const style = document.createElement('style');
+style.textContent = `
+    .btn-sm {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

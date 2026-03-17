@@ -1,0 +1,831 @@
+{% extends "layout.html" %}
+
+{% block page_title %}练习闯关{% endblock %}
+
+{% block content %}
+<style>
+    .quiz-topbar {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 18px;
+    }
+
+    .quiz-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+    }
+
+    .quiz-choice-btn,
+    .quiz-option-btn,
+    .quiz-action-btn {
+        width: 100%;
+        min-height: 58px;
+        font-size: 1rem;
+    }
+
+    .quiz-choice-btn,
+    .quiz-action-btn {
+        justify-content: center;
+    }
+
+    .quiz-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--text-secondary);
+    }
+
+    .quiz-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .quiz-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 107, 53, 0.12);
+        color: var(--primary-color);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+    }
+
+    .quiz-question {
+        font-size: 1.15rem;
+        line-height: 1.9;
+        margin-bottom: 18px;
+    }
+
+    .quiz-options {
+        display: grid;
+        gap: 12px;
+    }
+
+    .quiz-option-btn {
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-primary);
+        border-radius: 12px;
+        padding: 16px 18px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+
+    .quiz-option-btn:hover,
+    .quiz-option-btn:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.08);
+    }
+
+    .quiz-option-btn[disabled] {
+        opacity: 0.78;
+        cursor: not-allowed;
+    }
+
+    .quiz-option-key {
+        display: block;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 4px;
+    }
+
+    .quiz-feedback {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: rgba(56, 161, 105, 0.08);
+        border: 1px solid rgba(56, 161, 105, 0.16);
+        display: none;
+        white-space: pre-wrap;
+        line-height: 1.8;
+    }
+
+    .quiz-feedback.error {
+        background: rgba(229, 62, 62, 0.08);
+        border-color: rgba(229, 62, 62, 0.18);
+    }
+
+    .quiz-feedback-actions {
+        display: none;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        flex-shrink: 0;
+    }
+
+    .quiz-loading-mask {
+        position: fixed;
+        inset: 0;
+        background: rgba(45, 55, 72, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10020;
+    }
+
+    .quiz-loading-box {
+        background: white;
+        border-radius: 16px;
+        padding: 28px 32px;
+        min-width: 280px;
+        text-align: center;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+
+    @media (max-width: 768px) {
+        .quiz-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .quiz-feedback-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .quiz-choice-btn,
+        .quiz-option-btn,
+        .quiz-action-btn {
+            min-height: 54px;
+            font-size: 0.95rem;
+        }
+
+        .quiz-question {
+            font-size: 1.02rem;
+        }
+    }
+</style>
+
+<div class="quiz-topbar">
+    <a href="{{ url_for('result_page') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> 返回上一级
+    </a>
+</div>
+
+<div id="difficulty-card" class="card">
+    <div class="quiz-grid">
+        <button class="btn quiz-choice-btn" data-difficulty="简单">简单</button>
+        <button class="btn btn-secondary quiz-choice-btn" data-difficulty="进阶">进阶</button>
+        <button class="btn btn-danger quiz-choice-btn" data-difficulty="困难">困难</button>
+        <button class="btn quiz-choice-btn" data-skip="1" style="background-color: var(--sidebar-bg);">跳过</button>
+    </div>
+</div>
+
+<div id="question-card" class="card" style="display:none;">
+    <div class="quiz-header">
+        <div class="quiz-meta">
+            <span id="difficulty-badge" class="quiz-badge"></span>
+            <span id="question-progress"></span>
+        </div>
+        <div id="feedback-actions" class="quiz-feedback-actions"></div>
+    </div>
+    <div id="question-text" class="quiz-question"></div>
+    <div id="options-box" class="quiz-options"></div>
+    <div id="feedback-box" class="quiz-feedback"></div>
+</div>
+
+<div id="decision-card" class="card" style="display:none;">
+    <h3 id="decision-title" style="color: var(--primary-color); margin-bottom: 10px;"></h3>
+    <p id="decision-text" style="color: var(--text-secondary); margin-bottom: 18px;"></p>
+    <div id="decision-actions" class="quiz-grid"></div>
+</div>
+
+<div id="quiz-loading-mask" class="quiz-loading-mask">
+    <div class="quiz-loading-box">
+        <div class="spinner" style="margin-bottom: 16px;"></div>
+        <p id="quiz-loading-text" style="margin: 0; color: var(--text-secondary);">正在处理，请稍候…</p>
+    </div>
+</div>
+
+<div id="quiz-live-region" class="sr-only" aria-live="polite"></div>
+
+<script>
+window._quizVoiceMode = true;
+window._disableGlobalAIAssistantHotkeys = true;
+window._sumText = '';
+window._exText = {{ exercise_markdown | tojson }};
+
+let quizData = {{ quiz_data | tojson }};
+const difficultyOrder = ['简单', '进阶', '困难'];
+const state = {
+    currentDifficulty: null,
+    questionIndex: 0,
+    waitingAction: 'difficulty',
+    answeredLocked: false,
+};
+
+let recognition = null;
+let isRecording = false;
+let lastTranscript = '';
+let currentMouseListening = false;
+let currentSpaceListening = false;
+
+const liveRegion = document.getElementById('quiz-live-region');
+const difficultyCard = document.getElementById('difficulty-card');
+const questionCard = document.getElementById('question-card');
+const decisionCard = document.getElementById('decision-card');
+const decisionTitle = document.getElementById('decision-title');
+const decisionText = document.getElementById('decision-text');
+const decisionActions = document.getElementById('decision-actions');
+const difficultyBadge = document.getElementById('difficulty-badge');
+const questionProgress = document.getElementById('question-progress');
+const questionText = document.getElementById('question-text');
+const optionsBox = document.getElementById('options-box');
+const feedbackBox = document.getElementById('feedback-box');
+const feedbackActions = document.getElementById('feedback-actions');
+const loadingMask = document.getElementById('quiz-loading-mask');
+const loadingText = document.getElementById('quiz-loading-text');
+const backToResultLink = document.querySelector('.quiz-topbar a');
+
+function stopSpeechPlayback() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+function speak(text, callback) {
+    liveRegion.textContent = text || '';
+    if (!window.speechSynthesis || !text) {
+        if (callback) callback();
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = window._rate || 1;
+    if (callback) {
+        utterance.onend = callback;
+    }
+    window.speechSynthesis.speak(utterance);
+}
+
+function announce(text) {
+    speak(text);
+}
+
+function showLoading(text) {
+    loadingText.textContent = text;
+    loadingMask.style.display = 'flex';
+}
+
+function hideLoading() {
+    loadingMask.style.display = 'none';
+}
+
+function getCurrentQuestions() {
+    return quizData.difficulties[state.currentDifficulty] || [];
+}
+
+function getCurrentQuestion() {
+    return getCurrentQuestions()[state.questionIndex];
+}
+
+function nextDifficulty() {
+    const currentIndex = difficultyOrder.indexOf(state.currentDifficulty);
+    if (currentIndex === -1 || currentIndex === difficultyOrder.length - 1) {
+        return null;
+    }
+    return difficultyOrder[currentIndex + 1];
+}
+
+function buildQuestionSpeech(question) {
+    const options = question.options.map(option => `${option.key}，${option.text}`).join('。');
+    return `${state.currentDifficulty}模式，第${state.questionIndex + 1}题。${question.question}。选项如下。${options}。请选择。`;
+}
+
+function buildAnswerLabel(question) {
+    const option = question.options.find(item => item.key === question.answer);
+    return option ? `${option.key}，${option.text}` : question.answer;
+}
+
+function hideFeedback() {
+    feedbackBox.style.display = 'none';
+    feedbackBox.textContent = '';
+    feedbackBox.classList.remove('error');
+    feedbackActions.style.display = 'none';
+    feedbackActions.innerHTML = '';
+}
+
+function showFeedback(text, isError) {
+    feedbackBox.style.display = 'block';
+    feedbackBox.textContent = text;
+    feedbackBox.classList.toggle('error', !!isError);
+}
+
+function renderActionButtons(container, actions) {
+    container.innerHTML = '';
+    actions.forEach(action => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn quiz-action-btn ${action.className || ''}`.trim();
+        button.textContent = action.label;
+        button.addEventListener('click', action.onClick);
+        container.appendChild(button);
+    });
+}
+
+function lockOptions(locked) {
+    const buttons = optionsBox.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.disabled = locked;
+    });
+}
+
+function renderQuestion() {
+    const question = getCurrentQuestion();
+    if (!question) {
+        onDifficultyFinished();
+        return;
+    }
+
+    state.waitingAction = 'question';
+    state.answeredLocked = false;
+    hideFeedback();
+    difficultyCard.style.display = 'none';
+    decisionCard.style.display = 'none';
+    questionCard.style.display = 'block';
+
+    difficultyBadge.textContent = `${state.currentDifficulty}模式`;
+    questionProgress.textContent = `第 ${state.questionIndex + 1} / ${getCurrentQuestions().length} 题`;
+    questionText.textContent = question.question;
+    optionsBox.innerHTML = '';
+
+    question.options.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'quiz-option-btn';
+        button.type = 'button';
+        button.innerHTML = `
+            <span class="quiz-option-key">${option.key}</span>
+            <span>${option.text}</span>
+        `;
+        button.addEventListener('click', function() {
+            submitAnswer(option.key);
+        });
+        optionsBox.appendChild(button);
+    });
+
+    announce(buildQuestionSpeech(question));
+}
+
+function startDifficulty(difficulty) {
+    state.currentDifficulty = difficulty;
+    state.questionIndex = 0;
+    renderQuestion();
+}
+
+function proceedAfterAnswer() {
+    stopSpeechPlayback();
+    const questionCount = getCurrentQuestions().length;
+    if (state.questionIndex < questionCount - 1) {
+        state.questionIndex += 1;
+        renderQuestion();
+        return;
+    }
+    onDifficultyFinished();
+}
+
+function playTone(kind) {
+    const audioMap = {
+        success: '/static/audio/quiz-correct.mp3',
+        error: '/static/audio/quiz-wrong.mp3',
+    };
+    const audio = new Audio(audioMap[kind]);
+    audio.play().catch(function() {
+        playFallbackTone(kind);
+    });
+}
+
+function playFallbackTone(kind) {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            return;
+        }
+        const context = new AudioContextClass();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.value = kind === 'success' ? 880 : 240;
+        gainNode.gain.setValueAtTime(0.25, context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.45);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.45);
+        oscillator.onended = function() {
+            context.close();
+        };
+    } catch (error) {
+        console.warn('音效播放失败', error);
+    }
+}
+
+function submitAnswer(selectedKey) {
+    if (state.waitingAction !== 'question' || state.answeredLocked) {
+        return;
+    }
+
+    const question = getCurrentQuestion();
+    if (!question) {
+        return;
+    }
+
+    state.answeredLocked = true;
+    state.waitingAction = 'after_answer';
+    lockOptions(true);
+
+    const isLastQuestion = state.questionIndex === getCurrentQuestions().length - 1;
+    const nextLabel = isLastQuestion ? '完成本轮' : '下一题';
+
+    if (selectedKey === question.answer) {
+        playTone('success');
+        showFeedback('回答正确：太棒啦', false);
+        renderActionButtons(feedbackActions, [
+            {
+                label: nextLabel,
+                className: 'btn-success',
+                onClick: proceedAfterAnswer,
+            }
+        ]);
+        feedbackActions.style.display = 'flex';
+        announce('太棒啦。准备好后请选择下一题。');
+        return;
+    }
+
+    const correctLabel = buildAnswerLabel(question);
+    playTone('error');
+    showFeedback(`回答错误\n正确答案：${correctLabel}\n解析：${question.explanation}`, true);
+    renderActionButtons(feedbackActions, [
+        {
+            label: nextLabel,
+            className: 'btn-secondary',
+            onClick: proceedAfterAnswer,
+        }
+    ]);
+    feedbackActions.style.display = 'flex';
+    announce(`可惜，这题正确答案是${correctLabel}哦~ ${question.explanation}。准备好后请选择下一题。`);
+}
+
+function renderDecision(title, text, actions, speechText, waitingAction) {
+    questionCard.style.display = 'none';
+    difficultyCard.style.display = 'none';
+    decisionCard.style.display = 'block';
+    state.waitingAction = waitingAction;
+    decisionTitle.textContent = title;
+    decisionText.textContent = text;
+    renderActionButtons(decisionActions, actions);
+    announce(speechText || text);
+}
+
+function onDifficultyFinished() {
+    const upcoming = nextDifficulty();
+    if (upcoming) {
+        renderDecision(
+            `${state.currentDifficulty}模式完成`,
+            '是否继续答题？',
+            [
+                {
+                    label: '继续',
+                    className: 'btn-success',
+                    onClick: function() {
+                        startDifficulty(upcoming);
+                    },
+                },
+                {
+                    label: '结束',
+                    className: 'btn-secondary',
+                    onClick: finishQuiz,
+                }
+            ],
+            '是否继续答题？请选择继续或结束。',
+            'continue'
+        );
+        return;
+    }
+
+    renderDecision(
+        '全部完成',
+        '恭喜你完成所有练习，了不起！',
+        [
+            {
+                label: '继续生成习题',
+                className: 'btn-success',
+                onClick: regenerateExercises,
+            },
+            {
+                label: '结束',
+                className: 'btn-secondary',
+                onClick: finishQuiz,
+            }
+        ],
+        '恭喜你完成所有练习，了不起！请选择继续生成习题或结束。',
+        'complete'
+    );
+}
+
+function finishQuiz() {
+    window.location.href = "{{ url_for('exercise_actions') }}";
+}
+
+function showDifficultySelection() {
+    state.currentDifficulty = null;
+    state.questionIndex = 0;
+    state.waitingAction = 'difficulty';
+    state.answeredLocked = false;
+    questionCard.style.display = 'none';
+    decisionCard.style.display = 'none';
+    difficultyCard.style.display = 'block';
+    hideFeedback();
+    announce('请选择你想挑战的难度。你也可以选择跳过。');
+}
+
+function regenerateExercises() {
+    showLoading('正在重新生成练习题，请稍候…');
+    fetch("{{ url_for('api_regenerate_exercise') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        hideLoading();
+        if (!data.success) {
+            announce(data.error || '重新生成失败，请稍后重试。');
+            return;
+        }
+        quizData = data.quiz_data;
+        window._exText = data.exercise_markdown || '';
+        showDifficultySelection();
+    })
+    .catch(function(error) {
+        hideLoading();
+        announce(`重新生成失败：${error.message}`);
+    });
+}
+
+function normalizeText(text) {
+    return (text || '')
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .replace(/[，。！？、,.!?]/g, '');
+}
+
+function matchOptionBySpeech(question, transcript) {
+    const normalized = normalizeText(transcript);
+    const aliasMap = {
+        A: ['a', '选a', 'a项', '诶', '欸', '第一项', '第一个'],
+        B: ['b', '选b', 'b项', '比', '第二项', '第二个'],
+        C: ['c', '选c', 'c项', '西', '希', '第三项', '第三个'],
+        D: ['d', '选d', 'd项', '第四项', '第四个', '弟'],
+    };
+
+    for (const option of question.options) {
+        const aliases = aliasMap[option.key] || [];
+        if (aliases.some(item => normalized.includes(normalizeText(item)))) {
+            return option.key;
+        }
+
+        const optionText = normalizeText(option.text);
+        if (optionText && optionText.length >= 2 && normalized.includes(optionText)) {
+            return option.key;
+        }
+    }
+
+    return null;
+}
+
+function handleVoiceCommand(transcript) {
+    const normalized = normalizeText(transcript);
+    if (!normalized) {
+        return;
+    }
+
+    if (state.waitingAction === 'difficulty') {
+        if (normalized.includes('简单')) {
+            startDifficulty('简单');
+            return;
+        }
+        if (normalized.includes('进阶') || normalized.includes('中等')) {
+            startDifficulty('进阶');
+            return;
+        }
+        if (normalized.includes('困难')) {
+            startDifficulty('困难');
+            return;
+        }
+        if (normalized.includes('跳过') || normalized.includes('结束')) {
+            finishQuiz();
+            return;
+        }
+        announce('没有识别到难度选项，请说简单、进阶、困难或跳过。');
+        return;
+    }
+
+    if (state.waitingAction === 'question') {
+        const question = getCurrentQuestion();
+        const matchedOption = question ? matchOptionBySpeech(question, transcript) : null;
+        if (matchedOption) {
+            submitAnswer(matchedOption);
+            return;
+        }
+        announce('没有识别到答案选项，请再说一次。');
+        return;
+    }
+
+    if (state.waitingAction === 'after_answer') {
+        if (normalized.includes('下一题') || normalized.includes('继续')) {
+            proceedAfterAnswer();
+            return;
+        }
+        announce('请说下一题。');
+        return;
+    }
+
+    if (state.waitingAction === 'continue') {
+        if (normalized.includes('继续')) {
+            const upcoming = nextDifficulty();
+            if (upcoming) {
+                startDifficulty(upcoming);
+                return;
+            }
+        }
+        if (normalized.includes('结束') || normalized.includes('跳过')) {
+            finishQuiz();
+            return;
+        }
+        announce('请说继续或结束。');
+        return;
+    }
+
+    if (state.waitingAction === 'complete') {
+        if (normalized.includes('继续生成') || normalized.includes('重新生成') || normalized === '继续') {
+            regenerateExercises();
+            return;
+        }
+        if (normalized.includes('结束')) {
+            finishQuiz();
+            return;
+        }
+        announce('请说继续生成习题或结束。');
+    }
+}
+
+function ensureRecognition() {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+        announce('当前浏览器不支持语音输入，请直接点击按钮作答。');
+        return false;
+    }
+
+    if (!recognition) {
+        recognition = new SpeechRecognitionClass();
+        recognition.lang = 'zh-CN';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onresult = function(event) {
+            let transcript = '';
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+                transcript += event.results[index][0].transcript;
+            }
+            lastTranscript = transcript;
+        };
+
+        recognition.onerror = function(event) {
+            isRecording = false;
+            currentMouseListening = false;
+            currentSpaceListening = false;
+            if (event.error !== 'aborted') {
+                announce('语音识别失败，请再试一次。');
+            }
+        };
+
+        recognition.onend = function() {
+            const transcript = lastTranscript.trim();
+            isRecording = false;
+            currentMouseListening = false;
+            currentSpaceListening = false;
+            lastTranscript = '';
+            if (transcript) {
+                handleVoiceCommand(transcript);
+            }
+        };
+    }
+
+    return true;
+}
+
+function startVoiceCapture(source) {
+    if (!ensureRecognition() || isRecording) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    lastTranscript = '';
+    isRecording = true;
+    if (source === 'mouse') {
+        currentMouseListening = true;
+    }
+    if (source === 'space') {
+        currentSpaceListening = true;
+    }
+    try {
+        recognition.start();
+    } catch (error) {
+        isRecording = false;
+        currentMouseListening = false;
+        currentSpaceListening = false;
+        announce('语音识别启动失败，请再试一次。');
+    }
+}
+
+function stopVoiceCapture(source) {
+    if (!isRecording || !recognition) {
+        return;
+    }
+    if (source === 'mouse' && !currentMouseListening) {
+        return;
+    }
+    if (source === 'space' && !currentSpaceListening) {
+        return;
+    }
+    recognition.stop();
+}
+
+function bindVoiceEvents() {
+    document.addEventListener('mousedown', function(event) {
+        if (event.button !== 0) {
+            return;
+        }
+        startVoiceCapture('mouse');
+    }, true);
+
+    document.addEventListener('mouseup', function(event) {
+        if (event.button !== 0) {
+            return;
+        }
+        stopVoiceCapture('mouse');
+    }, true);
+
+    document.addEventListener('keydown', function(event) {
+        const inInput = event.target && (
+            event.target.tagName === 'INPUT' ||
+            event.target.tagName === 'TEXTAREA' ||
+            event.target.isContentEditable
+        );
+        if (inInput || event.code !== 'Space' || event.repeat) {
+            return;
+        }
+        event.preventDefault();
+        startVoiceCapture('space');
+    }, true);
+
+    document.addEventListener('keyup', function(event) {
+        if (event.code !== 'Space') {
+            return;
+        }
+        event.preventDefault();
+        stopVoiceCapture('space');
+    }, true);
+}
+
+function bindButtons() {
+    document.querySelectorAll('[data-difficulty]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            startDifficulty(button.getAttribute('data-difficulty'));
+        });
+    });
+
+    document.querySelector('[data-skip]').addEventListener('click', finishQuiz);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (backToResultLink) {
+        backToResultLink.addEventListener('click', function() {
+            stopSpeechPlayback();
+        });
+    }
+    bindButtons();
+    bindVoiceEvents();
+    showDifficultySelection();
+});
+</script>
+{% endblock %}

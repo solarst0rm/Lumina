@@ -1,0 +1,613 @@
+{% extends "layout.html" %}
+
+{% block page_title %}处理结果{% endblock %}
+
+{% block content %}
+<style>
+.summary-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.summary-layout.summary-layout--single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.summary-toc-panel {
+    position: sticky;
+    top: 20px;
+    padding: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 107, 53, 0.08), rgba(255, 210, 63, 0.12));
+}
+
+.summary-toc-panel.is-hidden .summary-toc {
+    display: none;
+}
+
+.summary-toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.summary-toc-note {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.summary-toc {
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.summary-toc .toc {
+    margin: 0;
+}
+
+.summary-toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.summary-toc li {
+    margin: 0;
+}
+
+.summary-toc li + li {
+    margin-top: 8px;
+}
+
+.summary-toc li > ul {
+    display: none;
+    margin: 8px 0 0 16px;
+    padding-left: 12px;
+    border-left: 2px solid rgba(255, 107, 53, 0.18);
+}
+
+.summary-toc li.is-expanded > ul {
+    display: block;
+}
+
+.summary-toc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-toc-toggle {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 107, 53, 0.28);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.summary-toc-toggle:hover {
+    background: rgba(255, 107, 53, 0.08);
+}
+
+.summary-toc-toggle.is-leaf {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.summary-toc a {
+    display: block;
+    flex: 1;
+    text-decoration: none;
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.summary-toc a:hover,
+.summary-toc a.active {
+    background: rgba(255, 107, 53, 0.12);
+    color: var(--primary-color);
+}
+
+.markdown-preview {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--background-color);
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.markdown-rendered {
+    color: var(--text-primary);
+    line-height: 1.9;
+    font-size: 16px;
+}
+
+.markdown-rendered > :first-child {
+    margin-top: 0;
+}
+
+.markdown-rendered h1,
+.markdown-rendered h2,
+.markdown-rendered h3,
+.markdown-rendered h4 {
+    line-height: 1.4;
+    scroll-margin-top: 24px;
+}
+
+.markdown-rendered h1 {
+    margin: 0 0 20px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid rgba(255, 107, 53, 0.3);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.markdown-rendered h2 {
+    margin: 28px 0 14px;
+    padding-left: 14px;
+    border-left: 5px solid var(--primary-color);
+    font-size: 1.45rem;
+    font-weight: 800;
+}
+
+.markdown-rendered h3 {
+    margin: 22px 0 12px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+}
+
+.markdown-rendered p,
+.markdown-rendered li {
+    margin-bottom: 12px;
+}
+
+.markdown-rendered ul,
+.markdown-rendered ol {
+    padding-left: 24px;
+    margin: 0 0 16px;
+}
+
+.markdown-rendered blockquote {
+    margin: 18px 0;
+    padding: 12px 16px;
+    border-left: 4px solid var(--accent-color);
+    background: rgba(255, 210, 63, 0.12);
+    border-radius: 0 10px 10px 0;
+}
+
+.markdown-rendered strong {
+    color: #9c4221;
+    font-weight: 800;
+}
+
+.markdown-rendered code {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(45, 55, 72, 0.08);
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 0.95em;
+}
+
+.markdown-rendered pre {
+    margin: 18px 0;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    background: #1f2937;
+    color: #f8fafc;
+}
+
+.markdown-rendered pre code {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.markdown-rendered table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    background: #fff;
+}
+
+.markdown-rendered th,
+.markdown-rendered td {
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.markdown-rendered th {
+    background: rgba(255, 107, 53, 0.08);
+    font-weight: 700;
+}
+
+.markdown-rendered hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 24px 0;
+}
+
+@media (max-width: 960px) {
+    .summary-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-toc-panel {
+        position: static;
+    }
+
+    .markdown-preview {
+        max-height: none;
+    }
+}
+</style>
+
+<div class="card" style="padding: 15px; margin-bottom: 15px;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <strong style="color: var(--primary-color);">语音控制：</strong>
+        <button class="btn" onclick="speakSummary()" title="快捷键 S">
+            <i class="fas fa-volume-up"></i> 朗读总结 [S]
+        </button>
+        <button class="btn btn-secondary" onclick="toggleSpeechPause()">
+            <i class="fas fa-pause"></i> 暂停/继续 [空格]
+        </button>
+        <button class="btn btn-danger" onclick="window.speechSynthesis.cancel()">
+            <i class="fas fa-stop"></i> 停止 [X]
+        </button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;">
+            语速：
+            <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.1"
+                value="1.0"
+                id="rate-slider-flask"
+                oninput="window._rate=parseFloat(this.value); document.getElementById('rate-val').textContent=this.value+'x'"
+            >
+            <span id="rate-val">1.0x</span>
+        </label>
+    </div>
+</div>
+
+<div id="summary-card" class="card">
+    <h2><i class="fas fa-check-circle" style="color: var(--success-color);"></i> 处理完成</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 25px;">
+        文档总结和练习题都已经准备好了。现在可以先查看总结，再进入答题闯关页。
+    </p>
+
+    <div class="card" style="margin: 0 0 25px 0; padding: 20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom: 15px;">
+            <h3 style="color: var(--primary-color); margin: 0;">
+                <i class="fas fa-file-alt"></i> 文档总结
+            </h3>
+            {% if summary_toc_html %}
+            <button type="button" class="btn btn-secondary" id="toggle-summary-toc" aria-expanded="true">
+                <i class="fas fa-list"></i> 收起目录
+            </button>
+            {% endif %}
+        </div>
+
+        <div class="summary-layout{% if not summary_toc_html %} summary-layout--single{% endif %}">
+            {% if summary_toc_html %}
+            <aside class="summary-toc-panel" id="summary-toc-panel">
+                <div class="summary-toc-header">
+                    <strong style="color: var(--primary-color);">目录索引</strong>
+                    <span class="summary-toc-note">默认只展开一级标题</span>
+                </div>
+                <nav class="summary-toc" id="summary-toc" aria-label="文档目录">
+                    {{ summary_toc_html | safe }}
+                </nav>
+            </aside>
+            {% endif %}
+
+            <div class="markdown-preview">
+                <article class="markdown-rendered" id="summary-rendered">
+                    {% if summary_html %}
+                    {{ summary_html | safe }}
+                    {% else %}
+                    <div style="white-space: pre-wrap;">{{ summary }}</div>
+                    {% endif %}
+                </article>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <form action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
+                <textarea name="text" style="display:none;">{{ summary }}</textarea>
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fas fa-braille"></i> 生成总结盲文
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(247,147,30,0.12)); border: 1px solid rgba(255,107,53,0.18);">
+        <h3 style="color: var(--primary-color); margin-bottom: 10px;">
+            <i class="fas fa-flag-checkered"></i> 练习闯关已就绪
+        </h3>
+        <p style="color: var(--text-secondary); margin-bottom: 18px;">
+            点击“生成练习题”后会进入新的答题页面，你可以直接点选，也可以长按鼠标左键或空格进行语音操作。
+        </p>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <a id="btn-gen-exercise" class="btn btn-success" href="{{ url_for('exercise_challenge') }}">
+                <i class="fas fa-pencil-alt"></i> 生成练习题
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fas fa-upload"></i> 上传新文件
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if status %}
+<div class="card" style="background-color: rgba(56, 161, 105, 0.1); border-left: 4px solid var(--success-color);">
+    <h3 style="color: var(--success-color); margin-bottom: 10px;">
+        <i class="fas fa-info-circle"></i> 处理状态
+    </h3>
+    <p style="margin: 0; color: var(--text-primary);">{{ status }}</p>
+</div>
+{% endif %}
+
+<script>
+window._sumText = {{ summary | tojson }};
+window._exText = {{ exercise | tojson }};
+window._uploadedFileName = {{ uploaded_filename | default('') | tojson }};
+const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
+const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
+const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | tojson }};
+
+function readSessionJson(key) {
+    if (!window.sessionStorage) {
+        return null;
+    }
+
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        return null;
+    }
+}
+
+function clearProcessingFeedbackState() {
+    if (!window.sessionStorage) {
+        return;
+    }
+    window.sessionStorage.removeItem(PROCESSING_AUDIO_STATE_KEY);
+    window.sessionStorage.removeItem(PROCESSING_STATUS_KEY);
+}
+
+function speakProcessingComplete() {
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance('\u6587\u6863\u5904\u7406\u5b8c\u6210\uff01');
+    utterance.lang = 'zh-CN';
+    utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+function finishProcessingFeedback() {
+    const processingStatus = readSessionJson(PROCESSING_STATUS_KEY);
+    if (!processingStatus || !processingStatus.pending) {
+        return;
+    }
+
+    const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
+    clearProcessingFeedbackState();
+
+    if (!audioState || !audioState.active) {
+        speakProcessingComplete();
+        return;
+    }
+
+    const audio = new Audio(WAITING_AUDIO_URL);
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = Math.max(0.05, Math.min(0.28, Number(audioState.volume) || 0.28));
+
+    try {
+        audio.currentTime = Math.max(0, Number(audioState.currentTime) || 0);
+    } catch (error) {
+        audio.currentTime = 0;
+    }
+
+    const finalize = function() {
+        audio.pause();
+        speakProcessingComplete();
+    };
+
+    const startFadeOut = function() {
+        const initialVolume = audio.volume;
+        let step = 0;
+        const totalSteps = 12;
+        const fadeTimer = window.setInterval(function() {
+            step += 1;
+            audio.volume = Math.max(0, initialVolume * (1 - step / totalSteps));
+            if (step >= totalSteps) {
+                window.clearInterval(fadeTimer);
+                finalize();
+            }
+        }, 120);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(startFadeOut).catch(function() {
+            finalize();
+        });
+    } else {
+        startFadeOut();
+    }
+}
+
+function speakSummary() {
+    if (!window._sumText) {
+        alert('没有总结内容');
+        return;
+    }
+    window._allSections = window.splitSections(window._sumText);
+    window._sectionIdx = 0;
+    window._currentSource = 'sum';
+    window.speakFromIndex();
+}
+
+function toggleSpeechPause() {
+    if (!window.speechSynthesis) {
+        return;
+    }
+    if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+    } else {
+        window.speechSynthesis.pause();
+    }
+}
+
+function updateTocToggleState(toggleButton, expanded) {
+    if (!toggleButton) {
+        return;
+    }
+    toggleButton.textContent = expanded ? '-' : '+';
+    toggleButton.setAttribute('aria-expanded', String(expanded));
+}
+
+function expandTocAncestors(listItem) {
+    let current = listItem;
+    while (current) {
+        current.classList.add('is-expanded');
+        const row = current.firstElementChild;
+        const toggleButton = row ? row.querySelector('.summary-toc-toggle') : null;
+        updateTocToggleState(toggleButton, true);
+        const parentList = current.parentElement;
+        current = parentList ? parentList.closest('li') : null;
+    }
+}
+
+function setActiveTocLink(hash) {
+    const toc = document.getElementById('summary-toc');
+    if (!toc || !hash) {
+        return;
+    }
+
+    toc.querySelectorAll('a').forEach((link) => link.classList.remove('active'));
+    const activeLink = toc.querySelector(`a[href="${hash}"]`);
+    if (!activeLink) {
+        return;
+    }
+
+    activeLink.classList.add('active');
+    expandTocAncestors(activeLink.closest('li'));
+}
+
+function initSummaryToc() {
+    const tocRoot = document.getElementById('summary-toc');
+    if (!tocRoot) {
+        return;
+    }
+
+    tocRoot.querySelectorAll('li').forEach((item) => {
+        const directLink = Array.from(item.children).find((child) => child.tagName === 'A');
+        const childList = Array.from(item.children).find((child) => child.tagName === 'UL');
+        if (!directLink) {
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'summary-toc-row';
+        item.insertBefore(row, directLink);
+        row.appendChild(directLink);
+
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'summary-toc-toggle';
+        row.insertBefore(toggleButton, directLink);
+
+        if (childList) {
+            updateTocToggleState(toggleButton, false);
+            toggleButton.setAttribute('aria-label', `展开 ${directLink.textContent.trim()} 的子目录`);
+            toggleButton.addEventListener('click', () => {
+                const expanded = item.classList.toggle('is-expanded');
+                updateTocToggleState(toggleButton, expanded);
+            });
+        } else {
+            toggleButton.classList.add('is-leaf');
+            toggleButton.setAttribute('tabindex', '-1');
+            toggleButton.setAttribute('aria-hidden', 'true');
+            toggleButton.textContent = '+';
+        }
+
+        directLink.addEventListener('click', () => {
+            setActiveTocLink(directLink.getAttribute('href'));
+        });
+    });
+
+    const panel = document.getElementById('summary-toc-panel');
+    const panelToggle = document.getElementById('toggle-summary-toc');
+    if (panel && panelToggle) {
+        panelToggle.addEventListener('click', () => {
+            const hidden = panel.classList.toggle('is-hidden');
+            panelToggle.setAttribute('aria-expanded', String(!hidden));
+            panelToggle.innerHTML = hidden
+                ? '<i class="fas fa-list"></i> 展开目录'
+                : '<i class="fas fa-list"></i> 收起目录';
+        });
+    }
+
+    const scrollRoot = document.querySelector('.markdown-preview');
+    const headings = document.querySelectorAll('#summary-rendered h1, #summary-rendered h2, #summary-rendered h3');
+
+    if ('IntersectionObserver' in window && scrollRoot && headings.length) {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visibleHeading = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+                if (visibleHeading && visibleHeading.target.id) {
+                    setActiveTocLink(`#${visibleHeading.target.id}`);
+                }
+            },
+            {
+                root: scrollRoot,
+                threshold: [0.15, 0.5, 0.9],
+                rootMargin: '0px 0px -60% 0px',
+            }
+        );
+
+        headings.forEach((heading) => observer.observe(heading));
+        if (headings[0].id) {
+            setActiveTocLink(`#${headings[0].id}`);
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', finishProcessingFeedback);
+document.addEventListener('DOMContentLoaded', initSummaryToc);
+</script>
+{% endblock %}

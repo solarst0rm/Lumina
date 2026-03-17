@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+
+{% block page_title %}用户注册{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 0 auto;">
+    <div class="card">
+        <h2 style="text-align: center; margin-bottom: 25px;">
+            <i class="fas fa-user-plus"></i> 用户注册
+        </h2>
+
+        <form method="post">
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-user"></i> 用户名：
+                </label>
+                <input type="text" id="username" name="username" required placeholder="请输入用户名" minlength="3" maxlength="80">
+                <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                    用户名长度3-80个字符
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i> 密码：
+                </label>
+                <input type="password" id="password" name="password" required placeholder="请输入密码" minlength="6">
+                <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                    密码至少6个字符
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">
+                    <i class="fas fa-lock"></i> 确认密码：
+                </label>
+                <input type="password" id="confirm_password" name="confirm_password" required placeholder="请再次输入密码">
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; margin-top: 20px;">
+                <i class="fas fa-user-plus"></i> 注册账号
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+            <p style="color: var(--text-secondary); margin-bottom: 10px;">已有账号？</p>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary">
+                <i class="fas fa-sign-in-alt"></i> 立即登录
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// 简单的密码确认验证
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('两次输入的密码不一致，请重新输入');
+        document.getElementById('confirm_password').focus();
+    }
+});
+</script>
+{% endblock %}

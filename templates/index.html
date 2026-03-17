@@ -1,0 +1,247 @@
+{% extends "layout.html" %}
+
+{% block page_title %}上传学习资料{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2><i class="fas fa-cloud-upload-alt"></i> 上传学习资料</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 25px;">
+        支持 PDF、Word、PPT 和图片等格式文档，系统会自动为您生成电子学科笔记与练习内容。
+    </p>
+
+    <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+        <div class="form-group">
+            <label for="file">
+                <i class="fas fa-file-alt"></i> 选择文件：
+            </label>
+            <input type="file" id="file" name="file" accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" required>
+            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                支持格式：PDF、Word（.docx）、PowerPoint（.pptx）、图片（JPG、PNG）
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">
+                <i class="fas fa-edit"></i> 处理要求（可选）：
+            </label>
+            <textarea id="prompt" name="prompt" rows="4" placeholder="请描述您对文档的处理要求，例如：
+• 重点总结电子学基础知识
+• 提取关键公式和概念
+• 生成相关练习题
+• 转换为盲文格式"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn btn-success" id="submitBtn">
+                <i class="fas fa-play"></i> 开始处理
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                <i class="fas fa-redo"></i> 重置
+            </button>
+        </div>
+    </form>
+
+    <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p>正在处理您的文件，请稍候...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2><i class="fas fa-info-circle"></i> 使用说明</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div>
+            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
+                <i class="fas fa-upload"></i> 1. 上传资料
+            </h3>
+            <p>选择您的电子学习资料，支持多种常见格式。</p>
+        </div>
+        <div>
+            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
+                <i class="fas fa-brain"></i> 2. AI 处理
+            </h3>
+            <p>系统会自动分析内容并生成结构化总结与练习题。</p>
+        </div>
+        <div>
+            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
+                <i class="fas fa-braille"></i> 3. 盲文转换
+            </h3>
+            <p>处理完成后可继续转换为盲文格式，方便后续阅读。</p>
+        </div>
+        <div>
+            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
+                <i class="fas fa-book"></i> 4. 保存笔记
+            </h3>
+            <p>生成的学习笔记会保存到个人笔记库，便于随时查看。</p>
+        </div>
+    </div>
+</div>
+
+<script>
+{% if show_tutorial %}
+if (typeof window.startTutorial === 'function') {
+    setTimeout(function() {
+        window.startTutorial();
+    }, 1000);
+}
+{% endif %}
+
+const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
+const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
+const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | tojson }};
+const uploadForm = document.getElementById('uploadForm');
+const submitBtn = document.getElementById('submitBtn');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const fileInput = document.getElementById('file');
+const PROCESSING_LABEL = '\u5904\u7406\u4e2d...';
+const START_LABEL = '\u5f00\u59cb\u5904\u7406';
+const PROCESSING_SPEECH = '\u6587\u6863\u5df2\u4e0a\u4f20\uff0c\u6b63\u5728\u5904\u7406';
+
+let processingAudio = null;
+let processingAudioSyncTimer = null;
+
+function setProcessingUi(isProcessing) {
+    submitBtn.disabled = isProcessing;
+    submitBtn.innerHTML = isProcessing
+        ? '<i class="fas fa-spinner fa-spin"></i> ' + PROCESSING_LABEL
+        : '<i class="fas fa-play"></i> ' + START_LABEL;
+    loadingIndicator.style.display = isProcessing ? 'block' : 'none';
+}
+
+function saveProcessingSessionState() {
+    if (!window.sessionStorage) {
+        return;
+    }
+
+    const hasActiveAudio = !!processingAudio && !processingAudio.paused;
+    if (hasActiveAudio) {
+        window.sessionStorage.setItem(
+            PROCESSING_AUDIO_STATE_KEY,
+            JSON.stringify({
+                active: true,
+                currentTime: processingAudio.currentTime || 0,
+                volume: processingAudio.volume || 0.28,
+            })
+        );
+    } else {
+        window.sessionStorage.removeItem(PROCESSING_AUDIO_STATE_KEY);
+    }
+}
+
+function clearProcessingSessionState() {
+    if (!window.sessionStorage) {
+        return;
+    }
+    window.sessionStorage.removeItem(PROCESSING_AUDIO_STATE_KEY);
+    window.sessionStorage.removeItem(PROCESSING_STATUS_KEY);
+}
+
+function ensureProcessingAudio() {
+    if (!processingAudio) {
+        processingAudio = new Audio(WAITING_AUDIO_URL);
+        processingAudio.loop = true;
+        processingAudio.preload = 'auto';
+        processingAudio.volume = 0.28;
+    }
+    return processingAudio;
+}
+
+function startProcessingAudio() {
+    const audio = ensureProcessingAudio();
+    if (!audio.paused) {
+        return;
+    }
+
+    audio.currentTime = 0;
+    audio.volume = 0.28;
+    saveProcessingSessionState();
+
+    if (processingAudioSyncTimer) {
+        window.clearInterval(processingAudioSyncTimer);
+    }
+    processingAudioSyncTimer = window.setInterval(saveProcessingSessionState, 500);
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function() {});
+    }
+}
+
+function speakProcessingStart() {
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+        startProcessingAudio();
+        return;
+    }
+
+    let audioStarted = false;
+    const startAudioOnce = function() {
+        if (audioStarted) {
+            return;
+        }
+        audioStarted = true;
+        startProcessingAudio();
+    };
+
+    const utterance = new SpeechSynthesisUtterance(PROCESSING_SPEECH);
+    utterance.lang = 'zh-CN';
+    utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+    utterance.onend = startAudioOnce;
+    utterance.onerror = startAudioOnce;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    window.setTimeout(startAudioOnce, 1200);
+}
+
+clearProcessingSessionState();
+setProcessingUi(false);
+
+uploadForm.addEventListener('submit', function(e) {
+    if (uploadForm.dataset.processingSubmit === 'true') {
+        return;
+    }
+
+    if (!uploadForm.reportValidity()) {
+        return;
+    }
+
+    e.preventDefault();
+    uploadForm.dataset.processingSubmit = 'true';
+    setProcessingUi(true);
+
+    if (window.sessionStorage) {
+        window.sessionStorage.setItem(
+            PROCESSING_STATUS_KEY,
+            JSON.stringify({
+                pending: true,
+                startedAt: Date.now(),
+            })
+        );
+    }
+
+    speakProcessingStart();
+    window.setTimeout(function() {
+        uploadForm.submit();
+    }, 150);
+});
+
+window.addEventListener('pagehide', saveProcessingSessionState);
+
+function resetForm() {
+    uploadForm.reset();
+    uploadForm.dataset.processingSubmit = '';
+    setProcessingUi(false);
+    clearProcessingSessionState();
+}
+
+fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        console.log('selected file:', file.name);
+    }
+});
+</script>
+{% endblock %}
