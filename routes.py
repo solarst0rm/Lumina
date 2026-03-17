@@ -215,6 +215,11 @@ def register_routes(app, db, User, Note):
     def index():
         return render_template("index.html")
 
+    @app.route("/community")
+    @login_required
+    def learning_community():
+        return render_template("learning_community.html")
+
     @app.route("/process", methods=["POST"])
     @login_required
     def process():

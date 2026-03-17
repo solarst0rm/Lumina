@@ -651,6 +651,7 @@
                     {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('my_notes') }}" class="{% if request.endpoint == 'my_notes' %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
                     {% endif %}
+                    <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
                     <li><a href="#" onclick="showHelp()"><i class="fas fa-question-circle"></i> 使用帮助</a></li>
                     <li><a href="#" onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"><i class="fas fa-graduation-cap"></i> 新手教程</a></li>
                 </ul>
@@ -689,8 +690,11 @@
     <script>
         window._aiAssistantPageEnabled = {{ (request.endpoint == 'index') | tojson }};
         window._helpOverlayOpen = false;
+        window._currentUsername = {{ (current_user.username if current_user.is_authenticated else '') | tojson }};
+        window._learningCommunityUrl = {{ url_for('learning_community') | tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/accessibility.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/local-community.js') }}"></script>
     <script>
         function showHelp() {
             if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {

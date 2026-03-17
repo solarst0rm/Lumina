@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block page_title %}学习社区{% endblock %}
+
+{% block content %}
+<style>
+    .community-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .community-search {
+        flex: 1;
+        min-width: 240px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .community-search input {
+        flex: 1;
+    }
+
+    .community-meta {
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+
+    .community-post {
+        margin-bottom: 16px;
+    }
+
+    .community-post-title {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .community-post-title h3 {
+        margin: 0;
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 800;
+    }
+
+    .community-post-snippet {
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+    }
+
+    .community-post-actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .community-empty {
+        text-align: center;
+        color: var(--text-secondary);
+        padding: 28px 0;
+    }
+</style>
+
+<div class="card" id="community-page-root">
+    <div class="community-toolbar" style="margin-bottom: 12px;">
+        <div class="community-search" role="search" aria-label="学习社区搜索栏">
+            <input id="community-search-input" type="text" placeholder="搜索帖子关键词（标题/内容）" autocomplete="off" />
+            <button type="button" class="btn btn-secondary" id="community-file-toggle" style="display:none;">
+                <i class="fas fa-file"></i> 备份同步
+            </button>
+        </div>
+        <div class="community-meta" id="community-storage-hint" aria-live="polite"></div>
+    </div>
+
+    <div class="community-meta">
+        学习社区：支持发帖、搜索与长期保存。
+    </div>
+</div>
+
+<div id="community-post-list" aria-live="polite"></div>
+{% endblock %}
