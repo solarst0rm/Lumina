@@ -1,8 +1,11 @@
-"""Flask route registration."""
+﻿"""Flask route registration."""
 
 from __future__ import annotations
 
+import json
 import os
+import threading
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +13,7 @@ from flask import flash, jsonify, redirect, render_template, request, send_file,
 from flask_login import current_user, login_required, login_user, logout_user
 from openai import OpenAI
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 from core.config import (
     API_KEY,
@@ -51,7 +55,7 @@ def _save_and_process(file, prompt, upload_dir):
 
 def _process_document(file_path, user_prompt):
     if not file_path or not os.path.exists(file_path):
-        return None, None, "文件不存在", None, None
+        return None, None, "鏂囦欢涓嶅瓨鍦?, None, None
 
     try:
         result = process_uploaded_file(file_path, user_prompt or "")
@@ -60,23 +64,23 @@ def _process_document(file_path, user_prompt):
             exercise = result.get("exercise", "") or _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
             summary_file = DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None
             exercise_file = DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None
-            return summary, exercise, "完成！", summary_file, exercise_file
+            return summary, exercise, "瀹屾垚锛?, summary_file, exercise_file
 
-        return None, None, f"错误：{result.get('error', '未知错误')}", None, None
+        return None, None, f"閿欒锛歿result.get('error', '鏈煡閿欒')}", None, None
     except Exception as exc:
-        return None, None, f"出错：{exc}", None, None
+        return None, None, f"鍑洪敊锛歿exc}", None, None
 
 
 def _convert_to_braille(text, brf_path):
     if not text or not text.strip():
-        return "请先生成内容", None
+        return "璇峰厛鐢熸垚鍐呭", None
 
     try:
         result = get_braille_converter().convert_to_braille(text)
         generate_brf_file(result["brf_content"], brf_path)
         return result["unicode"], os.path.basename(brf_path)
     except Exception as exc:
-        return f"转换失败：{exc}", None
+        return f"杞崲澶辫触锛歿exc}", None
 
 
 def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
@@ -85,8 +89,112 @@ def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
     return markdown_to_html_fragments(summary_text, is_exercise=False)
 
 
+def _jobs_dir(basedir: str) -> Path:
+    jobs_dir = Path(basedir) / "jobs"
+    jobs_dir.mkdir(parents=True, exist_ok=True)
+    return jobs_dir
+
+
+def _job_status_path(basedir: str, job_id: str) -> Path:
+    return _jobs_dir(basedir) / f"{job_id}.json"
+
+
+def _write_job_status(basedir: str, job_id: str, payload: dict) -> None:
+    _job_status_path(basedir, job_id).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _read_job_status(basedir: str, job_id: str) -> dict | None:
+    status_path = _job_status_path(basedir, job_id)
+    if not status_path.exists():
+        return None
+    return json.loads(status_path.read_text(encoding="utf-8"))
+
+
 def register_routes(app, db, User, Note):
     basedir = app.config["BASEDIR"]
+
+    def _start_processing_job(file_storage, prompt: str, user_id: int) -> str:
+        filename = secure_filename(file_storage.filename or "upload.bin") or "upload.bin"
+        job_id = uuid.uuid4().hex
+        upload_dir = Path(basedir) / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        file_path = upload_dir / f"{job_id}_{filename}"
+        file_storage.save(file_path)
+
+        _write_job_status(
+            basedir,
+            job_id,
+            {
+                "job_id": job_id,
+                "status": "processing",
+                "uploaded_filename": filename,
+                "summary": "",
+                "exercise": "",
+                "error": "",
+                "updated_at": datetime.utcnow().isoformat(),
+            },
+        )
+
+        def worker():
+            try:
+                result = process_uploaded_file(str(file_path), prompt or "")
+                if result.get("success"):
+                    summary = result.get("summary", "")
+                    exercise = result.get("exercise", "") or _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
+                    with app.app_context():
+                        user = db.session.get(User, int(user_id))
+                        if user and summary:
+                            db.session.add(Note(title=filename, content=summary, author=user))
+                            db.session.commit()
+
+                    _write_job_status(
+                        basedir,
+                        job_id,
+                        {
+                            "job_id": job_id,
+                            "status": "completed",
+                            "uploaded_filename": filename,
+                            "summary": summary,
+                            "exercise": exercise,
+                            "error": "",
+                            "updated_at": datetime.utcnow().isoformat(),
+                        },
+                    )
+                    return
+
+                _write_job_status(
+                    basedir,
+                    job_id,
+                    {
+                        "job_id": job_id,
+                        "status": "failed",
+                        "uploaded_filename": filename,
+                        "summary": "",
+                        "exercise": "",
+                        "error": result.get("error", "澶勭悊澶辫触"),
+                        "updated_at": datetime.utcnow().isoformat(),
+                    },
+                )
+            except Exception as exc:
+                _write_job_status(
+                    basedir,
+                    job_id,
+                    {
+                        "job_id": job_id,
+                        "status": "failed",
+                        "uploaded_filename": filename,
+                        "summary": "",
+                        "exercise": "",
+                        "error": str(exc),
+                        "updated_at": datetime.utcnow().isoformat(),
+                    },
+                )
+
+        threading.Thread(target=worker, daemon=True).start()
+        return job_id
 
     def _require_exercises():
         summary_text = _read_text_if_exists(DEFAULT_SUMMARY_FILENAME)
@@ -111,30 +219,63 @@ def register_routes(app, db, User, Note):
     def process():
         file = request.files.get("file")
         if not file:
-            flash("请选择文件")
+            flash("璇烽€夋嫨鏂囦欢")
             return redirect(url_for("index"))
 
-        summary, exercise, status, sum_file, ex_file = _save_and_process(
-            file,
-            request.form.get("prompt", ""),
-            os.path.join(basedir, "uploads"),
-        )
-        if summary:
-            db.session.add(Note(title=file.filename, content=summary, author=current_user))
-            db.session.commit()
+        job_id = _start_processing_job(file, request.form.get("prompt", ""), current_user.id)
+        return redirect(url_for("processing_page", job_id=job_id))
 
-        summary_html, summary_toc_html = _render_summary_markdown(summary or "")
+    @app.route("/processing/<job_id>")
+    @login_required
+    def processing_page(job_id):
+        job = _read_job_status(basedir, job_id)
+        if not job:
+            flash("Processing task not found or expired")
+            return redirect(url_for("index"))
+
+        return render_template(
+            "processing.html",
+            job_id=job_id,
+            uploaded_filename=job.get("uploaded_filename", ""),
+        )
+
+    @app.route("/api/process-status/<job_id>")
+    @login_required
+    def process_status(job_id):
+        job = _read_job_status(basedir, job_id)
+        if not job:
+            return jsonify({"success": False, "error": "Task not found"}), 404
+        return jsonify({"success": True, **job})
+
+    @app.route("/process-result/<job_id>")
+    @login_required
+    def process_result(job_id):
+        job = _read_job_status(basedir, job_id)
+        if not job:
+            flash("Processing task not found or expired")
+            return redirect(url_for("index"))
+
+        if job.get("status") == "processing":
+            return redirect(url_for("processing_page", job_id=job_id))
+
+        if job.get("status") == "failed":
+            flash(job.get("error") or "Processing failed")
+            return redirect(url_for("index"))
+
+        summary = job.get("summary", "")
+        exercise = job.get("exercise", "")
+        summary_html, summary_toc_html = _render_summary_markdown(summary)
 
         return render_template(
             "result.html",
-            summary=summary or "",
+            summary=summary,
             summary_html=summary_html,
             summary_toc_html=summary_toc_html,
-            exercise=exercise or "",
-            status=status,
-            sum_file=sum_file,
-            ex_file=ex_file,
-            uploaded_filename=file.filename,
+            exercise=exercise,
+            status="Processing completed",
+            sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
+            ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
+            uploaded_filename=job.get("uploaded_filename", ""),
         )
 
     @app.route("/result")
@@ -143,7 +284,7 @@ def register_routes(app, db, User, Note):
         summary_text = _read_text_if_exists(DEFAULT_SUMMARY_FILENAME)
         exercise_text = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
         if not summary_text:
-            flash("请先生成文档总结")
+            flash("璇峰厛鐢熸垚鏂囨。鎬荤粨")
             return redirect(url_for("index"))
 
         summary_html, summary_toc_html = _render_summary_markdown(summary_text)
@@ -154,7 +295,7 @@ def register_routes(app, db, User, Note):
             summary_html=summary_html,
             summary_toc_html=summary_toc_html,
             exercise=exercise_text,
-            status="已加载当前结果",
+            status="宸插姞杞藉綋鍓嶇粨鏋?,
             sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
             ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
             uploaded_filename="",
@@ -165,7 +306,7 @@ def register_routes(app, db, User, Note):
     def exercise_challenge():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown or not quiz_data:
-            flash("请先生成总结和练习题")
+            flash("璇峰厛鐢熸垚鎬荤粨鍜岀粌涔犻")
             return redirect(url_for("index"))
 
         return render_template(
@@ -179,13 +320,13 @@ def register_routes(app, db, User, Note):
     def exercise_actions():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown:
-            flash("当前没有可操作的练习题")
+            flash("褰撳墠娌℃湁鍙搷浣滅殑缁冧範棰?)
             return redirect(url_for("index"))
 
         return render_template(
             "exercise_actions.html",
             exercise_markdown=exercise_markdown,
-            quiz_title=(quiz_data or {}).get("title", "练习题"),
+            quiz_title=(quiz_data or {}).get("title", "缁冧範棰?),
             exercise_filename=DEFAULT_EXERCISE_FILENAME,
         )
 
@@ -194,7 +335,7 @@ def register_routes(app, db, User, Note):
     def api_regenerate_exercise():
         summary_path = Path(DEFAULT_SUMMARY_FILENAME)
         if not summary_path.exists():
-            return jsonify({"success": False, "error": "请先生成总结内容"})
+            return jsonify({"success": False, "error": "璇峰厛鐢熸垚鎬荤粨鍐呭"})
 
         try:
             payload, markdown_content = generate_valid_exercises(summary_path)
@@ -236,7 +377,7 @@ def register_routes(app, db, User, Note):
         if request.method == "POST":
             username = request.form["username"]
             if User.query.filter_by(username=username).first():
-                flash("用户名已存在，请换一个")
+                flash("鐢ㄦ埛鍚嶅凡瀛樺湪锛岃鎹竴涓?)
                 return redirect(url_for("register"))
 
             db.session.add(
@@ -246,7 +387,7 @@ def register_routes(app, db, User, Note):
                 )
             )
             db.session.commit()
-            flash("注册成功，请登录")
+            flash("娉ㄥ唽鎴愬姛锛岃鐧诲綍")
             return redirect(url_for("login"))
 
         return render_template("register.html")
@@ -258,7 +399,7 @@ def register_routes(app, db, User, Note):
             if user and check_password_hash(user.password_hash, request.form["password"]):
                 login_user(user)
                 return redirect(url_for("index"))
-            flash("用户名或密码错误")
+            flash("鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒")
 
         return render_template("login.html")
 
@@ -266,7 +407,7 @@ def register_routes(app, db, User, Note):
     @login_required
     def logout():
         logout_user()
-        flash("您已退出登录")
+        flash("鎮ㄥ凡閫€鍑虹櫥褰?)
         return redirect(url_for("login"))
 
     @app.route("/my-notes")
@@ -284,7 +425,7 @@ def register_routes(app, db, User, Note):
     def api_process():
         file = request.files.get("file")
         if not file:
-            return jsonify({"success": False, "error": "未上传文件"})
+            return jsonify({"success": False, "error": "鏈笂浼犳枃浠?})
 
         summary, exercise, status, _, _ = _save_and_process(
             file,
@@ -313,7 +454,7 @@ def register_routes(app, db, User, Note):
     def api_convert_braille():
         content = (request.get_json() or {}).get("content", "")
         if not content:
-            return jsonify({"success": False, "error": "没有内容"})
+            return jsonify({"success": False, "error": "娌℃湁鍐呭"})
 
         try:
             result = get_braille_converter().convert_to_braille(content)
@@ -333,17 +474,17 @@ def register_routes(app, db, User, Note):
     ai_client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
     ai_chat_system_prompt = (
-        "你是学习助手中的 AI 语音伙伴，专门帮助视障学生学习。"
-        "你的回答会被语音朗读，因此必须使用简洁、自然、耐心的中文。"
-        "不要使用 Markdown、公式、LaTeX 或特殊符号。"
-        "如果需要分点，请用“第一、第二、第三”这样的中文表达。"
-        "如果超出已知信息，请明确说明。"
+        "浣犳槸瀛︿範鍔╂墜涓殑 AI 璇煶浼欎即锛屼笓闂ㄥ府鍔╄闅滃鐢熷涔犮€?
+        "浣犵殑鍥炵瓟浼氳璇煶鏈楄锛屽洜姝ゅ繀椤讳娇鐢ㄧ畝娲併€佽嚜鐒躲€佽€愬績鐨勪腑鏂囥€?
+        "涓嶈浣跨敤 Markdown銆佸叕寮忋€丩aTeX 鎴栫壒娈婄鍙枫€?
+        "濡傛灉闇€瑕佸垎鐐癸紝璇风敤鈥滅涓€銆佺浜屻€佺涓夆€濊繖鏍风殑涓枃琛ㄨ揪銆?
+        "濡傛灉瓒呭嚭宸茬煡淇℃伅锛岃鏄庣‘璇存槑銆?
     )
 
     ai_chat_doc_prompt = (
-        "\n\n以下是用户当前学习材料，请优先基于这些内容回答：\n"
-        "【文档总结】\n{summary}\n\n"
-        "【练习题】\n{exercise}"
+        "\n\n浠ヤ笅鏄敤鎴峰綋鍓嶅涔犳潗鏂欙紝璇蜂紭鍏堝熀浜庤繖浜涘唴瀹瑰洖绛旓細\n"
+        "銆愭枃妗ｆ€荤粨銆慭n{summary}\n\n"
+        "銆愮粌涔犻銆慭n{exercise}"
     )
 
     @app.route("/api/ai-chat", methods=["POST"])
@@ -352,7 +493,7 @@ def register_routes(app, db, User, Note):
         data = request.get_json() or {}
         message = (data.get("message") or "").strip()
         if not message:
-            return jsonify({"success": False, "error": "请输入问题"})
+            return jsonify({"success": False, "error": "璇疯緭鍏ラ棶棰?})
 
         history = data.get("history") or []
         doc_summary = (data.get("doc_summary") or "").strip()
@@ -361,8 +502,8 @@ def register_routes(app, db, User, Note):
         system_content = ai_chat_system_prompt
         if doc_summary or doc_exercise:
             system_content += ai_chat_doc_prompt.format(
-                summary=doc_summary or "无",
-                exercise=doc_exercise or "无",
+                summary=doc_summary or "鏃?,
+                exercise=doc_exercise or "鏃?,
             )
 
         messages = [{"role": "system", "content": system_content}]
@@ -381,4 +522,4 @@ def register_routes(app, db, User, Note):
             reply = response.choices[0].message.content or ""
             return jsonify({"success": True, "reply": reply})
         except Exception as exc:
-            return jsonify({"success": False, "error": f"AI 请求失败：{exc}"})
+            return jsonify({"success": False, "error": f"AI 璇锋眰澶辫触锛歿exc}"})

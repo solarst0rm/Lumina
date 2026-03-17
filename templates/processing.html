@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+
+{% block page_title %}Processing{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align: center;">
+    <h2>Document Processing</h2>
+    <p style="color: var(--text-secondary); margin: 12px 0 20px;">
+        File received{% if uploaded_filename %}: {{ uploaded_filename }}{% endif %}. Processing continues in the background.
+    </p>
+
+    <div class="loading" style="display: block;">
+        <div class="spinner"></div>
+        <p id="jobStatusText">Analyzing the document. This page will redirect automatically when the result is ready.</p>
+    </div>
+
+    <p id="jobErrorText" style="display: none; color: #c53030; margin-top: 16px;"></p>
+
+    <div style="margin-top: 24px;">
+        <a class="btn btn-secondary" href="{{ url_for('index') }}">Back to Home</a>
+    </div>
+</div>
+
+<script>
+const jobId = {{ job_id | tojson }};
+const statusText = document.getElementById('jobStatusText');
+const errorText = document.getElementById('jobErrorText');
+
+function pollJobStatus() {
+    fetch(`/api/process-status/${jobId}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to get task status');
+            }
+
+            if (data.status === 'completed') {
+                window.location.href = `/process-result/${jobId}`;
+                return;
+            }
+
+            if (data.status === 'failed') {
+                statusText.textContent = 'Processing failed';
+                errorText.style.display = 'block';
+                errorText.textContent = data.error || 'Document processing failed. Please go back and try again.';
+                return;
+            }
+
+            statusText.textContent = 'Still processing. Please wait...';
+            window.setTimeout(pollJobStatus, 3000);
+        })
+        .catch(function(error) {
+            statusText.textContent = 'Retrying to fetch task status...';
+            errorText.style.display = 'block';
+            errorText.textContent = error.message || 'Network error. Please try again later.';
+            window.setTimeout(pollJobStatus, 5000);
+        });
+}
+
+window.setTimeout(pollJobStatus, 1000);
+</script>
+{% endblock %}
