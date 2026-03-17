@@ -1,4 +1,4 @@
-﻿"""Flask route registration."""
+"""Flask route registration."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def _save_and_process(file, prompt, upload_dir):
 
 def _process_document(file_path, user_prompt):
     if not file_path or not os.path.exists(file_path):
-        return None, None, "鏂囦欢涓嶅瓨鍦?, None, None
+        return None, None, "File not found", None, None
 
     try:
         result = process_uploaded_file(file_path, user_prompt or "")
@@ -64,23 +64,23 @@ def _process_document(file_path, user_prompt):
             exercise = result.get("exercise", "") or _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
             summary_file = DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None
             exercise_file = DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None
-            return summary, exercise, "瀹屾垚锛?, summary_file, exercise_file
+            return summary, exercise, "Completed", summary_file, exercise_file
 
-        return None, None, f"閿欒锛歿result.get('error', '鏈煡閿欒')}", None, None
+        return None, None, f"Error: {result.get('error', 'Unknown error')}", None, None
     except Exception as exc:
-        return None, None, f"鍑洪敊锛歿exc}", None, None
+        return None, None, f"Error: {exc}", None, None
 
 
 def _convert_to_braille(text, brf_path):
     if not text or not text.strip():
-        return "璇峰厛鐢熸垚鍐呭", None
+        return "Please generate content first", None
 
     try:
         result = get_braille_converter().convert_to_braille(text)
         generate_brf_file(result["brf_content"], brf_path)
         return result["unicode"], os.path.basename(brf_path)
     except Exception as exc:
-        return f"杞崲澶辫触锛歿exc}", None
+        return f"Conversion failed: {exc}", None
 
 
 def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
@@ -174,7 +174,7 @@ def register_routes(app, db, User, Note):
                         "uploaded_filename": filename,
                         "summary": "",
                         "exercise": "",
-                        "error": result.get("error", "澶勭悊澶辫触"),
+                        "error": result.get("error", "Processing failed"),
                         "updated_at": datetime.utcnow().isoformat(),
                     },
                 )
@@ -219,7 +219,7 @@ def register_routes(app, db, User, Note):
     def process():
         file = request.files.get("file")
         if not file:
-            flash("璇烽€夋嫨鏂囦欢")
+            flash("Please choose a file")
             return redirect(url_for("index"))
 
         job_id = _start_processing_job(file, request.form.get("prompt", ""), current_user.id)
@@ -284,7 +284,7 @@ def register_routes(app, db, User, Note):
         summary_text = _read_text_if_exists(DEFAULT_SUMMARY_FILENAME)
         exercise_text = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
         if not summary_text:
-            flash("璇峰厛鐢熸垚鏂囨。鎬荤粨")
+            flash("Please generate a summary first")
             return redirect(url_for("index"))
 
         summary_html, summary_toc_html = _render_summary_markdown(summary_text)
@@ -295,7 +295,7 @@ def register_routes(app, db, User, Note):
             summary_html=summary_html,
             summary_toc_html=summary_toc_html,
             exercise=exercise_text,
-            status="宸插姞杞藉綋鍓嶇粨鏋?,
+            status="Loaded current result",
             sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
             ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
             uploaded_filename="",
@@ -306,7 +306,7 @@ def register_routes(app, db, User, Note):
     def exercise_challenge():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown or not quiz_data:
-            flash("璇峰厛鐢熸垚鎬荤粨鍜岀粌涔犻")
+            flash("Please generate summary and exercises first")
             return redirect(url_for("index"))
 
         return render_template(
@@ -320,13 +320,13 @@ def register_routes(app, db, User, Note):
     def exercise_actions():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown:
-            flash("褰撳墠娌℃湁鍙搷浣滅殑缁冧範棰?)
+            flash("No exercise content is available")
             return redirect(url_for("index"))
 
         return render_template(
             "exercise_actions.html",
             exercise_markdown=exercise_markdown,
-            quiz_title=(quiz_data or {}).get("title", "缁冧範棰?),
+            quiz_title=(quiz_data or {}).get("title", "Exercises"),
             exercise_filename=DEFAULT_EXERCISE_FILENAME,
         )
 
@@ -335,7 +335,7 @@ def register_routes(app, db, User, Note):
     def api_regenerate_exercise():
         summary_path = Path(DEFAULT_SUMMARY_FILENAME)
         if not summary_path.exists():
-            return jsonify({"success": False, "error": "璇峰厛鐢熸垚鎬荤粨鍐呭"})
+            return jsonify({"success": False, "error": "Please generate summary content first"})
 
         try:
             payload, markdown_content = generate_valid_exercises(summary_path)
@@ -377,7 +377,7 @@ def register_routes(app, db, User, Note):
         if request.method == "POST":
             username = request.form["username"]
             if User.query.filter_by(username=username).first():
-                flash("鐢ㄦ埛鍚嶅凡瀛樺湪锛岃鎹竴涓?)
+                flash("Username already exists")
                 return redirect(url_for("register"))
 
             db.session.add(
@@ -387,7 +387,7 @@ def register_routes(app, db, User, Note):
                 )
             )
             db.session.commit()
-            flash("娉ㄥ唽鎴愬姛锛岃鐧诲綍")
+            flash("Registration successful, please log in")
             return redirect(url_for("login"))
 
         return render_template("register.html")
@@ -399,7 +399,7 @@ def register_routes(app, db, User, Note):
             if user and check_password_hash(user.password_hash, request.form["password"]):
                 login_user(user)
                 return redirect(url_for("index"))
-            flash("鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒")
+            flash("Invalid username or password")
 
         return render_template("login.html")
 
@@ -407,7 +407,7 @@ def register_routes(app, db, User, Note):
     @login_required
     def logout():
         logout_user()
-        flash("鎮ㄥ凡閫€鍑虹櫥褰?)
+        flash("You have logged out")
         return redirect(url_for("login"))
 
     @app.route("/my-notes")
@@ -425,7 +425,7 @@ def register_routes(app, db, User, Note):
     def api_process():
         file = request.files.get("file")
         if not file:
-            return jsonify({"success": False, "error": "鏈笂浼犳枃浠?})
+            return jsonify({"success": False, "error": "No file uploaded"})
 
         summary, exercise, status, _, _ = _save_and_process(
             file,
@@ -454,7 +454,7 @@ def register_routes(app, db, User, Note):
     def api_convert_braille():
         content = (request.get_json() or {}).get("content", "")
         if not content:
-            return jsonify({"success": False, "error": "娌℃湁鍐呭"})
+            return jsonify({"success": False, "error": "No content"})
 
         try:
             result = get_braille_converter().convert_to_braille(content)
@@ -474,17 +474,15 @@ def register_routes(app, db, User, Note):
     ai_client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
     ai_chat_system_prompt = (
-        "浣犳槸瀛︿範鍔╂墜涓殑 AI 璇煶浼欎即锛屼笓闂ㄥ府鍔╄闅滃鐢熷涔犮€?
-        "浣犵殑鍥炵瓟浼氳璇煶鏈楄锛屽洜姝ゅ繀椤讳娇鐢ㄧ畝娲併€佽嚜鐒躲€佽€愬績鐨勪腑鏂囥€?
-        "涓嶈浣跨敤 Markdown銆佸叕寮忋€丩aTeX 鎴栫壒娈婄鍙枫€?
-        "濡傛灉闇€瑕佸垎鐐癸紝璇风敤鈥滅涓€銆佺浜屻€佺涓夆€濊繖鏍风殑涓枃琛ㄨ揪銆?
-        "濡傛灉瓒呭嚭宸茬煡淇℃伅锛岃鏄庣‘璇存槑銆?
+        "You are the built-in AI learning assistant for visually impaired students. "
+        "Your answer will be read aloud, so use concise, natural, patient Chinese without Markdown or formulas. "
+        "If information is unknown, say so clearly."
     )
 
     ai_chat_doc_prompt = (
-        "\n\n浠ヤ笅鏄敤鎴峰綋鍓嶅涔犳潗鏂欙紝璇蜂紭鍏堝熀浜庤繖浜涘唴瀹瑰洖绛旓細\n"
-        "銆愭枃妗ｆ€荤粨銆慭n{summary}\n\n"
-        "銆愮粌涔犻銆慭n{exercise}"
+        "\n\nBelow is the user's current study material. Answer based on it first:\n"
+        "[Summary]\n{summary}\n\n"
+        "[Exercises]\n{exercise}"
     )
 
     @app.route("/api/ai-chat", methods=["POST"])
@@ -493,7 +491,7 @@ def register_routes(app, db, User, Note):
         data = request.get_json() or {}
         message = (data.get("message") or "").strip()
         if not message:
-            return jsonify({"success": False, "error": "璇疯緭鍏ラ棶棰?})
+            return jsonify({"success": False, "error": "Please enter a question"})
 
         history = data.get("history") or []
         doc_summary = (data.get("doc_summary") or "").strip()
@@ -502,8 +500,8 @@ def register_routes(app, db, User, Note):
         system_content = ai_chat_system_prompt
         if doc_summary or doc_exercise:
             system_content += ai_chat_doc_prompt.format(
-                summary=doc_summary or "鏃?,
-                exercise=doc_exercise or "鏃?,
+                summary=doc_summary or "None",
+                exercise=doc_exercise or "None",
             )
 
         messages = [{"role": "system", "content": system_content}]
@@ -522,4 +520,4 @@ def register_routes(app, db, User, Note):
             reply = response.choices[0].message.content or ""
             return jsonify({"success": True, "reply": reply})
         except Exception as exc:
-            return jsonify({"success": False, "error": f"AI 璇锋眰澶辫触锛歿exc}"})
+            return jsonify({"success": False, "error": f"AI request failed: {exc}"})
