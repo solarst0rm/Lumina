@@ -264,13 +264,13 @@
 <div class="card" style="padding: 15px; margin-bottom: 15px;">
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <strong style="color: var(--primary-color);">语音控制：</strong>
-        <button class="btn" onclick="speakSummary()" title="快捷键 S">
+        <button type="button" class="btn" id="summary-speech-start" onclick="speakSummary()" title="快捷键 S">
             <i class="fas fa-volume-up"></i> 朗读总结 [S]
         </button>
-        <button class="btn btn-secondary" onclick="toggleSpeechPause()">
+        <button type="button" class="btn btn-secondary" id="summary-speech-toggle" onclick="toggleSpeechPause()">
             <i class="fas fa-pause"></i> 暂停/继续 [空格]
         </button>
-        <button class="btn btn-danger" onclick="window.speechSynthesis.cancel()">
+        <button type="button" class="btn btn-danger" id="summary-speech-stop" onclick="stopSpeech()">
             <i class="fas fa-stop"></i> 停止 [X]
         </button>
         <label style="display:flex;align-items:center;gap:6px;font-size:14px;">
@@ -286,6 +286,9 @@
             >
             <span id="rate-val">1.0x</span>
         </label>
+        <span id="summary-speech-status" style="font-size:14px;color:var(--text-secondary);" aria-live="polite">
+            已就绪
+        </span>
     </div>
 </div>
 
@@ -331,13 +334,16 @@
             </div>
         </div>
 
-        <div style="margin-top: 15px;">
-            <form action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
+        <div style="margin-top: 15px; display:flex; gap:12px; flex-wrap:wrap;">
+            <form id="braille-summary-form" action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
                 <textarea name="text" style="display:none;">{{ summary }}</textarea>
-                <button type="submit" class="btn btn-secondary">
-                    <i class="fas fa-braille"></i> 生成总结盲文
+                <button type="submit" class="btn btn-secondary" id="btn-braille-summary" title="快捷键 B">
+                    <i class="fas fa-braille"></i> 生成总结盲文 [B]
                 </button>
             </form>
+            <a id="btn-download-summary" class="btn" href="{{ url_for('download_summary') }}" title="快捷键 D">
+                <i class="fas fa-download"></i> 下载总结文档 [D]
+            </a>
         </div>
     </div>
 
@@ -346,14 +352,17 @@
             <i class="fas fa-flag-checkered"></i> 练习闯关已就绪
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            点击“生成练习题”后会进入新的答题页面，你可以直接点选，也可以长按鼠标左键或空格进行语音操作。
+            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按上下箭头调整语速。
+        </p>
+        <p style="color: var(--text-secondary); margin-bottom: 18px;">
+            快捷键：B 生成总结盲文，D 下载总结文档，右箭头生成练习题，R 上传新文件。
         </p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a id="btn-gen-exercise" class="btn btn-success" href="{{ url_for('exercise_challenge') }}">
-                <i class="fas fa-pencil-alt"></i> 生成练习题
+            <a id="btn-gen-exercise" class="btn btn-success" href="{{ url_for('exercise_challenge') }}" title="快捷键 右箭头">
+                <i class="fas fa-pencil-alt"></i> 生成练习题 [→]
             </a>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">
-                <i class="fas fa-upload"></i> 上传新文件
+            <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 R">
+                <i class="fas fa-upload"></i> 上传新文件 [R]
             </a>
         </div>
     </div>
@@ -468,6 +477,9 @@ function finishProcessingFeedback() {
 }
 
 function speakSummary() {
+    if (window.playSummarySpeech && window.playSummarySpeech()) {
+        return;
+    }
     if (!window._sumText) {
         alert('没有总结内容');
         return;
@@ -479,6 +491,10 @@ function speakSummary() {
 }
 
 function toggleSpeechPause() {
+    if (window.toggleCurrentSpeechPause) {
+        window.toggleCurrentSpeechPause();
+        return;
+    }
     if (!window.speechSynthesis) {
         return;
     }
@@ -486,6 +502,16 @@ function toggleSpeechPause() {
         window.speechSynthesis.resume();
     } else {
         window.speechSynthesis.pause();
+    }
+}
+
+function stopSpeech() {
+    if (window.stopCurrentSpeech) {
+        window.stopCurrentSpeech();
+        return;
+    }
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
     }
 }
 
@@ -607,7 +633,439 @@ function initSummaryToc() {
     }
 }
 
+function initResultSpeechController() {
+    const summaryRoot = document.getElementById('summary-rendered');
+    if (!summaryRoot) {
+        return;
+    }
+
+    const synth = window.speechSynthesis;
+    const rateSlider = document.getElementById('rate-slider-flask');
+    const rateValue = document.getElementById('rate-val');
+    const toggleButton = document.getElementById('summary-speech-toggle');
+    const statusNode = document.getElementById('summary-speech-status');
+    const brailleSummaryButton = document.getElementById('btn-braille-summary');
+    const generateExerciseButton = document.getElementById('btn-gen-exercise');
+    const uploadNewFileButton = document.getElementById('btn-upload-new-file');
+    const downloadSummaryButton = document.getElementById('btn-download-summary');
+    const originalStartSpeechPlayback = window.startSpeechPlayback;
+    const originalToggleCurrentSpeechPause = window.toggleCurrentSpeechPause;
+    const originalStopCurrentSpeech = window.stopCurrentSpeech;
+    const originalSpeakPrev = window.speakPrev;
+    const originalSpeakNext = window.speakNext;
+    const originalIncreaseRate = window.increaseRate;
+    const originalDecreaseRate = window.decreaseRate;
+
+    function shouldIgnoreHotkeyTarget(target) {
+        if (!target) {
+            return false;
+        }
+        const tagName = target.tagName || '';
+        return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || target.isContentEditable;
+    }
+
+    function hasModifierKey(event) {
+        return !!(event.altKey || event.ctrlKey || event.metaKey);
+    }
+
+    function triggerResultAction(target, event) {
+        if (!target || target.disabled || target.getAttribute('aria-disabled') === 'true') {
+            return false;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        target.click();
+        return true;
+    }
+
+    function handleResultSpeechHotkeys(event) {
+        if (shouldIgnoreHotkeyTarget(event.target) || window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {
+            return;
+        }
+
+        if (hasModifierKey(event)) {
+            return;
+        }
+
+        if (!event.repeat && event.code === 'KeyB' && triggerResultAction(brailleSummaryButton, event)) {
+            return;
+        }
+
+        if (!event.repeat && event.code === 'ArrowRight' && triggerResultAction(generateExerciseButton, event)) {
+            return;
+        }
+
+        if (!event.repeat && event.code === 'KeyR' && triggerResultAction(uploadNewFileButton, event)) {
+            return;
+        }
+
+        if (!event.repeat && event.code === 'KeyD' && triggerResultAction(downloadSummaryButton, event)) {
+            return;
+        }
+
+        if (event.code === 'KeyS') {
+            if (window.playSummarySpeech) {
+                window.playSummarySpeech();
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (event.code === 'KeyX') {
+            if (window.stopCurrentSpeech) {
+                window.stopCurrentSpeech();
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (event.code === 'Space' && !event.repeat) {
+            if (window.toggleCurrentSpeechPause && window._speechOwner === 'result-summary') {
+                window.toggleCurrentSpeechPause();
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+    }
+
+    const controller = {
+        sections: [],
+        currentIndex: 0,
+        sessionId: 0,
+        isPaused: false,
+    };
+
+    function syncRateDisplay(value) {
+        if (rateSlider) {
+            rateSlider.value = String(value);
+        }
+        if (rateValue) {
+            rateValue.textContent = value.toFixed(1) + 'x';
+        }
+    }
+
+    function updateSpeechUi(stateText) {
+        if (statusNode) {
+            statusNode.textContent = stateText;
+        }
+        if (!toggleButton) {
+            return;
+        }
+
+        if (controller.isPaused) {
+            toggleButton.innerHTML = '<i class="fas fa-play"></i> 继续 [空格]';
+        } else {
+            toggleButton.innerHTML = '<i class="fas fa-pause"></i> 暂停/继续 [空格]';
+        }
+    }
+
+    function normalizeLineBreaks(text) {
+        return (text || '').replace(/\r\n?/g, '\n');
+    }
+
+    function cleanSummaryForSpeech(text) {
+        return normalizeLineBreaks(text)
+            .replace(/^```[\s\S]*?^```/gm, '')
+            .replace(/^[-*+]\s+/gm, '')
+            .replace(/^\d+\.\s+/gm, '')
+            .replace(/^>\s*/gm, '')
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/[*_~#>-]+/g, ' ')
+            .replace(/\|/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/[ \t]{2,}/g, ' ')
+            .trim();
+    }
+
+    function buildSectionsFromSummary() {
+        const normalized = normalizeLineBreaks(typeof window._sumText === 'string' ? window._sumText : '').trim();
+        if (!normalized) {
+            return [];
+        }
+
+        const rawSections = [];
+        let current = [];
+        normalized.split('\n').forEach((line) => {
+            if (/^#{1,6}\s+/.test(line) && current.length) {
+                rawSections.push(current.join('\n'));
+                current = [line];
+                return;
+            }
+            current.push(line);
+        });
+
+        if (current.length) {
+            rawSections.push(current.join('\n'));
+        }
+
+        return rawSections
+            .map(cleanSummaryForSpeech)
+            .filter((section) => section && section.trim());
+    }
+
+    function hydrateLegacyState() {
+        window._allSections = controller.sections.slice();
+        window._sectionIdx = controller.currentIndex;
+        window._currentSource = 'sum';
+        window._waitingForAnswer = false;
+        window._answerText = '';
+    }
+
+    function ownsCurrentSpeech() {
+        return window._speechOwner === 'result-summary';
+    }
+
+    function resetPlaybackState(statusText) {
+        controller.isPaused = false;
+        window._speechOwner = '';
+        window._currentUtteranceText = '';
+        window._currentPosition = 0;
+        updateSpeechUi(statusText);
+    }
+
+    function speakSection(index) {
+        if (!synth || !controller.sections.length || index < 0 || index >= controller.sections.length) {
+            resetPlaybackState('无可朗读内容');
+            return false;
+        }
+
+        controller.currentIndex = index;
+        controller.sessionId += 1;
+        controller.isPaused = false;
+        window._speechOwner = 'result-summary';
+        hydrateLegacyState();
+
+        const utteranceText = controller.sections[index];
+        const sessionId = controller.sessionId;
+        const utterance = new SpeechSynthesisUtterance(utteranceText);
+
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        utterance.onstart = function() {
+            updateSpeechUi('正在朗读第' + (controller.currentIndex + 1) + '段');
+        };
+        utterance.onboundary = function(event) {
+            if (typeof event.charIndex === 'number') {
+                window._currentPosition = event.charIndex;
+            }
+        };
+        utterance.onpause = function() {
+            if (sessionId !== controller.sessionId) {
+                return;
+            }
+            controller.isPaused = true;
+            updateSpeechUi('已暂停');
+        };
+        utterance.onresume = function() {
+            if (sessionId !== controller.sessionId) {
+                return;
+            }
+            controller.isPaused = false;
+            updateSpeechUi('继续朗读第' + (controller.currentIndex + 1) + '段');
+        };
+        utterance.onend = function() {
+            if (sessionId !== controller.sessionId) {
+                return;
+            }
+            if (controller.currentIndex < controller.sections.length - 1) {
+                speakSection(controller.currentIndex + 1);
+                return;
+            }
+            resetPlaybackState('朗读完成');
+        };
+        utterance.onerror = function() {
+            if (sessionId !== controller.sessionId) {
+                return;
+            }
+            resetPlaybackState('朗读失败');
+        };
+
+        window._currentUtteranceText = utteranceText;
+        window._currentPosition = 0;
+        synth.cancel();
+        window.setTimeout(function() {
+            if (sessionId !== controller.sessionId) {
+                return;
+            }
+            synth.speak(utterance);
+        }, 40);
+        return true;
+    }
+
+    function startSummarySpeech() {
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+            alert('当前浏览器不支持语音朗读');
+            return false;
+        }
+
+        controller.sections = buildSectionsFromSummary();
+        controller.currentIndex = 0;
+        if (!controller.sections.length) {
+            updateSpeechUi('暂无总结内容');
+            alert('请先上传文档并完成转换后再试');
+            return false;
+        }
+
+        return speakSection(0);
+    }
+
+    function pauseOrResumeSummarySpeech() {
+        if (!synth || !ownsCurrentSpeech()) {
+            return false;
+        }
+        if (synth.paused) {
+            synth.resume();
+            return true;
+        }
+        if (synth.speaking) {
+            synth.pause();
+            return true;
+        }
+        return false;
+    }
+
+    function stopSummarySpeech(statusText) {
+        if (!synth || !ownsCurrentSpeech()) {
+            return false;
+        }
+        controller.sessionId += 1;
+        synth.cancel();
+        resetPlaybackState(statusText || '已停止朗读');
+        return true;
+    }
+
+    function jumpToSection(step) {
+        if (!ownsCurrentSpeech() || !controller.sections.length) {
+            return false;
+        }
+        const targetIndex = Math.min(
+            controller.sections.length - 1,
+            Math.max(0, controller.currentIndex + step)
+        );
+        if (targetIndex === controller.currentIndex) {
+            updateSpeechUi(step > 0 ? '已经是最后一段' : '已经是第一段');
+            return false;
+        }
+        return speakSection(targetIndex);
+    }
+
+    function adjustRate(delta) {
+        const currentRate = typeof window._rate === 'number' ? window._rate : 1;
+        const nextRate = Math.max(0.5, Math.min(2.0, Math.round((currentRate + delta) * 10) / 10));
+        if (nextRate === currentRate) {
+            return false;
+        }
+        window._rate = nextRate;
+        syncRateDisplay(nextRate);
+
+        if (!ownsCurrentSpeech()) {
+            updateSpeechUi('语速已调整为' + nextRate.toFixed(1) + 'x');
+            return true;
+        }
+
+        if (controller.isPaused) {
+            updateSpeechUi('已暂停，当前语速' + nextRate.toFixed(1) + 'x');
+            return true;
+        }
+
+        return speakSection(controller.currentIndex);
+    }
+
+    window._rate = parseFloat(rateSlider && rateSlider.value ? rateSlider.value : '1') || 1;
+    syncRateDisplay(window._rate);
+    updateSpeechUi('已就绪');
+
+    if (rateSlider) {
+        rateSlider.addEventListener('input', function() {
+            const nextRate = parseFloat(this.value) || 1;
+            window._rate = nextRate;
+            syncRateDisplay(nextRate);
+            if (ownsCurrentSpeech() && !controller.isPaused) {
+                speakSection(controller.currentIndex);
+            } else {
+                updateSpeechUi('语速已调整为' + nextRate.toFixed(1) + 'x');
+            }
+        });
+    }
+
+    window.playSummarySpeech = function() {
+        return startSummarySpeech();
+    };
+
+    window.startSpeechPlayback = function(source) {
+        if (source === 'sum') {
+            return startSummarySpeech();
+        }
+        if (typeof originalStartSpeechPlayback === 'function') {
+            return originalStartSpeechPlayback(source);
+        }
+        return false;
+    };
+
+    window.toggleCurrentSpeechPause = function() {
+        if (ownsCurrentSpeech()) {
+            return pauseOrResumeSummarySpeech();
+        }
+        if (typeof originalToggleCurrentSpeechPause === 'function') {
+            return originalToggleCurrentSpeechPause();
+        }
+        return false;
+    };
+
+    window.stopCurrentSpeech = function() {
+        if (ownsCurrentSpeech()) {
+            return stopSummarySpeech('已停止朗读');
+        }
+        if (typeof originalStopCurrentSpeech === 'function') {
+            return originalStopCurrentSpeech();
+        }
+        return false;
+    };
+
+    window.speakPrev = function() {
+        if (ownsCurrentSpeech()) {
+            return jumpToSection(-1);
+        }
+        if (typeof originalSpeakPrev === 'function') {
+            return originalSpeakPrev();
+        }
+        return false;
+    };
+
+    window.speakNext = function() {
+        if (ownsCurrentSpeech()) {
+            return jumpToSection(1);
+        }
+        if (typeof originalSpeakNext === 'function') {
+            return originalSpeakNext();
+        }
+        return false;
+    };
+
+    window.increaseRate = function() {
+        if (!ownsCurrentSpeech() && window._currentSource === 'ex' && typeof originalIncreaseRate === 'function') {
+            return originalIncreaseRate();
+        }
+        return adjustRate(0.1);
+    };
+
+    window.decreaseRate = function() {
+        if (!ownsCurrentSpeech() && window._currentSource === 'ex' && typeof originalDecreaseRate === 'function') {
+            return originalDecreaseRate();
+        }
+        return adjustRate(-0.1);
+    };
+
+    document.addEventListener('keydown', handleResultSpeechHotkeys, true);
+}
+
 document.addEventListener('DOMContentLoaded', finishProcessingFeedback);
 document.addEventListener('DOMContentLoaded', initSummaryToc);
+document.addEventListener('DOMContentLoaded', initResultSpeechController);
 </script>
 {% endblock %}

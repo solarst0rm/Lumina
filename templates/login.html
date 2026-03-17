@@ -37,4 +37,50 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shouldSpeakLoginError = {{ speak_login_error | default(false) | tojson }};
+    if (!shouldSpeakLoginError) {
+        return;
+    }
+
+    let hasSpoken = false;
+
+    function speakLoginError() {
+        if (hasSpoken) {
+            return;
+        }
+        hasSpoken = true;
+
+        if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+            return;
+        }
+
+        try {
+            window.speechSynthesis.cancel();
+        } catch (error) {}
+
+        const utterance = new SpeechSynthesisUtterance('用户名或密码错误');
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    try {
+        const audio = new Audio("{{ url_for('static', filename='audio/incorrect.mp3') }}");
+        audio.preload = 'auto';
+        audio.addEventListener('ended', speakLoginError, { once: true });
+        audio.addEventListener('error', speakLoginError, { once: true });
+
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(function() {
+                speakLoginError();
+            });
+        }
+    } catch (error) {
+        speakLoginError();
+    }
+});
+</script>
 {% endblock %}

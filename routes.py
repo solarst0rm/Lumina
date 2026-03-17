@@ -373,6 +373,16 @@ def register_routes(app, db, User, Note):
     def download_file(filename):
         return send_file(os.path.join(basedir, filename), as_attachment=True)
 
+    @app.route("/download/summary")
+    @login_required
+    def download_summary():
+        summary_path = Path(DEFAULT_SUMMARY_FILENAME)
+        if not summary_path.exists():
+            flash("请先生成总结文档")
+            return redirect(url_for("index"))
+
+        return send_file(summary_path, as_attachment=True, download_name=summary_path.name)
+
     @app.route("/register", methods=["GET", "POST"])
     def register():
         if request.method == "POST":
@@ -395,14 +405,16 @@ def register_routes(app, db, User, Note):
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        speak_login_error = False
         if request.method == "POST":
             user = User.query.filter_by(username=request.form["username"]).first()
             if user and check_password_hash(user.password_hash, request.form["password"]):
                 login_user(user)
                 return redirect(url_for("index"))
+            speak_login_error = True
             flash("用户名或密码错误")
 
-        return render_template("login.html")
+        return render_template("login.html", speak_login_error=speak_login_error)
 
     @app.route("/logout")
     @login_required

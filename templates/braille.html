@@ -3,13 +3,33 @@
 {% block page_title %}盲文转换结果{% endblock %}
 
 {% block content %}
+<style>
+    .braille-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 25px;
+        flex-wrap: wrap;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+</style>
+
 <div class="card">
     <h2>
         <i class="fas fa-braille"></i>
-        {{ '总结' if type=='summary' else '例题' }} 盲文转换结果
+        {{ '总结' if type == 'summary' else '例题' }} 盲文转换结果
     </h2>
     <p style="color: var(--text-secondary); margin-bottom: 25px;">
-        以下是转换后的盲文内容，可以直接复制或下载BRF文件用于盲文阅读器
+        以下是转换后的盲文内容，可以直接复制或下载 BRF 文件用于盲文阅读器。
     </p>
 
     <div class="form-group">
@@ -17,30 +37,30 @@
             <i class="fas fa-eye-slash"></i> 盲文内容：
         </label>
         <textarea
+            id="braille-textarea"
             rows="15"
             style="width:100%; font-family: 'Courier New', monospace; background-color: var(--background-color); border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; resize: vertical;"
             readonly
         >{{ braille }}</textarea>
     </div>
 
-    <div style="display: flex; gap: 15px; margin-top: 25px;">
+    <div class="braille-actions">
         {% if brf %}
-            <a href="{{ url_for('download_file', filename=brf) }}" class="btn btn-success">
+            <a id="braille-download-link" href="{{ url_for('download_file', filename=brf) }}" class="btn btn-success">
                 <i class="fas fa-download"></i> 下载BRF文件
             </a>
         {% endif %}
 
-        <button class="btn btn-secondary" onclick="copyToClipboard()">
+        <button id="braille-copy-button" class="btn btn-secondary" type="button">
             <i class="fas fa-copy"></i> 复制盲文
         </button>
 
-        <button class="btn" onclick="history.back()">
+        <button id="braille-back-button" class="btn" type="button">
             <i class="fas fa-arrow-left"></i> 返回上一页
         </button>
     </div>
 </div>
 
-<!-- 使用说明 -->
 <div class="card">
     <h3 style="color: var(--primary-color); margin-bottom: 15px;">
         <i class="fas fa-info-circle"></i> 盲文使用说明
@@ -50,39 +70,169 @@
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-download"></i> 下载BRF文件
             </h4>
-            <p>BRF格式文件可直接在盲文阅读器或盲文打印机上使用</p>
+            <p>BRF 格式文件可直接在盲文阅读器或盲文打印机上使用。</p>
         </div>
         <div>
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-copy"></i> 复制使用
             </h4>
-            <p>复制盲文文本，可粘贴到其他盲文处理软件中使用</p>
+            <p>复制盲文文本后，可粘贴到其他盲文处理软件中继续使用。</p>
         </div>
         <div>
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-print"></i> 打印盲文
             </h4>
-            <p>使用专用盲文打印机可将BRF文件打印成可触摸的盲文</p>
+            <p>使用专用盲文打印机可将 BRF 文件打印成可触摸的盲文。</p>
         </div>
     </div>
 </div>
 
+<div id="braille-live-region" class="sr-only" aria-live="polite"></div>
+
 <script>
-function copyToClipboard() {
-    const textarea = document.querySelector('textarea');
-    textarea.select();
-    document.execCommand('copy');
+window._disableGlobalAIAssistantHotkeys = true;
 
-    // 显示复制成功提示
-    const btn = event.target.closest('button');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
-    btn.style.backgroundColor = 'var(--success-color)';
+const brailleTextarea = document.getElementById('braille-textarea');
+const brailleDownloadLink = document.getElementById('braille-download-link');
+const brailleCopyButton = document.getElementById('braille-copy-button');
+const brailleBackButton = document.getElementById('braille-back-button');
+const brailleLiveRegion = document.getElementById('braille-live-region');
+let brailleCopyResetTimer = null;
 
-    setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.style.backgroundColor = '';
+function announceBrailleAction(text) {
+    brailleLiveRegion.textContent = text || '';
+    if (!window.speechSynthesis || !text) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = window._rate || 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+function showCopySuccess() {
+    if (!brailleCopyButton) {
+        return;
+    }
+
+    if (brailleCopyResetTimer) {
+        clearTimeout(brailleCopyResetTimer);
+    }
+
+    brailleCopyButton.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    brailleCopyButton.style.backgroundColor = 'var(--success-color)';
+
+    brailleCopyResetTimer = setTimeout(function() {
+        brailleCopyButton.innerHTML = '<i class="fas fa-copy"></i> 复制盲文';
+        brailleCopyButton.style.backgroundColor = '';
+        brailleCopyResetTimer = null;
     }, 2000);
 }
+
+function fallbackCopyBrailleText() {
+    brailleTextarea.focus();
+    brailleTextarea.select();
+    brailleTextarea.setSelectionRange(0, brailleTextarea.value.length);
+    return document.execCommand('copy');
+}
+
+function copyBrailleText() {
+    const text = brailleTextarea ? brailleTextarea.value : '';
+    if (!text) {
+        announceBrailleAction('当前没有可复制的盲文内容。');
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(function() {
+                showCopySuccess();
+                announceBrailleAction('盲文已复制。');
+            })
+            .catch(function() {
+                if (fallbackCopyBrailleText()) {
+                    showCopySuccess();
+                    announceBrailleAction('盲文已复制。');
+                    return;
+                }
+                announceBrailleAction('复制失败，请稍后重试。');
+            });
+        return;
+    }
+
+    if (fallbackCopyBrailleText()) {
+        showCopySuccess();
+        announceBrailleAction('盲文已复制。');
+        return;
+    }
+
+    announceBrailleAction('复制失败，请稍后重试。');
+}
+
+function downloadBrfFile() {
+    if (!brailleDownloadLink) {
+        announceBrailleAction('当前没有可下载的 BRF 文件。');
+        return;
+    }
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    window.location.href = brailleDownloadLink.href;
+}
+
+function goBackToPreviousPage() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    window.history.back();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    announceBrailleAction('按 D 下载 BRF 文件，按 Ctrl 加 C 复制盲文，按左箭头返回上一级。');
+
+    if (brailleCopyButton) {
+        brailleCopyButton.addEventListener('click', copyBrailleText);
+    }
+
+    if (brailleBackButton) {
+        brailleBackButton.addEventListener('click', goBackToPreviousPage);
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.repeat || event.altKey || event.metaKey) {
+            return;
+        }
+
+        switch (event.code) {
+            case 'KeyD':
+                if (event.ctrlKey) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                downloadBrfFile();
+                return;
+            case 'KeyC':
+                if (!event.ctrlKey) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                copyBrailleText();
+                return;
+            case 'ArrowLeft':
+                if (event.ctrlKey) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                goBackToPreviousPage();
+                return;
+            default:
+                return;
+        }
+    }, true);
+});
 </script>
 {% endblock %}
