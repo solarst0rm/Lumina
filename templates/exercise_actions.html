@@ -1,33 +1,37 @@
 {% extends "layout.html" %}
 
-{% block page_title %}练习操作{% endblock %}
+{% block page_title %}Exercise Actions{% endblock %}
 
 {% block content %}
 <div class="card" style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.15));">
-    <h2><i class="fas fa-list-check"></i> 练习操作</h2>
+    <h2><i class="fas fa-list-check"></i> Exercise Actions</h2>
     <p style="color: var(--text-secondary); margin-bottom: 22px;">
-        当前练习已经准备好，你可以下载题目、生成盲文，或者返回上一级继续操作。
+        Your exercise set is ready. You can download it, convert it to braille, or continue to the quiz page.
     </p>
 
     <div class="card" style="padding: 18px 20px; margin-bottom: 20px;">
-        <h3 style="color: var(--primary-color); margin-bottom: 10px;">当前题单</h3>
+        <h3 style="color: var(--primary-color); margin-bottom: 10px;">Current Quiz</h3>
         <p style="margin: 0; color: var(--text-primary);">{{ quiz_title }}</p>
     </div>
 
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
         <a href="{{ url_for('download_file', filename=exercise_filename) }}" class="btn btn-success" style="justify-content: center;">
-            <i class="fas fa-download"></i> 下载
+            <i class="fas fa-download"></i> Download
         </a>
 
         <form action="{{ url_for('braille_exercise') }}" method="post">
             <textarea name="text" style="display:none;">{{ exercise_markdown }}</textarea>
             <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center;">
-                <i class="fas fa-braille"></i> 生成盲文
+                <i class="fas fa-braille"></i> Generate Braille
             </button>
         </form>
 
         <a href="{{ url_for('exercise_challenge') }}" class="btn" style="justify-content: center;">
-            <i class="fas fa-arrow-left"></i> 返回上一级
+            <i class="fas fa-play"></i> Start Quiz
+        </a>
+
+        <a href="{{ url_for('result_page') }}" class="btn btn-secondary" style="justify-content: center;">
+            <i class="fas fa-arrow-left"></i> Back to Result
         </a>
     </div>
 </div>

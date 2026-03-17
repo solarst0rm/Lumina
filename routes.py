@@ -24,7 +24,6 @@ from core.config import (
     MODEL_NAME,
 )
 from core.processor import process_uploaded_file
-from utils.braille_converter import BrailleConverter, generate_brf_file
 from utils.exercise_generator import generate_valid_exercises, load_exercise_payload
 from utils.render_utils import markdown_to_html_fragments
 
@@ -35,6 +34,7 @@ _braille_converter = None
 def get_braille_converter():
     global _braille_converter
     if _braille_converter is None:
+        from utils.braille_converter import BrailleConverter
         _braille_converter = BrailleConverter()
     return _braille_converter
 
@@ -76,6 +76,7 @@ def _convert_to_braille(text, brf_path):
         return "Please generate content first", None
 
     try:
+        from utils.braille_converter import generate_brf_file
         result = get_braille_converter().convert_to_braille(text)
         generate_brf_file(result["brf_content"], brf_path)
         return result["unicode"], os.path.basename(brf_path)
@@ -457,6 +458,7 @@ def register_routes(app, db, User, Note):
             return jsonify({"success": False, "error": "No content"})
 
         try:
+            from utils.braille_converter import generate_brf_file
             result = get_braille_converter().convert_to_braille(content)
             brf_filename = f"braille_{current_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.brf"
             brf_path = os.path.join(basedir, brf_filename)
