@@ -3,95 +3,559 @@
 {% block page_title %}错题本{% endblock %}
 
 {% block content %}
+<style>
+    .mistake-shortcuts {
+        color: var(--text-secondary);
+        line-height: 1.8;
+    }
+
+    .mistake-doc-nav {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .mistake-doc-summary {
+        padding: 18px 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.12));
+    }
+
+    .mistake-doc-summary h3 {
+        margin: 4px 0 10px;
+        color: var(--primary-color);
+        word-break: break-word;
+    }
+
+    .mistake-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: rgba(255,107,53,0.12);
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 0.92rem;
+    }
+
+    .mistake-question-box {
+        min-height: 360px;
+    }
+
+    .mistake-question-text {
+        white-space: pre-wrap;
+        line-height: 1.9;
+        font-size: 1.06rem;
+        margin-bottom: 18px;
+    }
+
+    .mistake-option-list {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .mistake-option-item {
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        background: var(--background-color);
+        line-height: 1.8;
+    }
+
+    .mistake-detail-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .mistake-detail-card {
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: white;
+        border: 1px solid var(--border-color);
+    }
+
+    .mistake-empty-state {
+        text-align: center;
+        color: var(--text-secondary);
+        padding: 48px 20px;
+        line-height: 1.9;
+    }
+
+    .mistake-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+
+    @media (max-width: 860px) {
+        .mistake-doc-nav {
+            grid-template-columns: 1fr;
+        }
+
+        .mistake-doc-nav .btn {
+            justify-content: center;
+        }
+    }
+</style>
+
 <div class="card">
     <h2><i class="fas fa-clipboard-list"></i> 错题本</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 24px;">
-        系统会自动收集你在练习闯关中答错的题目，并按上传文件分组整理，方便你回看和复习。
+    <p style="color: var(--text-secondary); margin-bottom: 18px;">
+        这里会自动收集你答错的题目，并按上传文档归类保存。页面已适配全键盘操作。
     </p>
 
-    {% if grouped_mistakes %}
-        <div style="display: grid; gap: 22px;">
-            {% for source_file, mistakes in grouped_mistakes.items() %}
-            <div class="card" style="margin: 0; padding: 20px; background-color: var(--background-color);">
-                <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
-                    <h3 style="margin: 0; color: var(--primary-color);">
-                        <i class="fas fa-folder-open"></i> {{ source_file }}
-                    </h3>
-                    <span style="color: var(--text-secondary); font-size: 0.95rem;">
-                        共 {{ mistakes|length }} 题
-                    </span>
+    {% if mistake_groups %}
+    <div class="card" style="padding: 18px 20px; margin-bottom: 20px;">
+        <div class="mistake-shortcuts">
+            左右方向键切换上传文档，上下方向键切换当前文档中的错题，回车重做当前错题，R 重读当前内容，空格暂停或继续朗读，X 停止朗读。
+        </div>
+    </div>
+
+    <div class="mistake-doc-nav">
+        <button type="button" class="btn btn-secondary" id="mistake-doc-prev">
+            <i class="fas fa-arrow-left"></i> 上一份文档 [←]
+        </button>
+
+        <div class="mistake-doc-summary">
+            <div id="mistake-doc-position" style="color: var(--text-secondary); font-size: 0.95rem;"></div>
+            <h3 id="mistake-doc-name">-</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <span class="mistake-chip" id="mistake-doc-count"></span>
+                <span class="mistake-chip" id="mistake-current-question-state">按上下方向键浏览本文件下的错题</span>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary" id="mistake-doc-next">
+            下一份文档 [→] <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+
+    <div class="card mistake-question-box">
+        <div id="mistake-question-empty" class="mistake-empty-state">
+            <i class="fas fa-volume-up" style="font-size: 2.8rem; color: var(--border-color); margin-bottom: 18px;"></i>
+            <div>当前已选中文档。</div>
+            <div>按上或下方向键开始浏览这个文档下的错题。</div>
+        </div>
+
+        <div id="mistake-question-content" style="display:none;">
+            <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+                <span class="mistake-chip" id="mistake-question-progress"></span>
+                <span class="mistake-chip" id="mistake-question-difficulty"></span>
+            </div>
+
+            <div>
+                <strong style="color: var(--text-primary);">题目：</strong>
+                <div id="mistake-question-text" class="mistake-question-text"></div>
+            </div>
+
+            <div id="mistake-options-box" class="mistake-option-list"></div>
+
+            <div class="mistake-detail-grid">
+                <div class="mistake-detail-card">
+                    <strong style="color: var(--success-color);">正确答案：</strong>
+                    <span id="mistake-correct-answer"></span>
                 </div>
-
-                <div style="display: grid; gap: 16px;">
-                    {% for mistake in mistakes %}
-                    <div class="card" style="margin: 0; padding: 18px; background-color: white;">
-                        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-                            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                                {% if mistake.difficulty %}
-                                <span style="background: rgba(255,107,53,0.12); color: var(--primary-color); padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.9rem;">
-                                    {{ mistake.difficulty }}
-                                </span>
-                                {% endif %}
-                                <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                    错误次数：{{ mistake.wrong_count }}
-                                </span>
-                            </div>
-                            <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                最近出错：{{ mistake.last_wrong_at.strftime('%Y-%m-%d %H:%M') }}
-                            </span>
-                        </div>
-
-                        <div style="margin-bottom: 12px;">
-                            <strong style="color: var(--text-primary);">题目：</strong>
-                            <div style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;">{{ mistake.question_text }}</div>
-                        </div>
-
-                        {% if mistake.options %}
-                        <div style="margin-bottom: 12px;">
-                            <strong style="color: var(--text-primary);">选项：</strong>
-                            <div style="margin-top: 8px; display: grid; gap: 8px;">
-                                {% for option in mistake.options %}
-                                <div style="padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--background-color);">
-                                    {{ option.key }}. {{ option.text }}
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <div style="display:grid; gap:10px;">
-                            <div>
-                                <strong style="color: var(--success-color);">正确答案：</strong>
-                                <span>{{ mistake.correct_answer }}</span>
-                            </div>
-                            {% if mistake.last_selected_answer %}
-                            <div>
-                                <strong style="color: var(--error-color);">你最近一次的答案：</strong>
-                                <span>{{ mistake.last_selected_answer }}</span>
-                            </div>
-                            {% endif %}
-                            {% if mistake.explanation %}
-                            <div>
-                                <strong style="color: var(--text-primary);">解析：</strong>
-                                <div style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;">{{ mistake.explanation }}</div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div class="mistake-detail-card">
+                    <strong style="color: var(--error-color);">你最近一次的答案：</strong>
+                    <span id="mistake-last-answer"></span>
+                </div>
+                <div class="mistake-detail-card">
+                    <strong style="color: var(--text-primary);">解析：</strong>
+                    <div id="mistake-explanation" style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;"></div>
+                </div>
+                <div class="mistake-detail-card">
+                    <strong style="color: var(--text-primary);">记录：</strong>
+                    <div id="mistake-meta" style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;"></div>
                 </div>
             </div>
-            {% endfor %}
+
+            <div class="mistake-actions">
+                <a id="mistake-redo-link" class="btn btn-success" href="#">
+                    <i class="fas fa-redo"></i> 重做当前错题 [Enter]
+                </a>
+                <a href="{{ url_for('exercise_challenge') }}" class="btn btn-secondary">
+                    <i class="fas fa-play"></i> 去做完整练习
+                </a>
+            </div>
         </div>
+    </div>
     {% else %}
-        <div style="text-align: center; padding: 56px 20px; color: var(--text-secondary);">
-            <i class="fas fa-check-circle" style="font-size: 4rem; color: var(--border-color); margin-bottom: 20px;"></i>
-            <h3>当前还没有错题</h3>
-            <p>去练习闯关做题吧，答错的题目会自动加入这里。</p>
-            <a href="{{ url_for('exercise_challenge') }}" class="btn" style="margin-top: 20px;">
-                <i class="fas fa-play"></i> 去做练习
-            </a>
-        </div>
+    <div style="text-align: center; padding: 56px 20px; color: var(--text-secondary);">
+        <i class="fas fa-check-circle" style="font-size: 4rem; color: var(--border-color); margin-bottom: 20px;"></i>
+        <h3>当前还没有错题</h3>
+        <p>去练习闯关做题吧，答错的题目会自动加入这里。</p>
+        <a href="{{ url_for('exercise_challenge') }}" class="btn" style="margin-top: 20px;">
+            <i class="fas fa-play"></i> 去做练习
+        </a>
+    </div>
     {% endif %}
 </div>
+
+{% if mistake_groups %}
+<div id="mistake-live-region" class="sr-only" aria-live="polite"></div>
+
+<script>
+window._disableGlobalAIAssistantHotkeys = true;
+
+const MISTAKE_GROUPS = {{ mistake_groups | tojson }};
+const INITIAL_SOURCE_FILE = {{ initial_source_file | default('') | tojson }};
+const INITIAL_MISTAKE_ID = {{ initial_mistake_id | default(none) | tojson }};
+const mistakeState = {
+    groupIndex: 0,
+    mistakeIndex: -1,
+    lastReadTarget: 'group'
+};
+
+const docPrevButton = document.getElementById('mistake-doc-prev');
+const docNextButton = document.getElementById('mistake-doc-next');
+const docPosition = document.getElementById('mistake-doc-position');
+const docName = document.getElementById('mistake-doc-name');
+const docCount = document.getElementById('mistake-doc-count');
+const currentQuestionState = document.getElementById('mistake-current-question-state');
+const emptyState = document.getElementById('mistake-question-empty');
+const contentState = document.getElementById('mistake-question-content');
+const questionProgress = document.getElementById('mistake-question-progress');
+const questionDifficulty = document.getElementById('mistake-question-difficulty');
+const questionText = document.getElementById('mistake-question-text');
+const optionsBox = document.getElementById('mistake-options-box');
+const correctAnswer = document.getElementById('mistake-correct-answer');
+const lastAnswer = document.getElementById('mistake-last-answer');
+const explanation = document.getElementById('mistake-explanation');
+const meta = document.getElementById('mistake-meta');
+const redoLink = document.getElementById('mistake-redo-link');
+const liveRegion = document.getElementById('mistake-live-region');
+
+function getCurrentGroup() {
+    return MISTAKE_GROUPS[mistakeState.groupIndex] || null;
+}
+
+function getCurrentMistake() {
+    const group = getCurrentGroup();
+    if (!group || mistakeState.mistakeIndex < 0) {
+        return null;
+    }
+    return (group.mistakes || [])[mistakeState.mistakeIndex] || null;
+}
+
+function stopNotebookSpeech() {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+function announceNotebook(text) {
+    liveRegion.textContent = text || '';
+    if (!window.speechSynthesis || !text) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = window._rate || 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+function buildGroupSpeech(group) {
+    const count = (group.mistakes || []).length;
+    return '当前文档：' + group.source_file + '。共 ' + count + ' 道错题。按上或下方向键开始浏览题目，按回车重做当前错题。';
+}
+
+function buildMistakeSpeech(group, mistake, index) {
+    const parts = [
+        '当前文档：' + group.source_file,
+        '第 ' + (index + 1) + ' 题，共 ' + group.mistakes.length + ' 题'
+    ];
+
+    if (mistake.difficulty) {
+        parts.push('难度：' + mistake.difficulty);
+    }
+
+    parts.push('题目。' + mistake.question_text);
+
+    if (mistake.options && mistake.options.length) {
+        parts.push(
+            '选项。' + mistake.options.map(function(option) {
+                return option.key + '，' + option.text;
+            }).join('。')
+        );
+    }
+
+    parts.push('正确答案：' + (mistake.correct_answer || '未记录'));
+
+    if (mistake.explanation) {
+        parts.push('解析。' + mistake.explanation);
+    }
+
+    parts.push('按回车可以重做当前错题。');
+    return parts.join('。');
+}
+
+function repeatCurrentNotebookSpeech() {
+    const group = getCurrentGroup();
+    if (!group) {
+        return;
+    }
+
+    if (mistakeState.lastReadTarget === 'mistake' && getCurrentMistake()) {
+        announceNotebook(buildMistakeSpeech(group, getCurrentMistake(), mistakeState.mistakeIndex));
+        return;
+    }
+
+    announceNotebook(buildGroupSpeech(group));
+}
+
+function updateQuestionView() {
+    const group = getCurrentGroup();
+    const mistake = getCurrentMistake();
+    if (!group) {
+        return;
+    }
+
+    docPosition.textContent = '文档 ' + (mistakeState.groupIndex + 1) + ' / ' + MISTAKE_GROUPS.length;
+    docName.textContent = group.source_file;
+    docCount.textContent = '错题数：' + (group.mistakes || []).length;
+
+    docPrevButton.disabled = mistakeState.groupIndex <= 0;
+    docNextButton.disabled = mistakeState.groupIndex >= MISTAKE_GROUPS.length - 1;
+
+    if (!mistake) {
+        emptyState.style.display = 'block';
+        contentState.style.display = 'none';
+        currentQuestionState.textContent = '按上下方向键浏览本文件下的错题';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    contentState.style.display = 'block';
+    currentQuestionState.textContent = '已定位到当前文档中的第 ' + (mistakeState.mistakeIndex + 1) + ' 题';
+
+    questionProgress.textContent = '第 ' + (mistakeState.mistakeIndex + 1) + ' / ' + group.mistakes.length + ' 题';
+    questionDifficulty.textContent = mistake.difficulty || '错题';
+    questionText.textContent = mistake.question_text || '';
+    correctAnswer.textContent = mistake.correct_answer || '未记录';
+    lastAnswer.textContent = mistake.last_selected_answer || '未记录';
+    explanation.textContent = mistake.explanation || '暂无解析';
+    meta.textContent = '错误次数：' + mistake.wrong_count + '\n首次记录：' + mistake.first_wrong_at + '\n最近出错：' + mistake.last_wrong_at;
+    redoLink.href = mistake.redo_url;
+
+    optionsBox.innerHTML = '';
+    (mistake.options || []).forEach(function(option) {
+        const item = document.createElement('div');
+        item.className = 'mistake-option-item';
+        item.textContent = option.key + '. ' + option.text;
+        optionsBox.appendChild(item);
+    });
+}
+
+function selectGroup(index, announceGroupName) {
+    if (index < 0 || index >= MISTAKE_GROUPS.length) {
+        return;
+    }
+
+    mistakeState.groupIndex = index;
+    mistakeState.mistakeIndex = -1;
+    mistakeState.lastReadTarget = 'group';
+    updateQuestionView();
+
+    if (announceGroupName) {
+        announceNotebook(buildGroupSpeech(getCurrentGroup()));
+    }
+}
+
+function moveQuestion(delta) {
+    const group = getCurrentGroup();
+    if (!group || !(group.mistakes || []).length) {
+        announceNotebook('当前文档下还没有错题。');
+        return;
+    }
+
+    let nextIndex;
+    if (mistakeState.mistakeIndex < 0) {
+        nextIndex = delta >= 0 ? 0 : group.mistakes.length - 1;
+    } else {
+        nextIndex = mistakeState.mistakeIndex + delta;
+    }
+
+    if (nextIndex < 0) {
+        announceNotebook('已经是当前文档的第一题。');
+        return;
+    }
+
+    if (nextIndex >= group.mistakes.length) {
+        announceNotebook('已经是当前文档的最后一题。');
+        return;
+    }
+
+    mistakeState.mistakeIndex = nextIndex;
+    mistakeState.lastReadTarget = 'mistake';
+    updateQuestionView();
+    announceNotebook(buildMistakeSpeech(group, getCurrentMistake(), mistakeState.mistakeIndex));
+}
+
+function redoCurrentMistake() {
+    const mistake = getCurrentMistake();
+    if (!mistake || !mistake.redo_url) {
+        announceNotebook('请先用上下方向键选中一道错题。');
+        return;
+    }
+    window.location.href = mistake.redo_url;
+}
+
+function toggleNotebookSpeechPause() {
+    if (!window.speechSynthesis) {
+        return;
+    }
+    if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+    } else if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+    }
+}
+
+function initializeNotebookState() {
+    if (!MISTAKE_GROUPS.length) {
+        return;
+    }
+
+    let initialGroupIndex = 0;
+    if (INITIAL_SOURCE_FILE) {
+        const matchedGroupIndex = MISTAKE_GROUPS.findIndex(function(group) {
+            return group.source_file === INITIAL_SOURCE_FILE;
+        });
+        if (matchedGroupIndex >= 0) {
+            initialGroupIndex = matchedGroupIndex;
+        }
+    }
+
+    mistakeState.groupIndex = initialGroupIndex;
+    mistakeState.mistakeIndex = -1;
+    mistakeState.lastReadTarget = 'group';
+
+    if (INITIAL_MISTAKE_ID) {
+        const matchedMistakeIndex = (MISTAKE_GROUPS[initialGroupIndex].mistakes || []).findIndex(function(mistake) {
+            return Number(mistake.id) === Number(INITIAL_MISTAKE_ID);
+        });
+        if (matchedMistakeIndex >= 0) {
+            mistakeState.mistakeIndex = matchedMistakeIndex;
+            mistakeState.lastReadTarget = 'mistake';
+        }
+    }
+
+    updateQuestionView();
+
+    if (mistakeState.lastReadTarget === 'mistake' && getCurrentMistake()) {
+        announceNotebook(buildMistakeSpeech(getCurrentGroup(), getCurrentMistake(), mistakeState.mistakeIndex));
+        return;
+    }
+
+    announceNotebook(buildGroupSpeech(getCurrentGroup()));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeNotebookState();
+
+    docPrevButton.addEventListener('click', function() {
+        if (mistakeState.groupIndex > 0) {
+            selectGroup(mistakeState.groupIndex - 1, true);
+        }
+    });
+
+    docNextButton.addEventListener('click', function() {
+        if (mistakeState.groupIndex < MISTAKE_GROUPS.length - 1) {
+            selectGroup(mistakeState.groupIndex + 1, true);
+        }
+    });
+
+    redoLink.addEventListener('click', function(event) {
+        if (!getCurrentMistake()) {
+            event.preventDefault();
+            announceNotebook('请先用上下方向键选中一道错题。');
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        const target = event.target;
+        if (
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable))
+        ) {
+            return;
+        }
+
+        switch (event.code) {
+            case 'ArrowLeft':
+                event.preventDefault();
+                event.stopPropagation();
+                if (mistakeState.groupIndex > 0) {
+                    selectGroup(mistakeState.groupIndex - 1, true);
+                } else {
+                    announceNotebook('已经是第一份文档。');
+                }
+                return;
+            case 'ArrowRight':
+                event.preventDefault();
+                event.stopPropagation();
+                if (mistakeState.groupIndex < MISTAKE_GROUPS.length - 1) {
+                    selectGroup(mistakeState.groupIndex + 1, true);
+                } else {
+                    announceNotebook('已经是最后一份文档。');
+                }
+                return;
+            case 'ArrowUp':
+                event.preventDefault();
+                event.stopPropagation();
+                moveQuestion(-1);
+                return;
+            case 'ArrowDown':
+                event.preventDefault();
+                event.stopPropagation();
+                moveQuestion(1);
+                return;
+            case 'Enter':
+            case 'NumpadEnter':
+                event.preventDefault();
+                event.stopPropagation();
+                redoCurrentMistake();
+                return;
+            case 'KeyR':
+                event.preventDefault();
+                event.stopPropagation();
+                repeatCurrentNotebookSpeech();
+                return;
+            case 'KeyX':
+                event.preventDefault();
+                event.stopPropagation();
+                stopNotebookSpeech();
+                return;
+            case 'Space':
+                event.preventDefault();
+                event.stopPropagation();
+                toggleNotebookSpeechPause();
+                return;
+            default:
+                return;
+        }
+    }, true);
+});
+</script>
+{% endif %}
 {% endblock %}

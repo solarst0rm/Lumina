@@ -202,6 +202,9 @@ window._disableGlobalAIAssistantHotkeys = true;
 window._sumText = '';
 window._exText = {{ exercise_markdown | tojson }};
 const SOURCE_FILE = {{ source_file | default('') | tojson }};
+const RETURN_URL = {{ return_url | default('') | tojson }};
+const AUTO_START_DIFFICULTY = {{ auto_start_difficulty | default('') | tojson }};
+const IS_MISTAKE_REDO = {{ is_mistake_redo | default(false) | tojson }};
 
 let quizData = {{ quiz_data | tojson }};
 const difficultyLabels = {
@@ -512,6 +515,26 @@ function renderDecision(title, text, actions, speechText, waitingAction) {
 }
 
 function onDifficultyFinished() {
+    if (IS_MISTAKE_REDO) {
+        renderDecision(
+            '错题重做完成',
+            '这道错题已经完成。你可以再做一次，或者返回错题本继续复习。',
+            [
+                {
+                    label: '再做一次',
+                    className: 'btn-success',
+                    onClick: function() {
+                        startDifficulty(AUTO_START_DIFFICULTY || state.currentDifficulty || getDifficultyOrder()[0]);
+                    }
+                },
+                { label: '返回错题本', className: 'btn-secondary', onClick: finishQuiz }
+            ],
+            '错题重做完成。按C再做一次，按E返回错题本。',
+            'complete'
+        );
+        return;
+    }
+
     const upcoming = nextDifficulty();
     if (upcoming) {
         renderDecision(
@@ -540,6 +563,10 @@ function onDifficultyFinished() {
 }
 
 function finishQuiz() {
+    if (RETURN_URL) {
+        window.location.href = RETURN_URL;
+        return;
+    }
     const baseUrl = "{{ url_for('exercise_actions') }}";
     window.location.href = SOURCE_FILE ? (baseUrl + '?source_file=' + encodeURIComponent(SOURCE_FILE)) : baseUrl;
 }
@@ -826,9 +853,14 @@ function bindHotkeys() {
                         startDifficulty(upcoming);
                     }
                 }
+                if (event.code === 'KeyC' && state.waitingAction === 'complete' && IS_MISTAKE_REDO) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    startDifficulty(AUTO_START_DIFFICULTY || getDifficultyOrder()[0]);
+                }
                 return;
             case 'KeyE':
-                if (state.waitingAction === 'continue') {
+                if (state.waitingAction === 'continue' || (state.waitingAction === 'complete' && IS_MISTAKE_REDO)) {
                     event.preventDefault();
                     event.stopPropagation();
                     finishQuiz();
@@ -914,6 +946,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindHotkeys();
+    if (AUTO_START_DIFFICULTY) {
+        startDifficulty(AUTO_START_DIFFICULTY);
+        return;
+    }
     showDifficultySelection();
 });
 </script>

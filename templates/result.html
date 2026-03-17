@@ -792,8 +792,35 @@ function initResultSpeechController() {
             .trim();
     }
 
+    function getSummaryTextForSpeech() {
+        const summaryFromWindow = normalizeLineBreaks(typeof window._sumText === 'string' ? window._sumText : '').trim();
+        if (summaryFromWindow) {
+            return summaryFromWindow;
+        }
+
+        const summaryTextarea = document.querySelector('#braille-summary-form textarea[name="text"]');
+        const summaryFromTextarea = summaryTextarea && typeof summaryTextarea.value === 'string'
+            ? normalizeLineBreaks(summaryTextarea.value).trim()
+            : '';
+        if (summaryFromTextarea) {
+            window._sumText = summaryFromTextarea;
+            return summaryFromTextarea;
+        }
+
+        const summaryRoot = document.getElementById('summary-rendered');
+        const summaryFromDom = summaryRoot && typeof summaryRoot.innerText === 'string'
+            ? normalizeLineBreaks(summaryRoot.innerText).trim()
+            : '';
+        if (summaryFromDom) {
+            window._sumText = summaryFromDom;
+            return summaryFromDom;
+        }
+
+        return '';
+    }
+
     function buildSectionsFromSummary() {
-        const normalized = normalizeLineBreaks(typeof window._sumText === 'string' ? window._sumText : '').trim();
+        const normalized = getSummaryTextForSpeech();
         if (!normalized) {
             return [];
         }

@@ -214,8 +214,8 @@ window._spacebarTimer = null;
 window._spacebarHandled = false;
 
 // ============== 全局 TTS 状态 ==============
-window._sumText = '';
-window._exText = '';
+window._sumText = typeof window._sumText === 'string' ? window._sumText : '';
+window._exText = typeof window._exText === 'string' ? window._exText : '';
 window._allSections = [];
 window._sectionIdx = 0;
 window._currentSource = 'sum';

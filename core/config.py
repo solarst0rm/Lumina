@@ -18,7 +18,24 @@ DEFAULT_EXERCISE_FILENAME = "exercise.md"
 DEFAULT_EXERCISE_JSON_FILENAME = "exercise.json"
 
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "pptx", "docx"}
+ALLOWED_EXTENSIONS = {
+    "pdf",
+    "docx",
+    "pptx",
+    "pptm",
+    "ppsx",
+    "ppsm",
+    "potx",
+    "potm",
+    "jpg",
+    "jpeg",
+    "png",
+    "bmp",
+    "webp",
+    "gif",
+    "tif",
+    "tiff",
+}
 MAX_IMAGE_SIDE = 768
 PROCESS_TIMEOUT = 300
 SECURITY_SENSITIVE_KEYWORDS = {

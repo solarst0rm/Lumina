@@ -313,7 +313,38 @@
         return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     }
 
+    function getSummaryTextFromCurrentPage() {
+        const summaryFromWindow = typeof window._sumText === "string" ? window._sumText.trim() : "";
+        if (summaryFromWindow) {
+            return summaryFromWindow;
+        }
+
+        const summaryTextarea = document.querySelector('#braille-summary-form textarea[name="text"]');
+        const summaryFromTextarea = summaryTextarea && typeof summaryTextarea.value === "string"
+            ? summaryTextarea.value.trim()
+            : "";
+        if (summaryFromTextarea) {
+            window._sumText = summaryFromTextarea;
+            return summaryFromTextarea;
+        }
+
+        const summaryRendered = document.getElementById("summary-rendered");
+        const summaryFromDom = summaryRendered && typeof summaryRendered.innerText === "string"
+            ? summaryRendered.innerText.trim()
+            : "";
+        if (summaryFromDom) {
+            window._sumText = summaryFromDom;
+            return summaryFromDom;
+        }
+
+        return "";
+    }
+
     async function addPostFromSummary(summaryText) {
+        if (!(summaryText || "").toString().trim()) {
+            return { success: false, error: "当前页面还没有可上传的总结内容。" };
+        }
+
         const moderation = moderateContent(summaryText);
         if (!moderation.ok) {
             return { success: false, error: moderation.reason };
@@ -544,7 +575,7 @@
         }
 
         button.addEventListener("click", async function () {
-            const summary = typeof window._sumText === "string" ? window._sumText : "";
+            const summary = getSummaryTextFromCurrentPage();
             const result = await addPostFromSummary(summary);
             if (!result.success) {
                 alert(result.error || "上传失败");

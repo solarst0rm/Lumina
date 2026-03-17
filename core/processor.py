@@ -32,6 +32,13 @@ from utils.render_utils import render_markdown_to_html
 
 client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
+DIRECT_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".gif", ".tif", ".tiff")
+PPT_OOXML_EXTENSIONS = (".pptx", ".pptm", ".ppsx", ".ppsm", ".potx", ".potm")
+SUPPORTED_UPLOAD_MESSAGE = (
+    "暂不支持该文件格式。请上传 PDF、DOCX、PPTX/PPTM/PPSX/PPSM/POTX/POTM，"
+    "或 JPG/JPEG/PNG/BMP/WEBP/GIF/TIFF 图片；旧版 .ppt 请先另存为 .pptx。"
+)
+
 
 def resize_image(path: str) -> None:
     """Resize image in place so the longest side stays within the limit."""
@@ -91,6 +98,20 @@ def _render_text_lines_to_image(lines: list[str], output_path: str) -> None:
     resize_image(output_path)
 
 
+def _normalize_uploaded_image(filepath: str, temp_dir: str) -> str:
+    output_path = os.path.join(temp_dir, f"{Path(filepath).stem}_upload.jpg")
+    with Image.open(filepath) as image:
+        if getattr(image, "is_animated", False):
+            try:
+                image.seek(0)
+            except EOFError:
+                pass
+        normalized = image.convert("RGB")
+        normalized.save(output_path, format="JPEG", quality=92)
+    resize_image(output_path)
+    return output_path
+
+
 def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
     """Convert supported files to a list of images."""
     image_paths: list[str] = []
@@ -99,9 +120,10 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
     temp_dir = tempfile.mkdtemp(prefix="doc_pages_")
 
     try:
-        if filepath_lower.endswith((".jpg", ".jpeg", ".png")):
-            resize_image(filepath)
-            image_paths.append(filepath)
+        if filepath_lower.endswith(DIRECT_IMAGE_EXTENSIONS):
+            normalized_image_path = _normalize_uploaded_image(filepath, temp_dir)
+            image_paths.append(normalized_image_path)
+            temp_images.append(normalized_image_path)
 
         elif filepath_lower.endswith(".pdf"):
             document = fitz.open(filepath)
@@ -115,7 +137,10 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
                 temp_images.append(img_path)
             document.close()
 
-        elif filepath_lower.endswith(".pptx"):
+        elif filepath_lower.endswith(".ppt"):
+            raise ValueError("暂不支持旧版 .ppt 文件，请先另存为 .pptx 后再上传。")
+
+        elif filepath_lower.endswith(PPT_OOXML_EXTENSIONS):
             presentation = Presentation(filepath)
             for index, slide in enumerate(presentation.slides):
                 slide_lines = [f"第 {index + 1} 页幻灯片"]
@@ -173,7 +198,7 @@ def extract_reference_text(filepath: str) -> str:
                     chunks.append(text)
             document.close()
 
-        elif filepath_lower.endswith(".pptx"):
+        elif filepath_lower.endswith(PPT_OOXML_EXTENSIONS):
             presentation = Presentation(filepath)
             for slide in presentation.slides:
                 for shape in slide.shapes:

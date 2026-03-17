@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import uuid
 from datetime import datetime
@@ -16,6 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from core.config import (
+    ALLOWED_EXTENSIONS,
     API_KEY,
     BASE_URL,
     DEFAULT_EXERCISE_FILENAME,
@@ -44,6 +46,25 @@ def _read_text_if_exists(path: str | Path) -> str:
     if not file_path.exists():
         return ""
     return file_path.read_text(encoding="utf-8")
+
+
+def _validate_upload_file(file) -> str | None:
+    filename = secure_filename(file.filename or "")
+    if not filename:
+        return "请选择要上传的文件。"
+
+    extension = Path(filename).suffix.lower().lstrip(".")
+    if extension == "ppt":
+        return "暂不支持旧版 .ppt 文件，请先另存为 .pptx 后再上传。"
+
+    if extension not in ALLOWED_EXTENSIONS:
+        return (
+            "暂不支持该文件格式。请上传 PDF、DOCX、PPTX/PPTM/PPSX/PPSM/POTX/POTM，"
+            "或 JPG/JPEG/PNG/BMP/WEBP/GIF/TIFF 图片。"
+        )
+
+    file.filename = filename
+    return None
 
 
 def _save_and_process(file, prompt, upload_dir):
@@ -88,6 +109,19 @@ def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
     if not summary_text or not summary_text.strip():
         return "", ""
     return markdown_to_html_fragments(summary_text, is_exercise=False)
+
+
+def _extract_answer_key(answer_text: str, options: list[dict] | None = None) -> str:
+    match = re.match(r"\s*([A-Za-z])(?:[\s，,。.:：]|$)", (answer_text or "").strip())
+    if match:
+        return match.group(1).upper()
+
+    for option in options or []:
+        key = str(option.get("key", "")).strip().upper()
+        if key:
+            return key
+
+    return "A"
 
 
 def _jobs_dir(basedir: str) -> Path:
@@ -226,6 +260,11 @@ def register_routes(app, db, User, Note, MistakeRecord):
         file = request.files.get("file")
         if not file:
             flash("请选择文件")
+            return redirect(url_for("index"))
+
+        upload_error = _validate_upload_file(file)
+        if upload_error:
+            flash(upload_error)
             return redirect(url_for("index"))
 
         job_id = _start_processing_job(file, request.form.get("prompt", ""), current_user.id)
@@ -443,13 +482,16 @@ def register_routes(app, db, User, Note, MistakeRecord):
     @app.route("/mistakes")
     @login_required
     def mistake_notebook():
+        initial_source_file = (request.args.get("source_file") or "").strip()
+        initial_mistake_id = request.args.get("mistake_id", type=int)
         mistake_records = (
             MistakeRecord.query.filter_by(user_id=current_user.id)
             .order_by(MistakeRecord.last_wrong_at.desc(), MistakeRecord.id.desc())
             .all()
         )
 
-        grouped_mistakes: dict[str, list[dict]] = {}
+        mistake_groups: list[dict] = []
+        group_index_by_name: dict[str, int] = {}
         for record in mistake_records:
             source_name = (record.source_filename or "").strip() or "当前练习"
             try:
@@ -457,7 +499,16 @@ def register_routes(app, db, User, Note, MistakeRecord):
             except json.JSONDecodeError:
                 options = []
 
-            grouped_mistakes.setdefault(source_name, []).append(
+            if source_name not in group_index_by_name:
+                group_index_by_name[source_name] = len(mistake_groups)
+                mistake_groups.append(
+                    {
+                        "source_file": source_name,
+                        "mistakes": [],
+                    }
+                )
+
+            mistake_groups[group_index_by_name[source_name]]["mistakes"].append(
                 {
                     "id": record.id,
                     "difficulty": record.difficulty or "",
@@ -467,12 +518,68 @@ def register_routes(app, db, User, Note, MistakeRecord):
                     "explanation": record.explanation or "",
                     "last_selected_answer": record.last_selected_answer or "",
                     "wrong_count": record.wrong_count,
-                    "first_wrong_at": record.first_wrong_at,
-                    "last_wrong_at": record.last_wrong_at,
+                    "first_wrong_at": record.first_wrong_at.strftime("%Y-%m-%d %H:%M") if record.first_wrong_at else "",
+                    "last_wrong_at": record.last_wrong_at.strftime("%Y-%m-%d %H:%M") if record.last_wrong_at else "",
+                    "redo_url": url_for("redo_mistake", mistake_id=record.id),
                 }
             )
 
-        return render_template("mistake_notebook.html", grouped_mistakes=grouped_mistakes)
+        return render_template(
+            "mistake_notebook.html",
+            mistake_groups=mistake_groups,
+            initial_source_file=initial_source_file,
+            initial_mistake_id=initial_mistake_id,
+        )
+
+    @app.route("/mistakes/<int:mistake_id>/redo")
+    @login_required
+    def redo_mistake(mistake_id):
+        record = MistakeRecord.query.filter_by(id=mistake_id, user_id=current_user.id).first()
+        if not record:
+            flash("指定的错题不存在")
+            return redirect(url_for("mistake_notebook"))
+
+        try:
+            options = json.loads(record.options_json or "[]")
+        except json.JSONDecodeError:
+            options = []
+
+        answer_key = _extract_answer_key(record.correct_answer, options)
+        difficulty_name = "错题重做"
+        quiz_data = {
+            "title": "错题重做",
+            "difficulties": {
+                difficulty_name: [
+                    {
+                        "question": record.question_text,
+                        "options": options,
+                        "answer": answer_key,
+                        "explanation": record.explanation or "暂无解析",
+                    }
+                ]
+            },
+        }
+
+        exercise_markdown = (
+            f"## 错题重做\n\n"
+            f"### 题干\n\n{record.question_text}\n\n"
+            f"### 正确答案\n\n{record.correct_answer}\n\n"
+            f"### 解析\n\n{record.explanation or '暂无解析'}\n"
+        )
+
+        return render_template(
+            "exercise_quiz.html",
+            quiz_data=quiz_data,
+            exercise_markdown=exercise_markdown,
+            source_file=(record.source_filename or "").strip(),
+            return_url=url_for(
+                "mistake_notebook",
+                source_file=(record.source_filename or "").strip(),
+                mistake_id=record.id,
+            ),
+            auto_start_difficulty=difficulty_name,
+            is_mistake_redo=True,
+        )
 
     @app.route("/api/mistakes", methods=["POST"])
     @login_required
@@ -529,6 +636,10 @@ def register_routes(app, db, User, Note, MistakeRecord):
         file = request.files.get("file")
         if not file:
             return jsonify({"success": False, "error": "未上传文件"})
+
+        upload_error = _validate_upload_file(file)
+        if upload_error:
+            return jsonify({"success": False, "error": upload_error})
 
         summary, exercise, status, _, _ = _save_and_process(
             file,
