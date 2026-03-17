@@ -21,6 +21,24 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "pptx", "docx"}
 MAX_IMAGE_SIDE = 768
 PROCESS_TIMEOUT = 300
+SECURITY_SENSITIVE_KEYWORDS = {
+    "attacklab",
+    "attack lab",
+    "buffer overflow",
+    "stack overflow",
+    "return-oriented programming",
+    "rop",
+    "shellcode",
+    "exploit",
+    "payload",
+    "gadget",
+    "overflow",
+    "format string",
+    "ret2libc",
+    "code injection",
+    "ctf",
+    "pwn",
+}
 
 DEFAULT_USER_PROMPT = (
     "Please summarize the uploaded material in simplified Chinese, keep the structure clear, "
@@ -39,4 +57,10 @@ Requirements:
 - Explain formulas and symbols in plain natural language.
 - Describe tables and figures in words.
 - Focus on the document as a whole instead of page-by-page notes.
+- If the material is about cybersecurity, attack/defense, exploit labs, or vulnerability analysis,
+  keep the summary strictly high-level and educational.
+- For security-related material, summarize only learning goals, core concepts, safety cautions,
+  terminology, and defensive thinking.
+- Do not reproduce step-by-step exploit procedures, payloads, shellcode, commands, exact attack
+  instructions, exploit chains, or operational guidance.
 """

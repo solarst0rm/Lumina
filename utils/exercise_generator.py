@@ -21,7 +21,7 @@ from utils.render_utils import render_markdown_to_html
 client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
 DIFFICULTY_ORDER = ["Easy", "Medium", "Hard"]
-QUESTION_COUNT_PER_LEVEL = 10
+QUESTION_COUNT_PER_LEVEL = 5
 OPTION_KEYS = ["A", "B", "C", "D"]
 
 
@@ -174,7 +174,16 @@ def save_exercises(
     render_markdown_to_html(markdown_path, is_exercise=True)
 
 
-def _build_exercise_prompt(summary_text: str) -> str:
+def _build_exercise_prompt(summary_text: str, safe_mode: bool = False) -> str:
+    extra_rules = ""
+    if safe_mode:
+        extra_rules = """
+- The source material may discuss cybersecurity attack labs or exploit analysis.
+- Only create high-level educational questions about concepts, goals, ethics, terminology, debugging observations,
+  and defense awareness.
+- Do not ask for exploit steps, payloads, shellcode, commands, addresses, or operational attack procedures.
+""".strip()
+
     return f"""
 Create a JSON object with a title and three difficulty groups: Easy, Medium, Hard.
 
@@ -186,6 +195,7 @@ Rules:
 - Do not use Markdown.
 - Do not use formulas or LaTeX.
 - Questions must be based only on the provided summary.
+{extra_rules}
 
 JSON shape:
 {{
@@ -241,12 +251,28 @@ def _repair_json_object(raw_content: str) -> dict:
     return _parse_json_object(repaired)
 
 
-def generate_exercise_payload(summary_text: str) -> dict:
+def _format_model_error(exc: Exception) -> str:
+    raw_message = str(exc)
+    if "output data may contain inappropriate content" in raw_message.lower():
+        return (
+            "The model blocked exercise generation because the content looks like sensitive "
+            "security or attack material. Try generating only high-level, non-operational exercises."
+        )
+    return raw_message
+
+
+def generate_exercise_payload(summary_text: str, safe_mode: bool = False) -> dict:
     """Ask the model for structured multiple-choice exercises."""
-    raw_content = _request_json_object(
-        system_prompt="You are an expert teacher who creates accessible multiple-choice exercises.",
-        user_prompt=_build_exercise_prompt(summary_text),
-    )
+    try:
+        raw_content = _request_json_object(
+            system_prompt=(
+                "You are an expert teacher who creates accessible multiple-choice exercises. "
+                "If the material is cybersecurity related, stay high-level and non-operational."
+            ),
+            user_prompt=_build_exercise_prompt(summary_text, safe_mode=safe_mode),
+        )
+    except Exception as exc:
+        raise RuntimeError(_format_model_error(exc)) from exc
 
     try:
         return _parse_json_object(raw_content)
@@ -257,6 +283,7 @@ def generate_exercise_payload(summary_text: str) -> dict:
 def generate_valid_exercises(
     md_path: str | Path = "summary.md",
     max_retry: int = 2,
+    safe_mode: bool = False,
 ) -> tuple[dict, str]:
     """Generate, validate, and save exercises."""
     summary_text = read_summary(md_path)
@@ -266,7 +293,7 @@ def generate_valid_exercises(
     for retry_index in range(1, max_retry + 1):
         try:
             print(f"Generating exercises, attempt {retry_index}...")
-            payload = validate_exercise_payload(generate_exercise_payload(summary_text))
+            payload = validate_exercise_payload(generate_exercise_payload(summary_text, safe_mode=safe_mode))
             markdown_content = structured_exercises_to_markdown(payload)
             save_exercises(markdown_content, payload)
             return payload, markdown_content

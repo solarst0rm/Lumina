@@ -24,6 +24,7 @@ from core.config import (
     FINAL_PROMPT_TEMPLATE,
     MAX_IMAGE_SIDE,
     MODEL_NAME,
+    SECURITY_SENSITIVE_KEYWORDS,
 )
 from utils.exercise_generator import generate_valid_exercises
 from utils.render_utils import render_markdown_to_html
@@ -59,6 +60,23 @@ def clean_plain_text(text: str) -> str:
 def save_markdown(content: str, filename: str | Path) -> None:
     """Save Markdown content to disk."""
     Path(filename).write_text(content, encoding="utf-8")
+
+
+def _looks_security_sensitive(text: str) -> bool:
+    normalized = (text or "").lower()
+    return any(keyword in normalized for keyword in SECURITY_SENSITIVE_KEYWORDS)
+
+
+def _format_model_error(exc: Exception, stage: str) -> str:
+    raw_message = str(exc)
+    lowered = raw_message.lower()
+    if "output data may contain inappropriate content" in lowered:
+        return (
+            f"The model blocked the {stage} result because the document looks like sensitive "
+            "security or attack-related material. Please switch to a high-level educational "
+            "summary only, or reduce operational exploit detail in the request."
+        )
+    return raw_message
 
 
 def _render_text_lines_to_image(lines: list[str], output_path: str) -> None:
@@ -142,12 +160,59 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
         raise
 
 
-def call_model(image_paths: list[str], user_prompt: str) -> str:
+def extract_reference_text(filepath: str) -> str:
+    """Extract plain text for topic detection and prompt context."""
+    filepath_lower = filepath.lower()
+    chunks: list[str] = []
+
+    try:
+        if filepath_lower.endswith(".pdf"):
+            document = fitz.open(filepath)
+            for index in range(len(document)):
+                text = document[index].get_text("text").strip()
+                if text:
+                    chunks.append(text)
+            document.close()
+
+        elif filepath_lower.endswith(".pptx"):
+            presentation = Presentation(filepath)
+            for slide in presentation.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        chunks.append(shape.text.strip())
+
+        elif filepath_lower.endswith(".docx"):
+            document = Document(filepath)
+            for paragraph in document.paragraphs:
+                if paragraph.text.strip():
+                    chunks.append(paragraph.text.strip())
+            for table in document.tables:
+                for row in table.rows:
+                    row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+                    if row_text:
+                        chunks.append(row_text)
+    except Exception:
+        return ""
+
+    return "\n".join(chunks)[:12000]
+
+
+def call_model(image_paths: list[str], user_prompt: str, reference_text: str = "", safe_mode: bool = False) -> str:
     """Call the multimodal model to generate a summary."""
     if not API_KEY:
         raise RuntimeError("Environment variable xxx_KEY is not configured")
 
     final_prompt = FINAL_PROMPT_TEMPLATE.format(user_prompt=user_prompt)
+    if safe_mode:
+        final_prompt += (
+            "\n\nAdditional safety mode:\n"
+            "- This material may be an academic cybersecurity lab.\n"
+            "- Only produce a non-operational teaching summary.\n"
+            "- Do not provide exploit steps, shellcode, payloads, commands, code, or attack instructions.\n"
+            "- Prefer concepts, terminology, goals, and defense-related understanding.\n"
+        )
+    if reference_text:
+        final_prompt += f"\n\nDocument text excerpt for context:\n{reference_text[:4000]}"
     content = [{"type": "text", "text": final_prompt}]
     for path in image_paths:
         content.append(
@@ -159,7 +224,16 @@ def call_model(image_paths: list[str], user_prompt: str) -> str:
 
     response = client.chat.completions.create(
         model=MODEL_NAME,
-        messages=[{"role": "user", "content": content}],
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an educational assistant. For cybersecurity or exploit-related material, "
+                    "stay high-level, academic, and non-operational."
+                ),
+            },
+            {"role": "user", "content": content},
+        ],
     )
     return response.choices[0].message.content or ""
 
@@ -175,14 +249,19 @@ def process_uploaded_file(filepath: str, user_prompt: str) -> dict:
             temp_dir = str(Path(temp_images[0]).resolve().parent)
 
         final_prompt = user_prompt or DEFAULT_USER_PROMPT
-        model_result = call_model(image_paths, final_prompt)
+        reference_text = extract_reference_text(filepath)
+        safe_mode = _looks_security_sensitive(f"{filepath}\n{reference_text}\n{final_prompt}")
+        try:
+            model_result = call_model(image_paths, final_prompt, reference_text=reference_text, safe_mode=safe_mode)
+        except Exception as exc:
+            raise RuntimeError(_format_model_error(exc, "summary generation")) from exc
         markdown_content = clean_plain_text(model_result)
 
         summary_path = Path(DEFAULT_SUMMARY_FILENAME)
         save_markdown(markdown_content, summary_path)
         render_markdown_to_html(summary_path, is_exercise=False)
 
-        _, exercise_content = generate_valid_exercises(summary_path)
+        _, exercise_content = generate_valid_exercises(summary_path, safe_mode=safe_mode)
 
         return {
             "success": True,
