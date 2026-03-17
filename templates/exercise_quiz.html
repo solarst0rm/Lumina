@@ -201,6 +201,7 @@
 window._disableGlobalAIAssistantHotkeys = true;
 window._sumText = '';
 window._exText = {{ exercise_markdown | tojson }};
+const SOURCE_FILE = {{ source_file | default('') | tojson }};
 
 let quizData = {{ quiz_data | tojson }};
 const difficultyLabels = {
@@ -431,6 +432,26 @@ function playTone(kind) {
     audio.play().catch(function() {});
 }
 
+function recordMistake(question, selectedKey) {
+    if (!question) {
+        return;
+    }
+
+    fetch("{{ url_for('api_add_mistake') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            source_filename: SOURCE_FILE || '当前练习',
+            difficulty: getDifficultyLabel(state.currentDifficulty),
+            question_text: question.question || '',
+            options: Array.isArray(question.options) ? question.options : [],
+            correct_answer: buildAnswerLabel(question),
+            explanation: question.explanation || '',
+            selected_answer: selectedKey || ''
+        })
+    }).catch(function() {});
+}
+
 function proceedAfterAnswer() {
     stopSpeechPlayback();
     if (state.questionIndex < getCurrentQuestions().length - 1) {
@@ -469,6 +490,7 @@ function submitAnswer(selectedKey) {
 
     const correctLabel = buildAnswerLabel(question);
     playTone('error');
+    recordMistake(question, selectedKey);
     showFeedback('回答错误\n正确答案：' + correctLabel + '\n解析：' + question.explanation, true);
     renderActionButtons(feedbackActions, [
         { label: nextLabel, className: 'btn-secondary', onClick: proceedAfterAnswer }
@@ -518,7 +540,8 @@ function onDifficultyFinished() {
 }
 
 function finishQuiz() {
-    window.location.href = "{{ url_for('exercise_actions') }}";
+    const baseUrl = "{{ url_for('exercise_actions') }}";
+    window.location.href = SOURCE_FILE ? (baseUrl + '?source_file=' + encodeURIComponent(SOURCE_FILE)) : baseUrl;
 }
 
 function showLoading(text) {

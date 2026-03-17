@@ -361,7 +361,7 @@
             快捷键：B 生成总结盲文，D 下载总结文档，右箭头生成练习题，R 上传新文件。
         </p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a id="btn-gen-exercise" class="btn btn-success" href="{{ url_for('exercise_challenge') }}" title="快捷键 右箭头">
+            <a id="btn-gen-exercise" class="btn btn-success" href="{% if uploaded_filename %}{{ url_for('exercise_challenge', source_file=uploaded_filename) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" title="快捷键 右箭头">
                 <i class="fas fa-pencil-alt"></i> 生成练习题 [→]
             </a>
             <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 R">
@@ -419,7 +419,7 @@ function speakProcessingComplete() {
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance('\u6587\u6863\u5904\u7406\u5b8c\u6210\uff01');
+    const utterance = new SpeechSynthesisUtterance('文档总结和例题生成完成！');
     utterance.lang = 'zh-CN';
     utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
     window.speechSynthesis.speak(utterance);
@@ -431,10 +431,16 @@ function finishProcessingFeedback() {
         return;
     }
 
+    const hasSummary = typeof window._sumText === 'string' && window._sumText.trim();
+    const hasExercise = typeof window._exText === 'string' && window._exText.trim();
+    if (!hasSummary || !hasExercise) {
+        return;
+    }
+
     const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
-    clearProcessingFeedbackState();
 
     if (!audioState || !audioState.active) {
+        clearProcessingFeedbackState();
         speakProcessingComplete();
         return;
     }
@@ -452,6 +458,7 @@ function finishProcessingFeedback() {
 
     const finalize = function() {
         audio.pause();
+        clearProcessingFeedbackState();
         speakProcessingComplete();
     };
 

@@ -35,6 +35,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     has_seen_tutorial = db.Column(db.Boolean, default=False)
     notes = db.relationship('Note', backref='author', lazy=True)
+    mistakes = db.relationship('MistakeRecord', backref='author', lazy=True)
 
 class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,13 +44,38 @@ class Note(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+
+class MistakeRecord(db.Model):
+    __table_args__ = (
+        db.UniqueConstraint(
+            'user_id',
+            'source_filename',
+            'question_text',
+            'correct_answer',
+            name='uq_user_mistake_record',
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_filename = db.Column(db.String(255), nullable=False, default='当前练习')
+    difficulty = db.Column(db.String(50))
+    question_text = db.Column(db.Text, nullable=False)
+    options_json = db.Column(db.Text, nullable=False, default='[]')
+    correct_answer = db.Column(db.String(20), nullable=False)
+    explanation = db.Column(db.Text)
+    last_selected_answer = db.Column(db.String(20))
+    wrong_count = db.Column(db.Integer, nullable=False, default=1)
+    first_wrong_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_wrong_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 # ---------- 注册路由 ----------
 from routes import register_routes
-register_routes(app, db, User, Note)
+register_routes(app, db, User, Note, MistakeRecord)
 
 # ---------- 启动 ----------
 def initialize_database():

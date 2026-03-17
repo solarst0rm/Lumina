@@ -114,7 +114,7 @@ def _read_job_status(basedir: str, job_id: str) -> dict | None:
     return json.loads(status_path.read_text(encoding="utf-8"))
 
 
-def register_routes(app, db, User, Note):
+def register_routes(app, db, User, Note, MistakeRecord):
     basedir = app.config["BASEDIR"]
 
     def _start_processing_job(file_storage, prompt: str, user_id: int) -> str:
@@ -304,7 +304,7 @@ def register_routes(app, db, User, Note):
             status="已加载当前结果",
             sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
             ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
-            uploaded_filename="",
+            uploaded_filename=(request.args.get("source_file") or "").strip(),
         )
 
     @app.route("/exercise/challenge")
@@ -319,6 +319,7 @@ def register_routes(app, db, User, Note):
             "exercise_quiz.html",
             quiz_data=quiz_data,
             exercise_markdown=exercise_markdown,
+            source_file=(request.args.get("source_file") or "").strip(),
         )
 
     @app.route("/exercise/actions")
@@ -334,6 +335,7 @@ def register_routes(app, db, User, Note):
             exercise_markdown=exercise_markdown,
             quiz_title=(quiz_data or {}).get("title", "练习闯关"),
             exercise_filename=DEFAULT_EXERCISE_FILENAME,
+            source_file=(request.args.get("source_file") or "").strip(),
         )
 
     @app.route("/api/exercise/regenerate", methods=["POST"])
@@ -437,6 +439,89 @@ def register_routes(app, db, User, Note):
             .all()
         )
         return render_template("my_notes.html", notes=notes)
+
+    @app.route("/mistakes")
+    @login_required
+    def mistake_notebook():
+        mistake_records = (
+            MistakeRecord.query.filter_by(user_id=current_user.id)
+            .order_by(MistakeRecord.last_wrong_at.desc(), MistakeRecord.id.desc())
+            .all()
+        )
+
+        grouped_mistakes: dict[str, list[dict]] = {}
+        for record in mistake_records:
+            source_name = (record.source_filename or "").strip() or "当前练习"
+            try:
+                options = json.loads(record.options_json or "[]")
+            except json.JSONDecodeError:
+                options = []
+
+            grouped_mistakes.setdefault(source_name, []).append(
+                {
+                    "id": record.id,
+                    "difficulty": record.difficulty or "",
+                    "question_text": record.question_text,
+                    "options": options,
+                    "correct_answer": record.correct_answer,
+                    "explanation": record.explanation or "",
+                    "last_selected_answer": record.last_selected_answer or "",
+                    "wrong_count": record.wrong_count,
+                    "first_wrong_at": record.first_wrong_at,
+                    "last_wrong_at": record.last_wrong_at,
+                }
+            )
+
+        return render_template("mistake_notebook.html", grouped_mistakes=grouped_mistakes)
+
+    @app.route("/api/mistakes", methods=["POST"])
+    @login_required
+    def api_add_mistake():
+        payload = request.get_json() or {}
+
+        question_text = (payload.get("question_text") or "").strip()
+        correct_answer = (payload.get("correct_answer") or "").strip()
+        if not question_text or not correct_answer:
+            return jsonify({"success": False, "error": "错题内容不完整"})
+
+        source_filename = (payload.get("source_filename") or "").strip() or "当前练习"
+        difficulty = (payload.get("difficulty") or "").strip()
+        explanation = (payload.get("explanation") or "").strip()
+        last_selected_answer = (payload.get("selected_answer") or "").strip()
+        options = payload.get("options")
+        if not isinstance(options, list):
+            options = []
+
+        record = MistakeRecord.query.filter_by(
+            user_id=current_user.id,
+            source_filename=source_filename,
+            question_text=question_text,
+            correct_answer=correct_answer,
+        ).first()
+
+        if record:
+            record.difficulty = difficulty or record.difficulty
+            record.options_json = json.dumps(options, ensure_ascii=False)
+            record.explanation = explanation or record.explanation
+            record.last_selected_answer = last_selected_answer
+            record.wrong_count = int(record.wrong_count or 0) + 1
+            record.last_wrong_at = datetime.utcnow()
+        else:
+            record = MistakeRecord(
+                source_filename=source_filename,
+                difficulty=difficulty,
+                question_text=question_text,
+                options_json=json.dumps(options, ensure_ascii=False),
+                correct_answer=correct_answer,
+                explanation=explanation,
+                last_selected_answer=last_selected_answer,
+                wrong_count=1,
+                user_id=current_user.id,
+            )
+            db.session.add(record)
+
+        db.session.commit()
+        return jsonify({"success": True, "wrong_count": record.wrong_count})
 
     @app.route("/api/process", methods=["POST"])
     @login_required

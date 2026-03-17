@@ -26,11 +26,11 @@
             </button>
         </form>
 
-        <a href="{{ url_for('exercise_challenge') }}" class="btn" style="justify-content: center;">
+        <a href="{% if source_file %}{{ url_for('exercise_challenge', source_file=source_file) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" class="btn" style="justify-content: center;">
             <i class="fas fa-play"></i> 开始答题闯关
         </a>
 
-        <a href="{{ url_for('result_page') }}" class="btn btn-secondary" style="justify-content: center;">
+        <a href="{% if source_file %}{{ url_for('result_page', source_file=source_file) }}{% else %}{{ url_for('result_page') }}{% endif %}" class="btn btn-secondary" style="justify-content: center;">
             <i class="fas fa-arrow-left"></i> 返回总结页
         </a>
     </div>

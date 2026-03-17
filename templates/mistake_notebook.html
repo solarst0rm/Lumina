@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+
+{% block page_title %}错题本{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2><i class="fas fa-clipboard-list"></i> 错题本</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 24px;">
+        系统会自动收集你在练习闯关中答错的题目，并按上传文件分组整理，方便你回看和复习。
+    </p>
+
+    {% if grouped_mistakes %}
+        <div style="display: grid; gap: 22px;">
+            {% for source_file, mistakes in grouped_mistakes.items() %}
+            <div class="card" style="margin: 0; padding: 20px; background-color: var(--background-color);">
+                <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+                    <h3 style="margin: 0; color: var(--primary-color);">
+                        <i class="fas fa-folder-open"></i> {{ source_file }}
+                    </h3>
+                    <span style="color: var(--text-secondary); font-size: 0.95rem;">
+                        共 {{ mistakes|length }} 题
+                    </span>
+                </div>
+
+                <div style="display: grid; gap: 16px;">
+                    {% for mistake in mistakes %}
+                    <div class="card" style="margin: 0; padding: 18px; background-color: white;">
+                        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                                {% if mistake.difficulty %}
+                                <span style="background: rgba(255,107,53,0.12); color: var(--primary-color); padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.9rem;">
+                                    {{ mistake.difficulty }}
+                                </span>
+                                {% endif %}
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                                    错误次数：{{ mistake.wrong_count }}
+                                </span>
+                            </div>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                                最近出错：{{ mistake.last_wrong_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: var(--text-primary);">题目：</strong>
+                            <div style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;">{{ mistake.question_text }}</div>
+                        </div>
+
+                        {% if mistake.options %}
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: var(--text-primary);">选项：</strong>
+                            <div style="margin-top: 8px; display: grid; gap: 8px;">
+                                {% for option in mistake.options %}
+                                <div style="padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--background-color);">
+                                    {{ option.key }}. {{ option.text }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div style="display:grid; gap:10px;">
+                            <div>
+                                <strong style="color: var(--success-color);">正确答案：</strong>
+                                <span>{{ mistake.correct_answer }}</span>
+                            </div>
+                            {% if mistake.last_selected_answer %}
+                            <div>
+                                <strong style="color: var(--error-color);">你最近一次的答案：</strong>
+                                <span>{{ mistake.last_selected_answer }}</span>
+                            </div>
+                            {% endif %}
+                            {% if mistake.explanation %}
+                            <div>
+                                <strong style="color: var(--text-primary);">解析：</strong>
+                                <div style="margin-top: 6px; white-space: pre-wrap; line-height: 1.8;">{{ mistake.explanation }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 56px 20px; color: var(--text-secondary);">
+            <i class="fas fa-check-circle" style="font-size: 4rem; color: var(--border-color); margin-bottom: 20px;"></i>
+            <h3>当前还没有错题</h3>
+            <p>去练习闯关做题吧，答错的题目会自动加入这里。</p>
+            <a href="{{ url_for('exercise_challenge') }}" class="btn" style="margin-top: 20px;">
+                <i class="fas fa-play"></i> 去做练习
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

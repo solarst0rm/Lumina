@@ -651,6 +651,7 @@
                     {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('my_notes') }}" class="{% if request.endpoint == 'my_notes' %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
                     {% endif %}
+                    <li><a href="{{ url_for('mistake_notebook') }}" class="{% if request.endpoint == 'mistake_notebook' %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
                     <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
                     <li><a href="#" onclick="showHelp()"><i class="fas fa-question-circle"></i> 使用帮助</a></li>
                     <li><a href="#" onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"><i class="fas fa-graduation-cap"></i> 新手教程</a></li>

@@ -25,6 +25,109 @@
 const jobId = {{ job_id | tojson }};
 const statusText = document.getElementById('jobStatusText');
 const errorText = document.getElementById('jobErrorText');
+const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
+const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
+const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | tojson }};
+
+let processingAudio = null;
+let processingAudioSyncTimer = null;
+
+function readSessionJson(key) {
+    if (!window.sessionStorage) {
+        return null;
+    }
+
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveProcessingSessionState() {
+    if (!window.sessionStorage) {
+        return;
+    }
+
+    const hasActiveAudio = !!processingAudio && !processingAudio.paused;
+    if (hasActiveAudio) {
+        window.sessionStorage.setItem(
+            PROCESSING_AUDIO_STATE_KEY,
+            JSON.stringify({
+                active: true,
+                currentTime: processingAudio.currentTime || 0,
+                volume: processingAudio.volume || 0.28,
+            })
+        );
+    } else {
+        window.sessionStorage.removeItem(PROCESSING_AUDIO_STATE_KEY);
+    }
+}
+
+function clearProcessingSessionState() {
+    if (!window.sessionStorage) {
+        return;
+    }
+
+    window.sessionStorage.removeItem(PROCESSING_AUDIO_STATE_KEY);
+    window.sessionStorage.removeItem(PROCESSING_STATUS_KEY);
+}
+
+function stopProcessingAudio(clearState) {
+    if (processingAudioSyncTimer) {
+        window.clearInterval(processingAudioSyncTimer);
+        processingAudioSyncTimer = null;
+    }
+
+    if (processingAudio) {
+        processingAudio.pause();
+        processingAudio = null;
+    }
+
+    if (clearState) {
+        clearProcessingSessionState();
+    } else {
+        saveProcessingSessionState();
+    }
+}
+
+function restoreProcessingAudio() {
+    const processingStatus = readSessionJson(PROCESSING_STATUS_KEY);
+    if (!processingStatus || !processingStatus.pending) {
+        return;
+    }
+
+    const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
+    if (!audioState || !audioState.active) {
+        return;
+    }
+
+    processingAudio = new Audio(WAITING_AUDIO_URL);
+    processingAudio.loop = true;
+    processingAudio.preload = 'auto';
+    processingAudio.volume = Math.max(0.05, Math.min(0.28, Number(audioState.volume) || 0.28));
+
+    try {
+        processingAudio.currentTime = Math.max(0, Number(audioState.currentTime) || 0);
+    } catch (error) {
+        processingAudio.currentTime = 0;
+    }
+
+    const playPromise = processingAudio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function() {});
+    }
+
+    if (processingAudioSyncTimer) {
+        window.clearInterval(processingAudioSyncTimer);
+    }
+    processingAudioSyncTimer = window.setInterval(saveProcessingSessionState, 500);
+}
 
 function pollJobStatus() {
     fetch(`/api/process-status/${jobId}`, {
@@ -39,11 +142,13 @@ function pollJobStatus() {
             }
 
             if (data.status === 'completed') {
+                saveProcessingSessionState();
                 window.location.href = `/process-result/${jobId}`;
                 return;
             }
 
             if (data.status === 'failed') {
+                stopProcessingAudio(true);
                 statusText.textContent = '处理失败';
                 errorText.style.display = 'block';
                 errorText.textContent = data.error || '文档处理失败，请返回上传页后重试。';
@@ -61,6 +166,8 @@ function pollJobStatus() {
         });
 }
 
+restoreProcessingAudio();
+window.addEventListener('pagehide', saveProcessingSessionState);
 window.setTimeout(pollJobStatus, 1000);
 </script>
 {% endblock %}
