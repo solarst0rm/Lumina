@@ -40,27 +40,20 @@ SECURITY_SENSITIVE_KEYWORDS = {
     "pwn",
 }
 
-DEFAULT_USER_PROMPT = (
-    "Please summarize the uploaded material in simplified Chinese, keep the structure clear, "
-    "highlight key points, and make it easy to read with a screen reader."
-)
+DEFAULT_USER_PROMPT = "请用简体中文对上传资料进行结构清晰、重点明确、适合读屏的总结。"
 
 FINAL_PROMPT_TEMPLATE = """{user_prompt}
 
-You will receive one or more images extracted from a document.
-Please produce a complete summary in simplified Chinese.
+你将收到由文档页面转成的一张或多张图片，请用简体中文输出完整总结。
 
-Requirements:
-- Output Markdown only.
-- Do not generate a table of contents.
-- Keep the structure clear with headings.
-- Explain formulas and symbols in plain natural language.
-- Describe tables and figures in words.
-- Focus on the document as a whole instead of page-by-page notes.
-- If the material is about cybersecurity, attack/defense, exploit labs, or vulnerability analysis,
-  keep the summary strictly high-level and educational.
-- For security-related material, summarize only learning goals, core concepts, safety cautions,
-  terminology, and defensive thinking.
-- Do not reproduce step-by-step exploit procedures, payloads, shellcode, commands, exact attack
-  instructions, exploit chains, or operational guidance.
+要求：
+- 只输出 Markdown 正文。
+- 不要生成目录。
+- 使用清晰的标题层级组织内容。
+- 用自然语言解释公式和符号。
+- 用文字描述表格和图片内容。
+- 以整份文档为单位总结，不要逐页罗列。
+- 如果材料涉及网络安全、攻防、漏洞、利用实验等内容，只做高层次、教学性、非操作性的总结。
+- 对安全类内容，只总结学习目标、核心概念、术语、注意事项和防御视角。
+- 不要输出利用步骤、payload、shellcode、命令、攻击链或可直接操作的细节。
 """

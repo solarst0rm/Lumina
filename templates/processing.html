@@ -1,23 +1,23 @@
 {% extends "layout.html" %}
 
-{% block page_title %}Processing{% endblock %}
+{% block page_title %}处理中{% endblock %}
 
 {% block content %}
 <div class="card" style="text-align: center;">
-    <h2>Document Processing</h2>
+    <h2>正在处理文档</h2>
     <p style="color: var(--text-secondary); margin: 12px 0 20px;">
-        File received{% if uploaded_filename %}: {{ uploaded_filename }}{% endif %}. Processing continues in the background.
+        已收到文件{% if uploaded_filename %}：{{ uploaded_filename }}{% endif %}，系统正在后台继续处理，请稍候。
     </p>
 
     <div class="loading" style="display: block;">
         <div class="spinner"></div>
-        <p id="jobStatusText">Analyzing the document. This page will redirect automatically when the result is ready.</p>
+        <p id="jobStatusText">正在解析内容并生成总结与练习题，请耐心等待。</p>
     </div>
 
     <p id="jobErrorText" style="display: none; color: #c53030; margin-top: 16px;"></p>
 
     <div style="margin-top: 24px;">
-        <a class="btn btn-secondary" href="{{ url_for('index') }}">Back to Home</a>
+        <a class="btn btn-secondary" href="{{ url_for('index') }}">返回上传页</a>
     </div>
 </div>
 
@@ -35,7 +35,7 @@ function pollJobStatus() {
         })
         .then(function(data) {
             if (!data.success) {
-                throw new Error(data.error || 'Failed to get task status');
+                throw new Error(data.error || '获取任务状态失败');
             }
 
             if (data.status === 'completed') {
@@ -44,19 +44,19 @@ function pollJobStatus() {
             }
 
             if (data.status === 'failed') {
-                statusText.textContent = 'Processing failed';
+                statusText.textContent = '处理失败';
                 errorText.style.display = 'block';
-                errorText.textContent = data.error || 'Document processing failed. Please go back and try again.';
+                errorText.textContent = data.error || '文档处理失败，请返回上传页后重试。';
                 return;
             }
 
-            statusText.textContent = 'Still processing. Please wait...';
+            statusText.textContent = '系统仍在处理中，正在准备总结与练习题……';
             window.setTimeout(pollJobStatus, 3000);
         })
         .catch(function(error) {
-            statusText.textContent = 'Retrying to fetch task status...';
+            statusText.textContent = '获取任务状态失败，正在自动重试……';
             errorText.style.display = 'block';
-            errorText.textContent = error.message || 'Network error. Please try again later.';
+            errorText.textContent = error.message || '连接状态检查失败，请稍后再试。';
             window.setTimeout(pollJobStatus, 5000);
         });
 }

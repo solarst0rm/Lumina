@@ -48,7 +48,7 @@ def markdown_to_html_fragments(md_text: str, is_exercise: bool = False) -> tuple
 
 def build_html_template(content_html: str, toc_html: str, is_exercise: bool = False) -> str:
     """Build a complete HTML preview using the shared template."""
-    title = "Exercises" if is_exercise else "Summary"
+    title = "练习题预览" if is_exercise else "总结预览"
     template_dir = Path(__file__).resolve().parent.parent / "templates"
     env = Environment(loader=FileSystemLoader(str(template_dir)))
     template = env.get_template("preview.html")
@@ -59,7 +59,7 @@ def render_content_to_html(md_path: str | Path, is_exercise: bool = False) -> st
     """Render a Markdown file into a full HTML string."""
     md_file = Path(md_path)
     if not md_file.exists():
-        raise FileNotFoundError(f"File not found: {md_path}")
+        raise FileNotFoundError(f"未找到文件：{md_path}")
 
     md_text = md_file.read_text(encoding="utf-8")
     content_html, toc_html = markdown_to_html_fragments(md_text, is_exercise)
@@ -73,7 +73,7 @@ def render_markdown_to_html(md_path: str | Path, is_exercise: bool = False) -> s
     html_filename = "exercise_preview.html" if is_exercise else "summary_preview.html"
     tmp_html_path = tmp_dir / html_filename
     tmp_html_path.write_text(html_content, encoding="utf-8")
-    print(f"Preview generated: {tmp_html_path}")
+    print(f"已生成预览文件：{tmp_html_path}")
     return str(tmp_html_path)
 
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python render_utils.py <markdown_path> [--exercise]")
+        print("用法：python render_utils.py <markdown_path> [--exercise]")
         raise SystemExit(1)
 
     render_markdown_to_html(sys.argv[1], len(sys.argv) > 2 and sys.argv[2] == "--exercise")

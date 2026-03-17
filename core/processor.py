@@ -72,9 +72,8 @@ def _format_model_error(exc: Exception, stage: str) -> str:
     lowered = raw_message.lower()
     if "output data may contain inappropriate content" in lowered:
         return (
-            f"The model blocked the {stage} result because the document looks like sensitive "
-            "security or attack-related material. Please switch to a high-level educational "
-            "summary only, or reduce operational exploit detail in the request."
+            f"模型拦截了{stage}阶段的结果，因为文档看起来像安全攻防或攻击实验材料。"
+            "请改为只生成高层次、教学性、非操作性的总结，减少可直接利用的细节。"
         )
     return raw_message
 
@@ -119,7 +118,7 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
         elif filepath_lower.endswith(".pptx"):
             presentation = Presentation(filepath)
             for index, slide in enumerate(presentation.slides):
-                slide_lines = [f"Slide {index + 1}"]
+                slide_lines = [f"第 {index + 1} 页幻灯片"]
                 for shape in slide.shapes:
                     if hasattr(shape, "text") and shape.text:
                         slide_lines.append(shape.text.strip())
@@ -142,7 +141,7 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
                         all_lines.append(row_text)
 
             if not all_lines:
-                all_lines.append("The document contains no extractable text.")
+                all_lines.append("文档中没有可提取的文字内容。")
 
             lines_per_page = 30
             for page_index in range(0, len(all_lines), lines_per_page):
@@ -152,7 +151,7 @@ def file_to_images(filepath: str) -> tuple[list[str], list[str]]:
                 temp_images.append(img_path)
 
         else:
-            raise ValueError("Unsupported file format")
+            raise ValueError("暂不支持该文件格式")
 
         return image_paths, temp_images
     except Exception:
@@ -200,19 +199,19 @@ def extract_reference_text(filepath: str) -> str:
 def call_model(image_paths: list[str], user_prompt: str, reference_text: str = "", safe_mode: bool = False) -> str:
     """Call the multimodal model to generate a summary."""
     if not API_KEY:
-        raise RuntimeError("Environment variable xxx_KEY is not configured")
+        raise RuntimeError("环境变量 xxx_KEY 未配置")
 
     final_prompt = FINAL_PROMPT_TEMPLATE.format(user_prompt=user_prompt)
     if safe_mode:
         final_prompt += (
-            "\n\nAdditional safety mode:\n"
-            "- This material may be an academic cybersecurity lab.\n"
-            "- Only produce a non-operational teaching summary.\n"
-            "- Do not provide exploit steps, shellcode, payloads, commands, code, or attack instructions.\n"
-            "- Prefer concepts, terminology, goals, and defense-related understanding.\n"
+            "\n\n补充要求：\n"
+            "- 这份材料可能涉及网络安全实验或攻防教学内容。\n"
+            "- 只输出高层次、教学性、非操作性的总结。\n"
+            "- 不要提供利用步骤、shellcode、payload、命令、代码或攻击指令。\n"
+            "- 优先总结概念、术语、学习目标和防御视角。\n"
         )
     if reference_text:
-        final_prompt += f"\n\nDocument text excerpt for context:\n{reference_text[:4000]}"
+        final_prompt += f"\n\n以下是文档中的文字片段，可作为理解上下文的参考：\n{reference_text[:4000]}"
     content = [{"type": "text", "text": final_prompt}]
     for path in image_paths:
         content.append(
@@ -228,8 +227,8 @@ def call_model(image_paths: list[str], user_prompt: str, reference_text: str = "
             {
                 "role": "system",
                 "content": (
-                    "You are an educational assistant. For cybersecurity or exploit-related material, "
-                    "stay high-level, academic, and non-operational."
+                    "你是一名面向学习场景的中文助教。"
+                    "如果材料涉及网络安全、漏洞或利用实验，只能做高层次、教学性、非操作性的讲解。"
                 ),
             },
             {"role": "user", "content": content},
@@ -254,7 +253,7 @@ def process_uploaded_file(filepath: str, user_prompt: str) -> dict:
         try:
             model_result = call_model(image_paths, final_prompt, reference_text=reference_text, safe_mode=safe_mode)
         except Exception as exc:
-            raise RuntimeError(_format_model_error(exc, "summary generation")) from exc
+            raise RuntimeError(_format_model_error(exc, "总结生成")) from exc
         markdown_content = clean_plain_text(model_result)
 
         summary_path = Path(DEFAULT_SUMMARY_FILENAME)
@@ -265,14 +264,14 @@ def process_uploaded_file(filepath: str, user_prompt: str) -> dict:
 
         return {
             "success": True,
-            "message": "Processing completed",
+            "message": "处理完成",
             "summary": markdown_content,
             "summary_path": str(summary_path.resolve()),
             "exercise_path": str(Path(DEFAULT_EXERCISE_FILENAME).resolve()),
             "exercise": exercise_content,
         }
     except TimeoutError:
-        return {"success": False, "error": "Processing timed out"}
+        return {"success": False, "error": "处理超时"}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
     finally:

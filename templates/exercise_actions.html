@@ -1,37 +1,37 @@
 {% extends "layout.html" %}
 
-{% block page_title %}Exercise Actions{% endblock %}
+{% block page_title %}练习操作{% endblock %}
 
 {% block content %}
 <div class="card" style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.15));">
-    <h2><i class="fas fa-list-check"></i> Exercise Actions</h2>
+    <h2><i class="fas fa-list-check"></i> 练习操作</h2>
     <p style="color: var(--text-secondary); margin-bottom: 22px;">
-        Your exercise set is ready. You can download it, convert it to braille, or continue to the quiz page.
+        练习题已经准备好了。你可以先下载保存，也可以转成盲文，或者直接进入答题闯关模式。
     </p>
 
     <div class="card" style="padding: 18px 20px; margin-bottom: 20px;">
-        <h3 style="color: var(--primary-color); margin-bottom: 10px;">Current Quiz</h3>
+        <h3 style="color: var(--primary-color); margin-bottom: 10px;">当前练习标题</h3>
         <p style="margin: 0; color: var(--text-primary);">{{ quiz_title }}</p>
     </div>
 
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
         <a href="{{ url_for('download_file', filename=exercise_filename) }}" class="btn btn-success" style="justify-content: center;">
-            <i class="fas fa-download"></i> Download
+            <i class="fas fa-download"></i> 下载练习题
         </a>
 
         <form action="{{ url_for('braille_exercise') }}" method="post">
             <textarea name="text" style="display:none;">{{ exercise_markdown }}</textarea>
             <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center;">
-                <i class="fas fa-braille"></i> Generate Braille
+                <i class="fas fa-braille"></i> 转为盲文
             </button>
         </form>
 
         <a href="{{ url_for('exercise_challenge') }}" class="btn" style="justify-content: center;">
-            <i class="fas fa-play"></i> Start Quiz
+            <i class="fas fa-play"></i> 开始答题闯关
         </a>
 
         <a href="{{ url_for('result_page') }}" class="btn btn-secondary" style="justify-content: center;">
-            <i class="fas fa-arrow-left"></i> Back to Result
+            <i class="fas fa-arrow-left"></i> 返回总结页
         </a>
     </div>
 </div>

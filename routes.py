@@ -55,7 +55,7 @@ def _save_and_process(file, prompt, upload_dir):
 
 def _process_document(file_path, user_prompt):
     if not file_path or not os.path.exists(file_path):
-        return None, None, "File not found", None, None
+        return None, None, "未找到文件", None, None
 
     try:
         result = process_uploaded_file(file_path, user_prompt or "")
@@ -64,16 +64,16 @@ def _process_document(file_path, user_prompt):
             exercise = result.get("exercise", "") or _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
             summary_file = DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None
             exercise_file = DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None
-            return summary, exercise, "Completed", summary_file, exercise_file
+            return summary, exercise, "处理完成", summary_file, exercise_file
 
-        return None, None, f"Error: {result.get('error', 'Unknown error')}", None, None
+        return None, None, f"处理失败：{result.get('error', '未知错误')}", None, None
     except Exception as exc:
-        return None, None, f"Error: {exc}", None, None
+        return None, None, f"处理失败：{exc}", None, None
 
 
 def _convert_to_braille(text, brf_path):
     if not text or not text.strip():
-        return "Please generate content first", None
+        return "请先生成内容", None
 
     try:
         from utils.braille_converter import generate_brf_file
@@ -81,7 +81,7 @@ def _convert_to_braille(text, brf_path):
         generate_brf_file(result["brf_content"], brf_path)
         return result["unicode"], os.path.basename(brf_path)
     except Exception as exc:
-        return f"Conversion failed: {exc}", None
+        return f"转换失败：{exc}", None
 
 
 def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
@@ -175,7 +175,7 @@ def register_routes(app, db, User, Note):
                         "uploaded_filename": filename,
                         "summary": "",
                         "exercise": "",
-                        "error": result.get("error", "Processing failed"),
+                        "error": result.get("error", "处理失败"),
                         "updated_at": datetime.utcnow().isoformat(),
                     },
                 )
@@ -220,7 +220,7 @@ def register_routes(app, db, User, Note):
     def process():
         file = request.files.get("file")
         if not file:
-            flash("Please choose a file")
+            flash("请选择文件")
             return redirect(url_for("index"))
 
         job_id = _start_processing_job(file, request.form.get("prompt", ""), current_user.id)
@@ -231,7 +231,7 @@ def register_routes(app, db, User, Note):
     def processing_page(job_id):
         job = _read_job_status(basedir, job_id)
         if not job:
-            flash("Processing task not found or expired")
+            flash("处理任务不存在或已过期")
             return redirect(url_for("index"))
 
         return render_template(
@@ -245,7 +245,7 @@ def register_routes(app, db, User, Note):
     def process_status(job_id):
         job = _read_job_status(basedir, job_id)
         if not job:
-            return jsonify({"success": False, "error": "Task not found"}), 404
+            return jsonify({"success": False, "error": "任务不存在"}), 404
         return jsonify({"success": True, **job})
 
     @app.route("/process-result/<job_id>")
@@ -253,14 +253,14 @@ def register_routes(app, db, User, Note):
     def process_result(job_id):
         job = _read_job_status(basedir, job_id)
         if not job:
-            flash("Processing task not found or expired")
+            flash("处理任务不存在或已过期")
             return redirect(url_for("index"))
 
         if job.get("status") == "processing":
             return redirect(url_for("processing_page", job_id=job_id))
 
         if job.get("status") == "failed":
-            flash(job.get("error") or "Processing failed")
+            flash(job.get("error") or "处理失败")
             return redirect(url_for("index"))
 
         summary = job.get("summary", "")
@@ -273,7 +273,7 @@ def register_routes(app, db, User, Note):
             summary_html=summary_html,
             summary_toc_html=summary_toc_html,
             exercise=exercise,
-            status="Processing completed",
+            status="处理完成",
             sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
             ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
             uploaded_filename=job.get("uploaded_filename", ""),
@@ -285,7 +285,7 @@ def register_routes(app, db, User, Note):
         summary_text = _read_text_if_exists(DEFAULT_SUMMARY_FILENAME)
         exercise_text = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
         if not summary_text:
-            flash("Please generate a summary first")
+            flash("请先生成总结")
             return redirect(url_for("index"))
 
         summary_html, summary_toc_html = _render_summary_markdown(summary_text)
@@ -296,7 +296,7 @@ def register_routes(app, db, User, Note):
             summary_html=summary_html,
             summary_toc_html=summary_toc_html,
             exercise=exercise_text,
-            status="Loaded current result",
+            status="已加载当前结果",
             sum_file=DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None,
             ex_file=DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None,
             uploaded_filename="",
@@ -307,7 +307,7 @@ def register_routes(app, db, User, Note):
     def exercise_challenge():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown or not quiz_data:
-            flash("Please generate summary and exercises first")
+            flash("请先生成总结和练习题")
             return redirect(url_for("index"))
 
         return render_template(
@@ -321,13 +321,13 @@ def register_routes(app, db, User, Note):
     def exercise_actions():
         _, exercise_markdown, quiz_data = _require_exercises()
         if not exercise_markdown:
-            flash("No exercise content is available")
+            flash("当前没有可用的练习内容")
             return redirect(url_for("index"))
 
         return render_template(
             "exercise_actions.html",
             exercise_markdown=exercise_markdown,
-            quiz_title=(quiz_data or {}).get("title", "Exercises"),
+            quiz_title=(quiz_data or {}).get("title", "练习闯关"),
             exercise_filename=DEFAULT_EXERCISE_FILENAME,
         )
 
@@ -336,7 +336,7 @@ def register_routes(app, db, User, Note):
     def api_regenerate_exercise():
         summary_path = Path(DEFAULT_SUMMARY_FILENAME)
         if not summary_path.exists():
-            return jsonify({"success": False, "error": "Please generate summary content first"})
+            return jsonify({"success": False, "error": "请先生成总结内容"})
 
         try:
             payload, markdown_content = generate_valid_exercises(summary_path)
@@ -378,7 +378,7 @@ def register_routes(app, db, User, Note):
         if request.method == "POST":
             username = request.form["username"]
             if User.query.filter_by(username=username).first():
-                flash("Username already exists")
+                flash("用户名已存在")
                 return redirect(url_for("register"))
 
             db.session.add(
@@ -388,7 +388,7 @@ def register_routes(app, db, User, Note):
                 )
             )
             db.session.commit()
-            flash("Registration successful, please log in")
+            flash("注册成功，请登录")
             return redirect(url_for("login"))
 
         return render_template("register.html")
@@ -400,7 +400,7 @@ def register_routes(app, db, User, Note):
             if user and check_password_hash(user.password_hash, request.form["password"]):
                 login_user(user)
                 return redirect(url_for("index"))
-            flash("Invalid username or password")
+            flash("用户名或密码错误")
 
         return render_template("login.html")
 
@@ -408,7 +408,7 @@ def register_routes(app, db, User, Note):
     @login_required
     def logout():
         logout_user()
-        flash("You have logged out")
+        flash("已退出登录")
         return redirect(url_for("login"))
 
     @app.route("/my-notes")
@@ -426,7 +426,7 @@ def register_routes(app, db, User, Note):
     def api_process():
         file = request.files.get("file")
         if not file:
-            return jsonify({"success": False, "error": "No file uploaded"})
+            return jsonify({"success": False, "error": "未上传文件"})
 
         summary, exercise, status, _, _ = _save_and_process(
             file,
@@ -455,7 +455,7 @@ def register_routes(app, db, User, Note):
     def api_convert_braille():
         content = (request.get_json() or {}).get("content", "")
         if not content:
-            return jsonify({"success": False, "error": "No content"})
+            return jsonify({"success": False, "error": "没有可转换内容"})
 
         try:
             from utils.braille_converter import generate_brf_file
@@ -476,15 +476,16 @@ def register_routes(app, db, User, Note):
     ai_client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
     ai_chat_system_prompt = (
-        "You are the built-in AI learning assistant for visually impaired students. "
-        "Your answer will be read aloud, so use concise, natural, patient Chinese without Markdown or formulas. "
-        "If information is unknown, say so clearly."
+        "你是面向视障学生的内置学习助手。"
+        "你的回答会被语音播报，所以请使用简洁、自然、耐心的中文。"
+        "不要使用 Markdown、公式或过多符号。"
+        "如果不知道答案，请直接说明。"
     )
 
     ai_chat_doc_prompt = (
-        "\n\nBelow is the user's current study material. Answer based on it first:\n"
-        "[Summary]\n{summary}\n\n"
-        "[Exercises]\n{exercise}"
+        "\n\n以下是用户当前的学习材料，请优先基于这些内容回答：\n"
+        "【总结】\n{summary}\n\n"
+        "【练习题】\n{exercise}"
     )
 
     @app.route("/api/ai-chat", methods=["POST"])
@@ -493,7 +494,7 @@ def register_routes(app, db, User, Note):
         data = request.get_json() or {}
         message = (data.get("message") or "").strip()
         if not message:
-            return jsonify({"success": False, "error": "Please enter a question"})
+            return jsonify({"success": False, "error": "请输入问题"})
 
         history = data.get("history") or []
         doc_summary = (data.get("doc_summary") or "").strip()
@@ -502,8 +503,8 @@ def register_routes(app, db, User, Note):
         system_content = ai_chat_system_prompt
         if doc_summary or doc_exercise:
             system_content += ai_chat_doc_prompt.format(
-                summary=doc_summary or "None",
-                exercise=doc_exercise or "None",
+                summary=doc_summary or "无",
+                exercise=doc_exercise or "无",
             )
 
         messages = [{"role": "system", "content": system_content}]
@@ -522,4 +523,4 @@ def register_routes(app, db, User, Note):
             reply = response.choices[0].message.content or ""
             return jsonify({"success": True, "reply": reply})
         except Exception as exc:
-            return jsonify({"success": False, "error": f"AI request failed: {exc}"})
+            return jsonify({"success": False, "error": f"AI 请求失败：{exc}"})

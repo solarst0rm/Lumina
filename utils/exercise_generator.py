@@ -21,6 +21,11 @@ from utils.render_utils import render_markdown_to_html
 client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
 DIFFICULTY_ORDER = ["Easy", "Medium", "Hard"]
+DIFFICULTY_LABELS = {
+    "Easy": "简单",
+    "Medium": "中等",
+    "Hard": "困难",
+}
 QUESTION_COUNT_PER_LEVEL = 5
 OPTION_KEYS = ["A", "B", "C", "D"]
 
@@ -29,7 +34,7 @@ def read_summary(md_path: str | Path) -> str:
     """Read and normalize the generated summary."""
     md_file = Path(md_path)
     if not md_file.exists():
-        raise FileNotFoundError(f"Summary file not found: {md_path}")
+        raise FileNotFoundError(f"未找到总结文件：{md_path}")
 
     md_text = md_file.read_text(encoding="utf-8")
     md_text = re.sub(r"^#{1,4}\s*", "", md_text, flags=re.MULTILINE)
@@ -50,7 +55,7 @@ def _extract_json_blob(text: str) -> str:
     start = cleaned.find("{")
     end = cleaned.rfind("}")
     if start == -1 or end == -1 or end <= start:
-        raise ValueError("Model output did not contain a valid JSON object")
+        raise ValueError("模型输出中没有找到合法的 JSON 对象")
     return cleaned[start : end + 1]
 
 
@@ -67,17 +72,18 @@ def _normalize_answer(answer: str) -> str:
 
 
 def _normalize_question(question: dict, difficulty: str, index: int) -> dict:
+    difficulty_label = DIFFICULTY_LABELS.get(difficulty, difficulty)
     prompt = str(question.get("question", "")).strip()
     options = [_normalize_option(item) for item in question.get("options", [])]
     answer = _normalize_answer(str(question.get("answer", "")))
     explanation = str(question.get("explanation", "")).strip()
 
     if not prompt:
-        raise ValueError(f"{difficulty} question {index} is missing the question text")
+        raise ValueError(f"{difficulty_label}第 {index} 题缺少题干")
     if len(options) != 4:
-        raise ValueError(f"{difficulty} question {index} must contain exactly 4 options")
+        raise ValueError(f"{difficulty_label}第 {index} 题必须包含 4 个选项")
     if any(not item["text"] for item in options):
-        raise ValueError(f"{difficulty} question {index} contains an empty option")
+        raise ValueError(f"{difficulty_label}第 {index} 题存在空选项")
 
     options = [
         {"key": canonical_key, "text": item["text"]}
@@ -85,9 +91,9 @@ def _normalize_question(question: dict, difficulty: str, index: int) -> dict:
     ]
 
     if answer not in OPTION_KEYS:
-        raise ValueError(f"{difficulty} question {index} has an invalid answer")
+        raise ValueError(f"{difficulty_label}第 {index} 题的答案无效")
     if not explanation:
-        raise ValueError(f"{difficulty} question {index} is missing the explanation")
+        raise ValueError(f"{difficulty_label}第 {index} 题缺少解析")
 
     return {
         "id": f"{difficulty}-{index}",
@@ -103,19 +109,20 @@ def validate_exercise_payload(payload: dict) -> dict:
     """Validate and normalize the model output."""
     difficulties = payload.get("difficulties")
     if not isinstance(difficulties, dict):
-        raise ValueError("Exercise payload is missing difficulties")
+        raise ValueError("练习题数据缺少难度分组")
 
     normalized = {
-        "title": str(payload.get("title") or "Exercise Quiz").strip(),
+        "title": str(payload.get("title") or "练习闯关").strip(),
         "difficulties": {},
     }
 
     for difficulty in DIFFICULTY_ORDER:
+        difficulty_label = DIFFICULTY_LABELS.get(difficulty, difficulty)
         questions = difficulties.get(difficulty)
         if not isinstance(questions, list):
-            raise ValueError(f"Missing difficulty bucket: {difficulty}")
+            raise ValueError(f"缺少难度分组：{difficulty_label}")
         if len(questions) < QUESTION_COUNT_PER_LEVEL:
-            raise ValueError(f"{difficulty} must contain at least {QUESTION_COUNT_PER_LEVEL} questions")
+            raise ValueError(f"{difficulty_label}至少需要 {QUESTION_COUNT_PER_LEVEL} 道题")
 
         normalized["difficulties"][difficulty] = [
             _normalize_question(question, difficulty, index)
@@ -127,27 +134,27 @@ def validate_exercise_payload(payload: dict) -> dict:
 
 def structured_exercises_to_markdown(payload: dict) -> str:
     """Convert structured exercise data back to Markdown."""
-    lines = [f"# {payload.get('title', 'Exercise Quiz')}", ""]
+    lines = [f"# {payload.get('title', '练习闯关')}", ""]
 
     for difficulty in DIFFICULTY_ORDER:
-        lines.append(f"## {difficulty}")
+        lines.append(f"## {DIFFICULTY_LABELS.get(difficulty, difficulty)}")
         lines.append("")
 
         for index, question in enumerate(payload["difficulties"][difficulty], start=1):
-            lines.append(f"### Question {index}")
+            lines.append(f"### 第 {index} 题")
             lines.append("")
-            lines.append("#### Prompt")
+            lines.append("#### 题目")
             lines.append(question["question"])
             lines.append("")
-            lines.append("#### Options")
+            lines.append("#### 选项")
             for option in question["options"]:
                 lines.append(f"- {option['key']}. {option['text']}")
             lines.append("")
-            lines.append("#### Answer")
+            lines.append("#### 答案")
             answer_option = next(item for item in question["options"] if item["key"] == question["answer"])
             lines.append(f"{question['answer']}. {answer_option['text']}")
             lines.append("")
-            lines.append("#### Explanation")
+            lines.append("#### 解析")
             lines.append(question["explanation"])
             lines.append("")
 
@@ -157,7 +164,7 @@ def structured_exercises_to_markdown(payload: dict) -> str:
 def load_exercise_payload(json_path: str | Path = DEFAULT_EXERCISE_JSON_FILENAME) -> dict:
     file_path = Path(json_path)
     if not file_path.exists():
-        raise FileNotFoundError(f"Exercise payload not found: {json_path}")
+        raise FileNotFoundError(f"未找到练习题数据文件：{json_path}")
     return json.loads(file_path.read_text(encoding="utf-8"))
 
 
@@ -169,8 +176,8 @@ def save_exercises(
 ) -> None:
     Path(markdown_path).write_text(markdown_content, encoding="utf-8")
     Path(json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Exercise markdown saved to {markdown_path}")
-    print(f"Exercise payload saved to {json_path}")
+    print(f"练习题 Markdown 已保存到：{markdown_path}")
+    print(f"练习题数据已保存到：{json_path}")
     render_markdown_to_html(markdown_path, is_exercise=True)
 
 
@@ -178,40 +185,40 @@ def _build_exercise_prompt(summary_text: str, safe_mode: bool = False) -> str:
     extra_rules = ""
     if safe_mode:
         extra_rules = """
-- The source material may discuss cybersecurity attack labs or exploit analysis.
-- Only create high-level educational questions about concepts, goals, ethics, terminology, debugging observations,
-  and defense awareness.
-- Do not ask for exploit steps, payloads, shellcode, commands, addresses, or operational attack procedures.
+- 这份材料可能涉及网络安全实验、漏洞分析或攻防课程。
+- 只生成高层次、教学性、非操作性的概念题。
+- 题目可以围绕概念、目标、术语、伦理、现象观察和防御意识展开。
+- 不要要求利用步骤、payload、shellcode、命令、地址或可直接操作的攻击过程。
 """.strip()
 
     return f"""
-Create a JSON object with a title and three difficulty groups: Easy, Medium, Hard.
+请输出一个 JSON 对象，其中包含标题，以及 Easy、Medium、Hard 三个难度分组。
 
-Rules:
-- Each difficulty must contain exactly {QUESTION_COUNT_PER_LEVEL} multiple-choice questions.
-- Use simplified Chinese for question text, options, and explanations.
-- Each question must have exactly 4 options with keys A, B, C, D.
-- Each answer must be one of A, B, C, D.
-- Do not use Markdown.
-- Do not use formulas or LaTeX.
-- Questions must be based only on the provided summary.
+要求：
+- 每个难度必须刚好包含 {QUESTION_COUNT_PER_LEVEL} 道选择题。
+- 题干、选项、解析全部使用简体中文。
+- 每题必须有且只有 4 个选项，键名分别为 A、B、C、D。
+- 每题答案必须是 A、B、C、D 之一。
+- 不要输出 Markdown。
+- 不要输出公式或 LaTeX。
+- 题目只能基于我提供的总结内容生成。
 {extra_rules}
 
-JSON shape:
+JSON 格式如下：
 {{
-  "title": "Exercise Quiz",
+  "title": "练习闯关",
   "difficulties": {{
     "Easy": [
       {{
-        "question": "question text",
+        "question": "题目内容",
         "options": [
-          {{"key": "A", "text": "option A"}},
-          {{"key": "B", "text": "option B"}},
-          {{"key": "C", "text": "option C"}},
-          {{"key": "D", "text": "option D"}}
+          {{"key": "A", "text": "选项 A"}},
+          {{"key": "B", "text": "选项 B"}},
+          {{"key": "C", "text": "选项 C"}},
+          {{"key": "D", "text": "选项 D"}}
         ],
         "answer": "A",
-        "explanation": "explanation text"
+        "explanation": "解析内容"
       }}
     ],
     "Medium": [],
@@ -219,7 +226,7 @@ JSON shape:
   }}
 }}
 
-Summary:
+总结内容：
 {summary_text}
 """.strip()
 
@@ -245,8 +252,8 @@ def _parse_json_object(raw_content: str) -> dict:
 
 def _repair_json_object(raw_content: str) -> dict:
     repaired = _request_json_object(
-        system_prompt="You only repair malformed JSON and return a valid JSON object.",
-        user_prompt=f"Repair this into valid JSON without changing the meaning:\n\n{raw_content}",
+        system_prompt="你只负责修复格式错误的 JSON，并返回合法的 JSON 对象。",
+        user_prompt=f"请把下面内容修复成合法 JSON，并保持原意不变：\n\n{raw_content}",
     )
     return _parse_json_object(repaired)
 
@@ -255,8 +262,8 @@ def _format_model_error(exc: Exception) -> str:
     raw_message = str(exc)
     if "output data may contain inappropriate content" in raw_message.lower():
         return (
-            "The model blocked exercise generation because the content looks like sensitive "
-            "security or attack material. Try generating only high-level, non-operational exercises."
+            "模型拦截了练习题生成，因为内容看起来像敏感的安全攻防材料。"
+            "请改为只生成高层次、非操作性的概念题。"
         )
     return raw_message
 
@@ -266,8 +273,8 @@ def generate_exercise_payload(summary_text: str, safe_mode: bool = False) -> dic
     try:
         raw_content = _request_json_object(
             system_prompt=(
-                "You are an expert teacher who creates accessible multiple-choice exercises. "
-                "If the material is cybersecurity related, stay high-level and non-operational."
+                "你是一名擅长出题的中文教师，请生成适合学习复习的选择题。"
+                "如果材料涉及网络安全相关内容，只能保持高层次、教学性、非操作性。"
             ),
             user_prompt=_build_exercise_prompt(summary_text, safe_mode=safe_mode),
         )
@@ -288,21 +295,21 @@ def generate_valid_exercises(
     """Generate, validate, and save exercises."""
     summary_text = read_summary(md_path)
     if not summary_text:
-        raise ValueError("Summary file is empty")
+        raise ValueError("总结内容为空")
 
     for retry_index in range(1, max_retry + 1):
         try:
-            print(f"Generating exercises, attempt {retry_index}...")
+            print(f"正在生成练习题，第 {retry_index} 次尝试...")
             payload = validate_exercise_payload(generate_exercise_payload(summary_text, safe_mode=safe_mode))
             markdown_content = structured_exercises_to_markdown(payload)
             save_exercises(markdown_content, payload)
             return payload, markdown_content
         except Exception as exc:
-            print(f"Exercise generation attempt {retry_index} failed: {exc}")
+            print(f"第 {retry_index} 次生成练习题失败：{exc}")
             if retry_index >= max_retry:
-                raise ValueError(f"Failed to generate exercises: {exc}") from exc
+                raise ValueError(f"生成练习题失败：{exc}") from exc
 
-    raise ValueError("Failed to generate exercises")
+    raise ValueError("生成练习题失败")
 
 
 def main(md_path: str = "summary.md") -> None:

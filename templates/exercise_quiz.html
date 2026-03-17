@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block page_title %}Exercise Quiz{% endblock %}
+{% block page_title %}练习闯关{% endblock %}
 
 {% block content %}
 <style>
@@ -136,19 +136,19 @@
 
 <div class="quiz-topbar">
     <a href="{{ url_for('exercise_actions') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back
+        <i class="fas fa-arrow-left"></i> 返回练习操作
     </a>
 </div>
 
 <div id="difficulty-card" class="card">
-    <h2 style="margin-bottom: 16px;">Choose Difficulty</h2>
+    <h2 style="margin-bottom: 16px;">请选择闯关难度</h2>
     <div class="quiz-grid">
         {% for difficulty, questions in quiz_data.difficulties.items() %}
         <button class="btn quiz-choice-btn" data-difficulty="{{ difficulty }}">
-            {{ difficulty }} ({{ questions | length }})
+            {{ {'Easy': '简单', 'Medium': '中等', 'Hard': '困难'}.get(difficulty, difficulty) }} · {{ questions | length }} 题
         </button>
         {% endfor %}
-        <button class="btn btn-secondary quiz-choice-btn" data-skip="1">Finish</button>
+        <button class="btn btn-secondary quiz-choice-btn" data-skip="1">暂不开始</button>
     </div>
 </div>
 
@@ -174,7 +174,7 @@
 <div id="quiz-loading-mask" class="quiz-loading-mask">
     <div class="quiz-loading-box">
         <div class="spinner" style="margin-bottom: 16px;"></div>
-        <p id="quiz-loading-text" style="margin: 0; color: var(--text-secondary);">Loading...</p>
+        <p id="quiz-loading-text" style="margin: 0; color: var(--text-secondary);">正在处理中...</p>
     </div>
 </div>
 
@@ -183,7 +183,14 @@ window._sumText = '';
 window._exText = {{ exercise_markdown | tojson }};
 
 let quizData = {{ quiz_data | tojson }};
-const difficultyOrder = Object.keys((quizData && quizData.difficulties) || {});
+const difficultyLabelMap = {
+    Easy: '简单',
+    Medium: '中等',
+    Hard: '困难',
+    简单: '简单',
+    中等: '中等',
+    困难: '困难'
+};
 const state = {
     currentDifficulty: null,
     questionIndex: 0,
@@ -204,6 +211,21 @@ const feedbackBox = document.getElementById('feedback-box');
 const feedbackActions = document.getElementById('feedback-actions');
 const loadingMask = document.getElementById('quiz-loading-mask');
 const loadingText = document.getElementById('quiz-loading-text');
+
+function getDifficultyOrder() {
+    const difficulties = (quizData && quizData.difficulties) || {};
+    const canonical = ['Easy', 'Medium', 'Hard'].filter(function(key) {
+        return Object.prototype.hasOwnProperty.call(difficulties, key);
+    });
+    const extras = Object.keys(difficulties).filter(function(key) {
+        return canonical.indexOf(key) === -1;
+    });
+    return canonical.concat(extras);
+}
+
+function getDifficultyLabel(difficulty) {
+    return difficultyLabelMap[difficulty] || difficulty;
+}
 
 function speak(text) {
     if (!window.speechSynthesis || !text) {
@@ -234,11 +256,12 @@ function getCurrentQuestion() {
 }
 
 function nextDifficulty() {
-    const currentIndex = difficultyOrder.indexOf(state.currentDifficulty);
-    if (currentIndex === -1 || currentIndex === difficultyOrder.length - 1) {
+    const order = getDifficultyOrder();
+    const currentIndex = order.indexOf(state.currentDifficulty);
+    if (currentIndex === -1 || currentIndex === order.length - 1) {
         return null;
     }
-    return difficultyOrder[currentIndex + 1];
+    return order[currentIndex + 1];
 }
 
 function showDifficultySelection() {
@@ -250,7 +273,7 @@ function showDifficultySelection() {
     decisionCard.style.display = 'none';
     feedbackBox.style.display = 'none';
     feedbackActions.style.display = 'none';
-    speak('Please choose a difficulty.');
+    speak('请选择想开始的难度。');
 }
 
 function startDifficulty(difficulty) {
@@ -280,8 +303,8 @@ function renderQuestion() {
     feedbackActions.style.display = 'none';
     feedbackActions.innerHTML = '';
 
-    difficultyBadge.textContent = state.currentDifficulty;
-    questionProgress.textContent = `Question ${state.questionIndex + 1} / ${getCurrentQuestions().length}`;
+    difficultyBadge.textContent = getDifficultyLabel(state.currentDifficulty);
+    questionProgress.textContent = `第 ${state.questionIndex + 1} / ${getCurrentQuestions().length} 题`;
     questionText.textContent = question.question;
     optionsBox.innerHTML = '';
 
@@ -299,7 +322,7 @@ function renderQuestion() {
         optionsBox.appendChild(button);
     });
 
-    speak(question.question);
+    speak(`${getDifficultyLabel(state.currentDifficulty)}模式，第${state.questionIndex + 1}题。${question.question}`);
 }
 
 function showFeedback(text, isError) {
@@ -347,23 +370,23 @@ function submitAnswer(selectedKey) {
     const answerOption = question.options.find(function(option) {
         return option.key === question.answer;
     });
-    const nextLabel = state.questionIndex === getCurrentQuestions().length - 1 ? 'Finish This Level' : 'Next Question';
+    const nextLabel = state.questionIndex === getCurrentQuestions().length - 1 ? '完成本轮' : '下一题';
 
     if (selectedKey === question.answer) {
-        showFeedback('Correct answer.', false);
+        showFeedback(`回答正确。\n解析：${question.explanation}`, false);
         renderActionButtons([
             { label: nextLabel, className: 'btn-success', onClick: proceedAfterAnswer }
         ]);
-        speak('Correct answer.');
+        speak('回答正确。');
         return;
     }
 
     const answerText = answerOption ? `${answerOption.key}. ${answerOption.text}` : question.answer;
-    showFeedback(`Incorrect.\nCorrect answer: ${answerText}\nExplanation: ${question.explanation}`, true);
+    showFeedback(`回答不正确。\n正确答案：${answerText}\n解析：${question.explanation}`, true);
     renderActionButtons([
         { label: nextLabel, className: 'btn-secondary', onClick: proceedAfterAnswer }
     ]);
-    speak(`Incorrect. The correct answer is ${answerText}.`);
+    speak(`回答不正确。正确答案是 ${answerText}。`);
 }
 
 function renderDecision(title, text, actions) {
@@ -390,22 +413,22 @@ function onDifficultyFinished() {
     const upcoming = nextDifficulty();
     if (upcoming) {
         renderDecision(
-            `${state.currentDifficulty} completed`,
-            'Do you want to continue to the next difficulty?',
+            `${getDifficultyLabel(state.currentDifficulty)}难度已完成`,
+            '是否继续挑战下一档难度？',
             [
-                { label: 'Continue', className: 'btn-success', onClick: function() { startDifficulty(upcoming); } },
-                { label: 'Finish', className: 'btn-secondary', onClick: finishQuiz }
+                { label: '继续挑战', className: 'btn-success', onClick: function() { startDifficulty(upcoming); } },
+                { label: '先回练习页', className: 'btn-secondary', onClick: finishQuiz }
             ]
         );
         return;
     }
 
     renderDecision(
-        'All done',
-        'You finished all available exercises.',
+        '本次闯关完成',
+        '你已经完成当前全部难度。可以重新生成一套练习题，或者返回练习操作页。',
         [
-            { label: 'Generate New Exercises', className: 'btn-success', onClick: regenerateExercises },
-            { label: 'Finish', className: 'btn-secondary', onClick: finishQuiz }
+            { label: '重新生成练习题', className: 'btn-success', onClick: regenerateExercises },
+            { label: '返回练习页', className: 'btn-secondary', onClick: finishQuiz }
         ]
     );
 }
@@ -415,7 +438,7 @@ function finishQuiz() {
 }
 
 function regenerateExercises() {
-    showLoading('Generating a new exercise set...');
+    showLoading('正在重新生成练习题，请稍候...');
     fetch("{{ url_for('api_regenerate_exercise') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -427,22 +450,31 @@ function regenerateExercises() {
         .then(function(data) {
             hideLoading();
             if (!data.success) {
-                speak(data.error || 'Failed to regenerate exercises.');
+                renderDecision(
+                    '重新生成失败',
+                    data.error || '重新生成练习题失败，请稍后再试。',
+                    [
+                        { label: '再试一次', className: 'btn-success', onClick: regenerateExercises },
+                        { label: '返回练习页', className: 'btn-secondary', onClick: finishQuiz }
+                    ]
+                );
                 return;
             }
+
             quizData = data.quiz_data;
             window._exText = data.exercise_markdown || '';
-            while (difficultyOrder.length) {
-                difficultyOrder.pop();
-            }
-            Object.keys((quizData && quizData.difficulties) || {}).forEach(function(key) {
-                difficultyOrder.push(key);
-            });
-            window.location.reload();
+            showDifficultySelection();
         })
         .catch(function(error) {
             hideLoading();
-            speak(error.message || 'Failed to regenerate exercises.');
+            renderDecision(
+                '重新生成失败',
+                error.message || '重新生成练习题失败，请稍后再试。',
+                [
+                    { label: '再试一次', className: 'btn-success', onClick: regenerateExercises },
+                    { label: '返回练习页', className: 'btn-secondary', onClick: finishQuiz }
+                ]
+            );
         });
 }
 
