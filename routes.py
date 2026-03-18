@@ -389,12 +389,21 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
 
     def _require_exercises():
         summary_text = _read_text_if_exists(DEFAULT_SUMMARY_FILENAME)
-        exercise_markdown = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
-        if not summary_text or not exercise_markdown:
+        if not summary_text:
             return None, None, None
+
+        exercise_markdown = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
 
         try:
             payload = load_exercise_payload(DEFAULT_EXERCISE_JSON_FILENAME)
+        except Exception:
+            payload = None
+
+        if exercise_markdown and payload:
+            return summary_text, exercise_markdown, payload
+
+        try:
+            payload, exercise_markdown = generate_valid_exercises(DEFAULT_SUMMARY_FILENAME)
         except Exception:
             return summary_text, exercise_markdown, None
 

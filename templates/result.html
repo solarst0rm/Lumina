@@ -614,6 +614,12 @@ function setActiveTocLink(hash) {
 
     activeLink.classList.add('active');
     expandTocAncestors(activeLink.closest('li'));
+    if (typeof activeLink.scrollIntoView === 'function') {
+        activeLink.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+        });
+    }
 }
 
 function initSummaryToc() {
@@ -772,6 +778,34 @@ function initResultSpeechController() {
             return;
         }
 
+        if (event.code === 'ArrowLeft' && window.speakPrev && window._speechOwner === 'result-summary') {
+            window.speakPrev();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (event.code === 'ArrowRight' && window.speakNext && window._speechOwner === 'result-summary') {
+            window.speakNext();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (event.code === 'ArrowUp' && window.increaseRate && window._speechOwner === 'result-summary') {
+            window.increaseRate();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        if (event.code === 'ArrowDown' && window.decreaseRate && window._speechOwner === 'result-summary') {
+            window.decreaseRate();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
         if (event.code === 'KeyS') {
             if (window.playSummarySpeech) {
                 window.playSummarySpeech();
@@ -877,6 +911,40 @@ function initResultSpeechController() {
     }
 
     function buildSectionsFromSummary() {
+        const headingNodes = Array.from(summaryRoot.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+        if (headingNodes.length) {
+            const entriesFromDom = headingNodes
+                .map((heading, index) => {
+                    const parts = [heading.innerText || heading.textContent || ''];
+                    const nextHeading = headingNodes[index + 1] || null;
+                    let currentNode = heading.nextElementSibling;
+
+                    while (currentNode && currentNode !== nextHeading) {
+                        const currentText = currentNode.innerText || currentNode.textContent || '';
+                        if (currentText.trim()) {
+                            parts.push(currentText);
+                        }
+                        currentNode = currentNode.nextElementSibling;
+                    }
+
+                    const text = cleanSummaryForSpeech(parts.join('\n\n'));
+                    if (!text) {
+                        return null;
+                    }
+
+                    return {
+                        text,
+                        headingElement: heading,
+                        headingHash: heading.id ? `#${heading.id}` : '',
+                    };
+                })
+                .filter((entry) => entry && entry.text);
+
+            if (entriesFromDom.length) {
+                return entriesFromDom;
+            }
+        }
+
         const normalized = getSummaryTextForSpeech();
         if (!normalized) {
             return [];
@@ -899,11 +967,16 @@ function initResultSpeechController() {
 
         return rawSections
             .map(cleanSummaryForSpeech)
-            .filter((section) => section && section.trim());
+            .filter((section) => section && section.trim())
+            .map((section) => ({
+                text: section,
+                headingElement: null,
+                headingHash: '',
+            }));
     }
 
     function hydrateLegacyState() {
-        window._allSections = controller.sections.slice();
+        window._allSections = controller.sections.map((section) => section.text);
         window._sectionIdx = controller.currentIndex;
         window._currentSource = 'sum';
         window._waitingForAnswer = false;
@@ -922,19 +995,38 @@ function initResultSpeechController() {
         updateSpeechUi(statusText);
     }
 
+    function syncSectionFocus(section) {
+        if (!section) {
+            return;
+        }
+
+        if (section.headingHash) {
+            setActiveTocLink(section.headingHash);
+        }
+
+        if (section.headingElement && typeof section.headingElement.scrollIntoView === 'function') {
+            section.headingElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        }
+    }
+
     function speakSection(index) {
         if (!synth || !controller.sections.length || index < 0 || index >= controller.sections.length) {
             resetPlaybackState('\u65e0\u53ef\u6717\u8bfb\u5185\u5bb9');
             return false;
         }
 
+        const section = controller.sections[index];
         controller.currentIndex = index;
         controller.sessionId += 1;
         controller.isPaused = false;
         window._speechOwner = 'result-summary';
         hydrateLegacyState();
+        syncSectionFocus(section);
 
-        const utteranceText = controller.sections[index];
+        const utteranceText = section.text;
         const sessionId = controller.sessionId;
         const utterance = new SpeechSynthesisUtterance(utteranceText);
 
