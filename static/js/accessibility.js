@@ -630,3 +630,348 @@ document.addEventListener('keydown', function(e) {
     init();
   }
 })();
+
+(function() {
+  function hasSpeechSupport() {
+    return !!window.speechSynthesis;
+  }
+
+  function closeHelpOverlay() {
+    var existing = document.getElementById('help-overlay');
+    if (existing) {
+      existing.remove();
+    }
+    window._helpOverlayOpen = false;
+    if (hasSpeechSupport()) {
+      window.speechSynthesis.cancel();
+    }
+    if (typeof notifyAIAssistantAvailability === 'function') {
+      notifyAIAssistantAvailability();
+    }
+  }
+
+  function buildHelpContent() {
+    var isResultPage = !!document.getElementById('btn-download-summary');
+    var isSavedNotePage = window._resultPageMode === 'note';
+    var isUploadPage = !!document.getElementById('uploadForm');
+    var isMyNotesPage = !!window._myNotesPageActive;
+    var overlayText = '';
+    var speechText = '';
+
+    if (isMyNotesPage) {
+      overlayText = [
+        '【我的笔记页快捷键】',
+        'Tab - 在文件夹、笔记卡片和按钮之间切换',
+        'Enter - 打开当前笔记或文件夹',
+        'F2 - 重命名当前聚焦的文件夹',
+        'M - 移动当前聚焦的笔记或文件夹',
+        'Delete / Backspace - 删除当前聚焦的笔记或文件夹',
+        '+ - 新建文件夹',
+        'Ctrl+Space - 唤醒语音助手并聚焦输入框',
+        '长按空格 - 直接语音输入，松开发送',
+        'Esc - 退出输入框、关闭弹窗或关闭语音助手',
+        '',
+        '【其他】',
+        '点击侧边栏“新手教程”按钮可重新开始教程',
+        'H - 关闭帮助'
+      ].join('\n');
+      speechText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 或 Backspace 删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
+      return { overlayText: overlayText, speechText: speechText };
+    }
+
+    if (isResultPage) {
+      overlayText = isSavedNotePage
+        ? [
+            '【历史笔记页快捷键】',
+            'S - 朗读总结',
+            '空格 - 暂停或继续',
+            'X - 停止朗读',
+            '← / → - 上一段或下一段',
+            'B - 生成总结盲文',
+            'D - 下载总结文档',
+            'E - 进入练习闯关',
+            '',
+            '【其他】',
+            '点击侧边栏“新手教程”按钮可重新开始教程',
+            'H - 关闭帮助'
+          ].join('\n')
+        : [
+            '【结果页快捷键】',
+            'S - 朗读总结',
+            '空格 - 暂停或继续',
+            'X - 停止朗读',
+            '← / → - 上一段或下一段',
+            'B - 生成总结盲文',
+            'D - 下载总结文档',
+            'E - 前往例题',
+            'R - 上传新文档',
+            '',
+            '【其他】',
+            '点击侧边栏“新手教程”按钮可重新开始教程',
+            'H - 关闭帮助'
+          ].join('\n');
+      speechText = isSavedNotePage
+        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
+        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文档。';
+      return { overlayText: overlayText, speechText: speechText };
+    }
+
+    if (isUploadPage) {
+      overlayText = [
+        '【上传页快捷键】',
+        'U - 上传文档',
+        'Enter - 开始处理',
+        'R - 重置',
+        '',
+        '【其他】',
+        '点击侧边栏“新手教程”按钮可重新开始教程',
+        'H - 关闭帮助'
+      ].join('\n');
+      speechText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
+      return { overlayText: overlayText, speechText: speechText };
+    }
+
+    overlayText = [
+      '【朗读控制】',
+      'S - 朗读总结',
+      'E - 朗读例题',
+      '空格 - 暂停或继续',
+      'X - 停止朗读',
+      '← - 上一段',
+      '→ - 下一段',
+      '',
+      '【其他】',
+      '点击侧边栏“新手教程”按钮可重新开始教程',
+      'H - 关闭帮助'
+    ].join('\n');
+    speechText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左箭头上一段。右箭头下一段。点击侧边栏新手教程按钮可重新开始教程。';
+    return { overlayText: overlayText, speechText: speechText };
+  }
+
+  function openHelpOverlay() {
+    var existing = document.getElementById('help-overlay');
+    if (existing) {
+      closeHelpOverlay();
+      return;
+    }
+    if (typeof closeAIAssistantIfOpen === 'function') {
+      closeAIAssistantIfOpen();
+    }
+    window._helpOverlayOpen = true;
+    if (typeof notifyAIAssistantAvailability === 'function') {
+      notifyAIAssistantAvailability();
+    }
+
+    var content = buildHelpContent();
+    var overlay = document.createElement('div');
+    overlay.id = 'help-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:500px;font-size:15px;line-height:1.8;white-space:pre-wrap;';
+    box.textContent = content.overlayText;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    overlay.onclick = closeHelpOverlay;
+
+    if (!hasSpeechSupport()) {
+      return;
+    }
+
+    var msg = new SpeechSynthesisUtterance(content.speechText);
+    msg.lang = 'zh-CN';
+    msg.rate = typeof window._rate === 'number' ? window._rate : 0.9;
+    msg.onend = function() {
+      closeHelpOverlay();
+    };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+  }
+
+  window.showHelp = openHelpOverlay;
+  window.openKeyboardHelpOverlay = openHelpOverlay;
+
+  document.addEventListener('keydown', function(event) {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    var editable = event.target && (
+      event.target.tagName === 'INPUT' ||
+      event.target.tagName === 'TEXTAREA' ||
+      event.target.tagName === 'SELECT' ||
+      event.target.isContentEditable
+    );
+    if (editable) {
+      return;
+    }
+    if ((event.key || '').toLowerCase() !== 'h') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openHelpOverlay();
+  }, true);
+})();
+
+(function() {
+  function clampRate(value) {
+    var numeric = typeof value === 'number' ? value : parseFloat(value);
+    if (isNaN(numeric)) numeric = 1;
+    return Math.max(0.5, Math.min(2.0, Math.round(numeric * 10) / 10));
+  }
+
+  function syncRateUi(rateValue) {
+    var slider = document.getElementById('global-rate-slider');
+    var label = document.getElementById('global-rate-value');
+    if (slider) slider.value = String(rateValue);
+    if (label) label.textContent = Number(rateValue).toFixed(1) + 'x';
+
+    var resultSlider = document.getElementById('rate-slider-flask');
+    var resultLabel = document.getElementById('rate-val');
+    if (resultSlider) resultSlider.value = String(rateValue);
+    if (resultLabel) resultLabel.textContent = Number(rateValue).toFixed(1) + 'x';
+  }
+
+  function persistRate(rateValue) {
+    try {
+      localStorage.setItem('global-speech-rate', String(rateValue));
+    } catch (error) {}
+  }
+
+  function restoreRate() {
+    try {
+      var saved = parseFloat(localStorage.getItem('global-speech-rate') || '');
+      if (!isNaN(saved)) {
+        window._rate = clampRate(saved);
+      }
+    } catch (error) {}
+    if (typeof window._rate !== 'number' || isNaN(window._rate)) {
+      window._rate = 1;
+    }
+    syncRateUi(window._rate);
+  }
+
+  window.syncGlobalRateControls = syncRateUi;
+
+  window.applyNewRate = function(nextRate, options) {
+    var opts = options || {};
+    var targetRate = clampRate(typeof nextRate === 'number' ? nextRate : window._rate);
+    var shouldAnnounce = opts.announce !== false;
+    var hadSpeech = !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.paused) && window._currentUtteranceText);
+    var remainingText = hadSpeech ? window._currentUtteranceText.substring(window._currentPosition || 0) : '';
+
+    window._rate = targetRate;
+    persistRate(window._rate);
+    syncRateUi(window._rate);
+
+    if (!window.speechSynthesis) {
+      return window._rate;
+    }
+
+    window._applyingNewRate = true;
+    window.speechSynthesis.cancel();
+
+    function resumeSpeech() {
+      if (hadSpeech && remainingText.trim()) {
+        window._currentUtteranceText = remainingText;
+        window._currentPosition = 0;
+        var utterance = new SpeechSynthesisUtterance(remainingText);
+        utterance.lang = 'zh-CN';
+        utterance.rate = window._rate;
+        utterance.onboundary = function(e) {
+          if (e.name === 'word') window._currentPosition = e.charIndex;
+        };
+        utterance.onend = function() {
+          window._applyingNewRate = false;
+          window._currentPosition = 0;
+          window._currentUtteranceText = '';
+          if (typeof window.autoAdvanceSection === 'function') window.autoAdvanceSection();
+        };
+        window.speechSynthesis.speak(utterance);
+        return;
+      }
+      window._applyingNewRate = false;
+    }
+
+    if (!shouldAnnounce) {
+      resumeSpeech();
+      return window._rate;
+    }
+
+    var tip = new SpeechSynthesisUtterance('当前语速 ' + window._rate.toFixed(1) + ' 倍');
+    tip.lang = 'zh-CN';
+    tip.rate = window._rate;
+    tip.onend = resumeSpeech;
+    setTimeout(function() {
+      window.speechSynthesis.speak(tip);
+    }, 30);
+    return window._rate;
+  };
+
+  window.increaseRate = function() {
+    return window.applyNewRate((window._rate || 1) + 0.1);
+  };
+
+  window.decreaseRate = function() {
+    return window.applyNewRate((window._rate || 1) - 0.1);
+  };
+
+  function bindRatePanel() {
+    restoreRate();
+    var slider = document.getElementById('global-rate-slider');
+    if (!slider || slider.dataset.bound === '1') return;
+    slider.dataset.bound = '1';
+    slider.addEventListener('input', function() {
+      window.applyNewRate(parseFloat(slider.value), { announce: false });
+    });
+    slider.addEventListener('change', function() {
+      window.applyNewRate(parseFloat(slider.value));
+    });
+  }
+
+  function shouldIgnoreRateHotkey(target) {
+    return !!(target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    ));
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (shouldIgnoreRateHotkey(e.target)) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (window._tutorialActive || window._helpOverlayOpen) return;
+
+    var plusPressed = e.key === '+' || e.code === 'NumpadAdd' || (e.code === 'Equal' && e.shiftKey);
+    var minusPressed = e.key === '-' || e.code === 'NumpadSubtract';
+    if (plusPressed || minusPressed) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (plusPressed && window._myNotesPageActive && typeof window.openCreateFolderModal === 'function') {
+        window.openCreateFolderModal();
+      }
+      return;
+    }
+
+    if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      window.increaseRate();
+      return;
+    }
+
+    if (e.code === 'ArrowDown') {
+      e.preventDefault();
+      e.stopPropagation();
+      window.decreaseRate();
+    }
+  }, true);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindRatePanel);
+  } else {
+    bindRatePanel();
+  }
+})();

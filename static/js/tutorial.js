@@ -109,8 +109,8 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: '+',
-            matches: ['+', 'equal', 'numpadadd'],
+            keyLabel: 'ArrowUp',
+            matches: ['arrowup'],
             title: '调快语速',
             description: '按加号提高语速。熟悉内容后，可以更快浏览总结。',
             target: function () {
@@ -124,8 +124,8 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: '-',
-            matches: ['-', 'numpadsubtract'],
+            keyLabel: 'ArrowDown',
+            matches: ['arrowdown'],
             title: '调慢语速',
             description: '按减号放慢语速。遇到定义、公式或难点时更适合精听。',
             target: function () {

@@ -514,4 +514,23 @@ window._aiAssistantGetPageContext = function() {
 </script>
 <script src="{{ url_for('static', filename='js/my-notes-page.js') }}"></script>
 <script src="{{ url_for('static', filename='js/my-notes-assistant.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createFolderButton = document.getElementById('open-create-folder');
+    if (createFolderButton) {
+        createFolderButton.title = '新建文件夹（快捷键 +）';
+        createFolderButton.setAttribute('aria-label', '新建文件夹');
+    }
+
+    if (!window.speechSynthesis || window._tutorialActive) {
+        return;
+    }
+    setTimeout(function() {
+        const utterance = new SpeechSynthesisUtterance('当前是我的笔记页面。按 Tab 在文件夹和笔记之间切换，按 Enter 打开当前项目，按 F2 重命名文件夹，按 M 移动当前项目，按 Delete 删除当前项目，按加号新建文件夹。');
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        window.speechSynthesis.speak(utterance);
+    }, 350);
+});
+</script>
 {% endblock %}

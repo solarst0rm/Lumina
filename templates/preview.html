@@ -1415,6 +1415,65 @@ document.addEventListener('keydown', function(e) {
 
 // 初始化侧边栏缩放
 initSidebarResize();
+
+function stripPreviewExtension(name) {
+    return (name || '').replace(/\.[^.\\/]+$/, '') || name || '当前文档';
+}
+
+const originalInitReadableElements = initReadableElements;
+initReadableElements = function() {
+    const content = document.getElementById('main-content');
+    readableElements = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li')).filter(function(node) {
+        const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        return text.length >= 2 && /[\u4e00-\u9fa5A-Za-z0-9]/.test(text);
+    });
+    sectionElements = Array.from(content.querySelectorAll('h1, h2, h3')).filter(function(node) {
+        const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        return text.length >= 2 && /[\u4e00-\u9fa5A-Za-z0-9]/.test(text);
+    });
+    updateProgressDisplay();
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        const nextRate = Math.min(2, currentRate + 0.1);
+        document.getElementById('tts-rate').value = nextRate;
+        updateRate(nextRate);
+        return;
+    }
+    if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        const nextRate = Math.max(0.5, currentRate - 0.1);
+        document.getElementById('tts-rate').value = nextRate;
+        updateRate(nextRate);
+    }
+}, true);
+
+document.addEventListener('DOMContentLoaded', function() {
+    const titleNode = document.querySelector('.sidebar-title h2');
+    if (titleNode) titleNode.textContent = stripPreviewExtension(titleNode.textContent.trim());
+
+    const firstHeading = document.querySelector('#main-content h1, #main-content h2');
+    if (firstHeading) firstHeading.textContent = stripPreviewExtension(firstHeading.textContent.trim());
+
+    initReadableElements();
+
+    if (!('speechSynthesis' in window)) return;
+
+    setTimeout(function() {
+        const name = stripPreviewExtension((titleNode && titleNode.textContent) || document.title);
+        const message = '当前是文档预览页面，《' + name + '》。按左右键切换上一个或下一个标题，空格开始或暂停朗读，Esc 停止朗读，上下键调整语速。分页模式下请用 PageUp 和 PageDown 翻页。';
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'zh-CN';
+        utterance.rate = currentRate;
+        synth.cancel();
+        synth.speak(utterance);
+    }, 350);
+});
 </script>
 </body>
 </html>

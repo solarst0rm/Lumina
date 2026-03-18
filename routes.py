@@ -181,6 +181,40 @@ def _extract_answer_key(answer_text: str, options: list[dict] | None = None) -> 
     return "A"
 
 
+_SOURCE_FILENAME_PLACEHOLDERS = {
+    "",
+    "å½“å‰ç»ƒä¹ ",
+    "å½“å‰æ–‡æ¡£",
+    "æœªå‘½åæ–‡æ¡£",
+}
+
+
+def _normalize_source_filename(raw_value: str | None) -> str:
+    normalized = (raw_value or "").strip()
+    if normalized in _SOURCE_FILENAME_PLACEHOLDERS:
+        return "æœªå‘½åæ–‡æ¡£"
+    return normalized
+
+
+def _load_mistake_options(record) -> list[dict]:
+    try:
+        options = json.loads(record.options_json or "[]")
+    except json.JSONDecodeError:
+        options = []
+    return options if isinstance(options, list) else []
+
+
+def _build_mistake_payload(record) -> dict:
+    options = _load_mistake_options(record)
+    return {
+        "id": f"mistake-{record.id}",
+        "question": record.question_text,
+        "options": options,
+        "answer": _extract_answer_key(record.correct_answer, options),
+        "explanation": record.explanation or "æš‚æ— è§£æž",
+    }
+
+
 def _jobs_dir(basedir: str) -> Path:
     jobs_dir = Path(basedir) / "jobs"
     jobs_dir.mkdir(parents=True, exist_ok=True)
@@ -948,6 +982,12 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @app.route("/tutorial/demo/challenge")
     @login_required
     def tutorial_demo_challenge():
+        exercise_markdown = (
+            f"## 错题重做\n\n"
+            f"当前正在重做《{source_name}》里的错题，共 {len(group_records)} 道。"
+            f"系统会从第 {initial_question_index + 1} 题开始。"
+        )
+
         return render_template(
             "exercise_quiz.html",
             page_heading="教程示例题目",
@@ -1691,14 +1731,8 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         mistake_groups: list[dict] = []
         group_index_by_name: dict[str, int] = {}
         for record in mistake_records:
-            source_name = (record.source_filename or "").strip() or "当前练习"
-            try:
-                options = json.loads(record.options_json or "[]")
-            except json.JSONDecodeError:
-                options = []
-
-            if source_name in {"当前练习", "当前文档", "未命名文档"}:
-                source_name = "未命名文档"
+            source_name = _normalize_source_filename(record.source_filename)
+            options = _load_mistake_options(record)
 
             if source_name not in group_index_by_name:
                 group_index_by_name[source_name] = len(mistake_groups)
@@ -1740,37 +1774,42 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             flash("指定的错题不存在")
             return redirect(url_for("mistake_notebook"))
 
-        try:
-            options = json.loads(record.options_json or "[]")
-        except json.JSONDecodeError:
-            options = []
+        source_name = _normalize_source_filename(record.source_filename)
+        related_records = (
+            MistakeRecord.query.filter_by(user_id=current_user.id)
+            .order_by(MistakeRecord.last_wrong_at.desc(), MistakeRecord.id.desc())
+            .all()
+        )
+        group_records = [
+            item for item in related_records
+            if _normalize_source_filename(item.source_filename) == source_name
+        ]
+        if not group_records:
+            group_records = [record]
 
-        answer_key = _extract_answer_key(record.correct_answer, options)
         difficulty_name = "错题重做"
         quiz_data = {
-            "title": "错题重做",
+            "title": f"{source_name}错题重做",
             "difficulties": {
-                difficulty_name: [
-                    {
-                        "question": record.question_text,
-                        "options": options,
-                        "answer": answer_key,
-                        "explanation": record.explanation or "暂无解析",
-                    }
-                ]
+                difficulty_name: [_build_mistake_payload(item) for item in group_records]
             },
         }
+        initial_question_index = next(
+            (
+                index for index, item in enumerate(group_records)
+                if int(item.id) == int(record.id)
+            ),
+            0,
+        )
 
         back_url = url_for(
             "mistake_notebook",
-            source_file=(record.source_filename or "").strip(),
+            source_file=source_name,
             mistake_id=record.id,
         )
         exercise_markdown = (
             f"## 错题重做\n\n"
-            f"### 题干\n\n{record.question_text}\n\n"
-            f"### 正确答案\n\n{record.correct_answer}\n\n"
-            f"### 解析\n\n{record.explanation or '暂无解析'}\n"
+            f"来自《{source_name}》的错题共 {len(group_records)} 道，这次会从第 {initial_question_index + 1} 题开始依次重做。\n"
         )
 
         return render_template(
@@ -1778,11 +1817,12 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             page_heading="错题重做",
             quiz_data=quiz_data,
             exercise_markdown=exercise_markdown,
-            uploaded_filename=(record.source_filename or "").strip(),
-            source_file=(record.source_filename or "").strip(),
+            uploaded_filename=source_name,
+            source_file=source_name,
             back_url=back_url,
             finish_url=back_url,
             auto_start_difficulty=difficulty_name,
+            auto_start_question_index=initial_question_index,
             is_mistake_redo=True,
         )
 
@@ -1796,9 +1836,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         if not question_text or not correct_answer:
             return jsonify({"success": False, "error": "错题内容不完整"})
 
-        source_filename = (payload.get("source_filename") or "").strip() or "当前练习"
-        if source_filename in {"当前练习", "当前文档", "未命名文档"}:
-            source_filename = "未命名文档"
+        source_filename = _normalize_source_filename(payload.get("source_filename"))
 
         difficulty = (payload.get("difficulty") or "").strip()
         explanation = (payload.get("explanation") or "").strip()

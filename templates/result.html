@@ -1255,5 +1255,36 @@ function initResultSpeechController() {
 document.addEventListener('DOMContentLoaded', finishProcessingFeedback);
 document.addEventListener('DOMContentLoaded', initSummaryToc);
 document.addEventListener('DOMContentLoaded', initResultSpeechController);
+document.addEventListener('DOMContentLoaded', function() {
+    const rateSlider = document.getElementById('rate-slider-flask');
+    if (rateSlider && rateSlider.dataset.globalBound !== '1') {
+        rateSlider.dataset.globalBound = '1';
+        rateSlider.addEventListener('input', function() {
+            if (typeof window.applyNewRate === 'function') {
+                window.applyNewRate(parseFloat(rateSlider.value), { announce: false });
+            }
+        });
+        rateSlider.addEventListener('change', function() {
+            if (typeof window.applyNewRate === 'function') {
+                window.applyNewRate(parseFloat(rateSlider.value));
+            }
+        });
+    }
+
+    if (!window.speechSynthesis || window._tutorialActive) {
+        return;
+    }
+
+    const pageSpeech = window._resultPageMode === 'note'
+        ? '当前是历史笔记页面。按 S 朗读总结，左右键切换上一个或下一个标题，空格暂停或继续，X 停止朗读，B 生成总结盲文，D 下载总结文档，E 进入练习闯关。'
+        : '当前是结果页面。按 S 朗读总结，左右键切换上一个或下一个标题，空格暂停或继续，X 停止朗读，B 生成总结盲文，D 下载总结文档，E 前往例题，R 上传新文档。';
+    setTimeout(function() {
+        const utterance = new SpeechSynthesisUtterance(pageSpeech);
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+    }, 450);
+});
 </script>
 {% endblock %}

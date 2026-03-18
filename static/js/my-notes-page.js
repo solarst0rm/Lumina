@@ -78,7 +78,7 @@ function globalKeydown(e){
 if(window._aiWindowOpen)return;
 if(e.key==='Escape'){if(document.getElementById('move-item-modal').classList.contains('is-open')){state.pendingMoveItem=null;closeModal('move-item-modal');e.preventDefault();return}if(document.getElementById('rename-folder-modal').classList.contains('is-open')){state.pendingRenameFolder=null;closeModal('rename-folder-modal');e.preventDefault();return}if(document.getElementById('create-folder-modal').classList.contains('is-open')){closeModal('create-folder-modal');e.preventDefault();return}if(document.getElementById('delete-folder-modal').classList.contains('is-open')){state.pendingDeleteFolder=null;closeModal('delete-folder-modal');e.preventDefault();return}if(document.getElementById('delete-note-modal').classList.contains('is-open')){state.pendingDeleteNoteId=null;closeModal('delete-note-modal');e.preventDefault()}return}
 if(editable(e.target))return;
-if(e.key.toLowerCase()==='n'){e.preventDefault();openCreateFolderModal();return}
+if((e.key === '+' || e.code === 'NumpadAdd' || (e.code === 'Equal' && e.shiftKey))){e.preventDefault();openCreateFolderModal();return}
 var active=document.activeElement;if(!active)return;var note=active.closest('.js-note-card'),folder=active.closest('.js-folder-card')||active.closest('.tree-row');
 if(e.key==='F2'&&folder){e.preventDefault();openRenameFolder(folder.getAttribute('data-folder-id'),folder.getAttribute('data-folder-name'));return}
 if(e.key.toLowerCase()==='m'){if(note){e.preventDefault();openMoveModal(noteCfg(note));return}if(folder){e.preventDefault();openMoveModal(folderCfg(folder));return}}
