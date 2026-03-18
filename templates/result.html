@@ -274,20 +274,7 @@
         <button type="button" class="btn btn-danger" id="summary-speech-stop" onclick="stopSpeech()">
             <i class="fas fa-stop"></i> 停止 [X]
         </button>
-        <label style="display:flex;align-items:center;gap:6px;font-size:14px;">
-            语速：
-            <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value="1.0"
-                id="rate-slider-flask"
-                oninput="window._rate=parseFloat(this.value); document.getElementById('rate-val').textContent=this.value+'x'"
-            >
-            <span id="rate-val">1.0x</span>
-        </label>
-        <span id="summary-speech-status" style="font-size:14px;color:var(--text-secondary);" aria-live="polite">
+<span id="summary-speech-status" style="font-size:14px;color:var(--text-secondary);" aria-live="polite">
             已就绪
         </span>
     </div>
@@ -714,10 +701,10 @@ function initResultSpeechController() {
     }
 
     const synth = window.speechSynthesis;
-    const rateSlider = document.getElementById('rate-slider-flask');
-    const rateValue = document.getElementById('rate-val');
     const toggleButton = document.getElementById('summary-speech-toggle');
     const statusNode = document.getElementById('summary-speech-status');
+    const rateSlider = document.getElementById('global-rate-slider');
+    const rateValue = document.getElementById('global-rate-value');
     const brailleSummaryButton = document.getElementById('btn-braille-summary');
     const generateExerciseButton = document.getElementById('btn-gen-exercise');
     const uploadNewFileButton = document.getElementById('btn-upload-new-file');
@@ -727,8 +714,6 @@ function initResultSpeechController() {
     const originalStopCurrentSpeech = window.stopCurrentSpeech;
     const originalSpeakPrev = window.speakPrev;
     const originalSpeakNext = window.speakNext;
-    const originalIncreaseRate = window.increaseRate;
-    const originalDecreaseRate = window.decreaseRate;
 
     function shouldIgnoreHotkeyTarget(target) {
         if (!target) {
@@ -791,24 +776,7 @@ function initResultSpeechController() {
             event.stopPropagation();
             return;
         }
-
-        const plusPressed = event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey);
-        if (plusPressed && window.increaseRate && window._speechOwner === 'result-summary') {
-            window.increaseRate();
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-        }
-
-        const minusPressed = event.key === '-' || event.code === 'NumpadSubtract';
-        if (minusPressed && window.decreaseRate && window._speechOwner === 'result-summary') {
-            window.decreaseRate();
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-        }
-
-        if (event.code === 'KeyS') {
+if (event.code === 'KeyS') {
             if (window.playSummarySpeech) {
                 window.playSummarySpeech();
             }
@@ -1236,67 +1204,32 @@ function initResultSpeechController() {
         }
         return false;
     };
-
-    function applySharedRateStep(delta) {
-        const currentRate = typeof window._rate === 'number' ? window._rate : 1;
-        const nextRate = Math.max(0.5, Math.min(2.0, Math.round((currentRate + delta) * 10) / 10));
-        if (nextRate === currentRate) {
-            return false;
-        }
-        if (typeof window.applyNewRate === 'function') {
-            window.applyNewRate(nextRate, { announce: false });
-        } else {
-            window._rate = nextRate;
-        }
-        syncRateDisplay(window._rate);
+    window.onGlobalRateChange = function(nextRate) {
+        syncRateDisplay(nextRate);
         if (ownsCurrentSpeech() && !controller.isPaused) {
-            return speakSection(controller.currentIndex);
+            speakSection(controller.currentIndex);
+            return true;
         }
-        updateSpeechUi('\u8bed\u901f\u5df2\u8c03\u6574\u4e3a' + window._rate.toFixed(1) + 'x');
-        return true;
-    }
-
-    window.increaseRate = function() {
-        return applySharedRateStep(0.1);
+        if (window._speechOwner === 'result-summary') {
+            updateSpeechUi('语速已调整为' + nextRate.toFixed(1) + 'x');
+            return true;
+        }
+        return false;
     };
-
-    window.decreaseRate = function() {
-        return applySharedRateStep(-0.1);
-    };
-
-    document.addEventListener('keydown', handleResultSpeechHotkeys, true);
+document.addEventListener('keydown', handleResultSpeechHotkeys, true);
 }
 
 document.addEventListener('DOMContentLoaded', finishProcessingFeedback);
 document.addEventListener('DOMContentLoaded', initSummaryToc);
 document.addEventListener('DOMContentLoaded', initResultSpeechController);
 document.addEventListener('DOMContentLoaded', function() {
-    const rateSlider = document.getElementById('rate-slider-flask');
-    const legacyRateControl = rateSlider && rateSlider.closest ? rateSlider.closest('label') : null;
-    if (legacyRateControl) {
-        legacyRateControl.remove();
-    }
-    if (rateSlider && rateSlider.dataset.globalBound !== '1') {
-        rateSlider.dataset.globalBound = '1';
-        rateSlider.addEventListener('input', function() {
-            if (typeof window.applyNewRate === 'function') {
-                window.applyNewRate(parseFloat(rateSlider.value), { announce: false });
-            }
-        });
-        rateSlider.addEventListener('change', function() {
-            if (typeof window.applyNewRate === 'function') {
-                window.applyNewRate(parseFloat(rateSlider.value));
-            }
-        });
-    }
-
     if (!window.speechSynthesis || window._tutorialActive) {
         return;
     }
 
     const pageSpeech = window._resultPageMode === 'note'
-        ? '当前是历史笔记页面。按 S 朗读总结，左右键切换上一个或下一个标题，空格暂停或继续，X 停止朗读，B 生成总结盲文，D 下载总结文档，E 进入练习闯关。'
-        : '当前是结果页面。按 S 朗读总结，左右键切换上一个或下一个标题，空格暂停或继续，X 停止朗读，B 生成总结盲文，D 下载总结文档，E 前往例题，R 上传新文档。';
+        ? '当前是历史笔记结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按上键和下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 进入练习闯关。'
+        : '当前是文档总结结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按上键和下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 前往例题，按 R 上传新文档。';
     setTimeout(function() {
         const utterance = new SpeechSynthesisUtterance(pageSpeech);
         utterance.lang = 'zh-CN';

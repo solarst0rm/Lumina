@@ -402,7 +402,7 @@ window.applyNewRate = function() {
   var remainingText = wasSpeaking ? window._currentUtteranceText.substring(window._currentPosition) : '';
   window._applyingNewRate = true;
   window.speechSynthesis.cancel();
-  var tip = new SpeechSynthesisUtterance('璇€熷凡璋冩暣涓? + window._rate + '鍊?);
+  var tip = new SpeechSynthesisUtterance('当前语速已调整为 ' + window._rate + ' 倍');
   tip.lang = 'zh-CN'; tip.rate = window._rate;
   tip.onend = function() {
     window._applyingNewRate = false;
@@ -427,7 +427,6 @@ window.decreaseRate = function() {
   if(window._rate > 0.5) { window._rate = Math.round((window._rate - 0.1) * 10) / 10; window.applyNewRate(); }
 };
 
-// ============== 蹇嵎閿?==============
 document.addEventListener('keydown', function(e) {
   var inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
   if(inInput) {
@@ -496,15 +495,15 @@ document.addEventListener('keydown', function(e) {
     var isMyNotesPage = !!window._myNotesPageActive;
     var overlayHelpText = '';
     if (isMyNotesPage) {
-      overlayHelpText = '【我的笔记页快捷键】\nTab - 在文件夹、笔记卡片和按钮之间切换\nEnter - 打开当前笔记或文件夹\nF2 - 重命名当前聚焦的文件夹\nM - 移动当前聚焦的笔记或文件夹\nDelete / Backspace - 删除当前聚焦的笔记或文件夹\nN - 新建文件夹\nCtrl+Space - 唤醒语音助手并聚焦输入框\n长按空格 - 直接语音输入，松开发送\nEsc - 退出输入框、关闭弹窗或关闭语音助手\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+      overlayHelpText = '【我的笔记页快捷键】\nTab - 在文件夹、笔记卡片和按钮之间切换\nEnter - 打开当前笔记或文件夹\nF2 - 重命名当前聚焦的文件夹\nM - 移动当前聚焦的笔记或文件夹\nDelete / Backspace - 删除当前聚焦的笔记或文件夹\n+ - 新建文件夹\nCtrl+Space - 唤醒语音助手并聚焦输入框\n长按空格 - 直接语音输入，松开发送\nEsc - 退出输入框、关闭弹窗或关闭语音助手\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     } else if (isResultPage) {
       overlayHelpText = isSavedNotePage
-        ? '【历史笔记页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n←/→ - 上一段或下一段  + / - - 调整语速\nB - 生成总结盲文  D - 下载总结文档\nE - 进入练习闯关\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助'
-        : '【结果页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n←/→ - 上一段或下一段  + / - - 调整语速\nB - 生成总结盲文  D - 下载总结文档\nE - 前往例题  R - 上传新文件\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+        ? '【历史笔记页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← / → - 上一段或下一段\nB - 生成总结盲文  D - 下载总结文档\nE - 进入练习闯关\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助'
+        : '【结果页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← / → - 上一段或下一段\nB - 生成总结盲文  D - 下载总结文档\nE - 前往例题  R - 上传新文件\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     } else if (isUploadPage) {
-      overlayHelpText = '【上传页快捷键】\nU - 上传文档\nEnter - 开始处理\nR - 重置\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+      overlayHelpText = '【上传页快捷键】\nU - 上传文档\nEnter - 开始处理\nR - 重置\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     } else {
-      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← 上一段  → 下一段\n\n【语速调整】\n+ 加速  - 减速\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← - 上一段  → - 下一段\n\n【语速调整】\n↑ - 加速  ↓ - 减速\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     }
     box.textContent = overlayHelpText;
     overlay.appendChild(box);
@@ -517,19 +516,19 @@ document.addEventListener('keydown', function(e) {
     };
     var helpText = '';
     if (isMyNotesPage) {
-      helpText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 键或 Backspace 键删除当前聚焦的笔记或文件夹。N 键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开后发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
+      helpText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 键或 Backspace 键删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
     } else if (isResultPage) {
       helpText = isSavedNotePage
-        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。加号键和减号键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
-        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。加号键和减号键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文件。';
+        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。上键和下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
+        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。上键和下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文件。';
     } else if (isUploadPage) {
       helpText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
     } else {
-      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左箭头上一段。右箭头下一段。加号键加速。减号键减速。点击侧边栏新手教程按钮可重新开始教程。';
+      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左键进入上一段。右键进入下一段。上键加速。下键减速。点击侧边栏新手教程按钮可重新开始教程。';
     }
     window.speechSynthesis.cancel();
     var msg = new SpeechSynthesisUtterance(helpText);
-    msg.lang = 'zh-CN'; msg.rate = 0.9;
+    msg.lang = 'zh-CN'; msg.rate = typeof window._rate === 'number' ? window._rate : 1;
     msg.onend = function() {
       var el = document.getElementById('help-overlay');
       if(el) el.remove();
@@ -540,9 +539,7 @@ document.addEventListener('keydown', function(e) {
   }
 
   var plusPressed = e.key === '+' || e.code === 'NumpadAdd' || (e.code === 'Equal' && e.shiftKey);
-  var minusPressed = e.key === '-' || e.code === 'NumpadSubtract';
-  if(plusPressed) { window.increaseRate(); e.preventDefault(); }
-  if(minusPressed) { window.decreaseRate(); e.preventDefault(); }
+  if(plusPressed && window._myNotesPageActive && typeof window.openCreateFolderModal === 'function') { e.preventDefault(); window.openCreateFolderModal(); return; }
 
   if(window._myNotesPageActive) {
     return;
@@ -781,7 +778,7 @@ document.addEventListener('keydown', function(e) {
 
     var msg = new SpeechSynthesisUtterance(content.speechText);
     msg.lang = 'zh-CN';
-    msg.rate = typeof window._rate === 'number' ? window._rate : 0.9;
+    msg.rate = typeof window._rate === 'number' ? window._rate : 1;
     msg.onend = function() {
       closeHelpOverlay();
     };
@@ -830,11 +827,6 @@ document.addEventListener('keydown', function(e) {
     if (panelLabel) panelLabel.textContent = '语速';
     if (slider) slider.value = String(rateValue);
     if (label) label.textContent = Number(rateValue).toFixed(1) + 'x';
-
-    var resultSlider = document.getElementById('rate-slider-flask');
-    var resultLabel = document.getElementById('rate-val');
-    if (resultSlider) resultSlider.value = String(rateValue);
-    if (resultLabel) resultLabel.textContent = Number(rateValue).toFixed(1) + 'x';
   }
 
   function persistRate(rateValue) {
@@ -873,7 +865,14 @@ document.addEventListener('keydown', function(e) {
     persistRate(window._rate);
     syncRateUi(window._rate);
 
-    if (!window.speechSynthesis) {
+    var handledByPage = false;
+    if (typeof window.onGlobalRateChange === 'function') {
+      try {
+        handledByPage = window.onGlobalRateChange(window._rate, opts) === true;
+      } catch (error) {}
+    }
+
+    if (handledByPage || !window.speechSynthesis) {
       return window._rate;
     }
 
@@ -972,13 +971,10 @@ document.addEventListener('keydown', function(e) {
     if (window._tutorialActive || window._helpOverlayOpen) return;
 
     var plusPressed = e.key === '+' || e.code === 'NumpadAdd' || (e.code === 'Equal' && e.shiftKey);
-    var minusPressed = e.key === '-' || e.code === 'NumpadSubtract';
-    if (plusPressed || minusPressed) {
+    if (plusPressed && window._myNotesPageActive && typeof window.openCreateFolderModal === 'function') {
       e.preventDefault();
       e.stopPropagation();
-      if (plusPressed && window._myNotesPageActive && typeof window.openCreateFolderModal === 'function') {
-        window.openCreateFolderModal();
-      }
+      window.openCreateFolderModal();
       return;
     }
 
@@ -1002,3 +998,4 @@ document.addEventListener('keydown', function(e) {
     bindRatePanel();
   }
 })();
+

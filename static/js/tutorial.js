@@ -112,9 +112,9 @@
             keyLabel: 'ArrowUp',
             matches: ['arrowup'],
             title: '调快语速',
-            description: '按加号提高语速。熟悉内容后，可以更快浏览总结。',
+            description: '按上方向键提高语速。熟悉内容后，可以更快浏览总结。',
             target: function () {
-                return document.getElementById('rate-slider-flask');
+                return document.getElementById('global-rate-slider');
             },
             action: function () {
                 if (typeof window.increaseRate === 'function') {
@@ -127,9 +127,9 @@
             keyLabel: 'ArrowDown',
             matches: ['arrowdown'],
             title: '调慢语速',
-            description: '按减号放慢语速。遇到定义、公式或难点时更适合精听。',
+            description: '按下方向键放慢语速。遇到定义、公式或难点时更适合精听。',
             target: function () {
-                return document.getElementById('rate-slider-flask');
+                return document.getElementById('global-rate-slider');
             },
             action: function () {
                 if (typeof window.decreaseRate === 'function') {

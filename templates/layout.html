@@ -651,7 +651,7 @@
                     {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('my_notes') }}" class="{% if request.path.startswith(url_for('my_notes')) %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
                     {% endif %}
-                    <li><a href="{{ url_for('mistake_notebook') }}" class="{% if request.endpoint == 'mistake_notebook' %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
+                    <li><a href="{{ url_for('mistake_notebook') }}" class="{% if request.path.startswith(url_for('mistake_notebook')) %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
                     {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
                     {% endif %}
@@ -695,7 +695,7 @@
             position: fixed;
             right: 18px;
             bottom: 18px;
-            z-index: 1400;
+            z-index: 2200;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -740,8 +740,8 @@
         }
     </style>
 
-    <div class="global-rate-panel" id="global-rate-panel" role="region" aria-label="全局语速调节">
-        <label for="global-rate-slider">全局语速</label>
+    <div class="global-rate-panel" id="global-rate-panel" role="region" aria-label="语速调节">
+        <label for="global-rate-slider">语速</label>
         <input id="global-rate-slider" type="range" min="0.5" max="2.0" step="0.1" value="1.0">
         <span id="global-rate-value">1.0x</span>
     </div>
@@ -773,7 +773,7 @@
                 // 触发 H 键帮助
                 document.dispatchEvent(new KeyboardEvent('keydown', {key:'h', bubbles:true}));
             } else {
-                alert('使用帮助：\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← → 上/下一段\n+ / - 调整语速\n点击侧边栏"新手教程"按钮开始教程\nH - 帮助');
+                alert('使用帮助：\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← → 上/下一段\n↑ / ↓ 调整语速\n点击侧边栏"新手教程"按钮开始教程\nH - 帮助');
             }
         }
     </script>

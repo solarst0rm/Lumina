@@ -746,14 +746,7 @@ a:focus {
                 </button>
             </div>
             
-            <!-- 语速控制 -->
-            <div class="speed-control">
-                <label for="tts-rate">语速</label>
-                <input type="range" class="speed-slider" id="tts-rate" min="0.5" max="2" step="0.1" value="1" oninput="updateRate(this.value)">
-                <span class="speed-value" id="rate-display">1.0x</span>
-            </div>
-            
-            <!-- 快捷键提示 -->
+            <!-- 语速控制 --><!-- 快捷键提示 -->
             <div class="shortcuts">
                 <kbd>空格</kbd> 播放/暂停 &nbsp;
                 <kbd>←</kbd><kbd>→</kbd> 切换章节<br>
@@ -781,12 +774,75 @@ a:focus {
 
 <!-- 章节指示器 -->
 <div class="section-indicator" id="section-indicator" aria-live="polite"></div>
+<div id="global-rate-panel" style="position:fixed;right:18px;bottom:18px;z-index:2200;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,0.96);box-shadow:0 12px 28px rgba(15,23,42,0.16);border:1px solid rgba(52,120,246,0.18);backdrop-filter:blur(10px);">
+    <label for="global-rate-slider" style="font-weight:600;color:#1f2937;">语速</label>
+    <input id="global-rate-slider" type="range" min="0.5" max="2" step="0.1" value="1" oninput="updateRate(this.value)" style="width:140px;">
+    <span id="global-rate-value" style="min-width:48px;text-align:right;color:#475569;">1.0x</span>
+</div>
 
 <script>
+function clampGlobalRate(value) {
+    const numeric = typeof value === 'number' ? value : parseFloat(value);
+    if (Number.isNaN(numeric)) {
+        return 1;
+    }
+    return Math.max(0.5, Math.min(2, Math.round(numeric * 10) / 10));
+}
+
+function readStoredRate() {
+    try {
+        const stored = parseFloat(localStorage.getItem('global-speech-rate') || '');
+        if (!Number.isNaN(stored)) {
+            return clampGlobalRate(stored);
+        }
+    } catch (error) {}
+    return 1;
+}
+
+function syncGlobalRatePanel() {
+    const slider = document.getElementById('global-rate-slider');
+    const value = document.getElementById('global-rate-value');
+    if (slider) {
+        slider.value = String(currentRate);
+    }
+    if (value) {
+        value.textContent = currentRate.toFixed(1) + 'x';
+    }
+    window._rate = currentRate;
+}
+
+function applyRateChange(value, options) {
+    const opts = options || {};
+    currentRate = clampGlobalRate(value);
+    window._rate = currentRate;
+    try {
+        localStorage.setItem('global-speech-rate', String(currentRate));
+    } catch (error) {}
+    syncGlobalRatePanel();
+
+    if (opts.restartIfPlaying && isPlaying && !isPaused) {
+        synth.cancel();
+        speakElement(currentIndex);
+        return currentRate;
+    }
+
+    if (opts.announce !== false) {
+        const indicator = document.getElementById('section-indicator');
+        if (indicator) {
+            indicator.textContent = '\u8bed\u901f ' + currentRate.toFixed(1) + ' \u500d';
+            setTimeout(function() {
+                if (indicator.textContent === '\u8bed\u901f ' + currentRate.toFixed(1) + ' \u500d') {
+                    indicator.textContent = '';
+                }
+            }, 1000);
+        }
+    }
+    return currentRate;
+}
 // 读屏功能实现
 let synth = window.speechSynthesis;
 let utterance = null;
-let currentRate = 1.0;
+let currentRate = readStoredRate();
 let isPaused = false;
 let isPlaying = false;
 let readableElements = [];
@@ -1107,18 +1163,6 @@ document.addEventListener('keydown', function(e) {
             e.preventDefault();
             ttsNext();
             break;
-        case 'ArrowUp':
-            e.preventDefault();
-            const newRateUp = Math.min(2, currentRate + 0.1);
-            document.getElementById('tts-rate').value = newRateUp;
-            updateRate(newRateUp);
-            break;
-        case 'ArrowDown':
-            e.preventDefault();
-            const newRateDown = Math.max(0.5, currentRate - 0.1);
-            document.getElementById('tts-rate').value = newRateDown;
-            updateRate(newRateDown);
-            break;
     }
 });
 
@@ -1391,10 +1435,10 @@ const originalKeyHandler = document.onkeydown;
 document.addEventListener('keydown', function(e) {
     // 分页模式下的快捷键
     if (isPaginationMode && !e.ctrlKey && !e.metaKey) {
-        if (e.code === 'PageUp' || e.code === 'ArrowUp') {
+        if (e.code === 'PageUp') {
             e.preventDefault();
             prevPage();
-        } else if (e.code === 'PageDown' || e.code === 'ArrowDown') {
+        } else if (e.code === 'PageDown') {
             e.preventDefault();
             nextPage();
         }
@@ -1439,21 +1483,18 @@ document.addEventListener('keydown', function(e) {
     if (e.code === 'ArrowUp') {
         e.preventDefault();
         e.stopPropagation();
-        const nextRate = Math.min(2, currentRate + 0.1);
-        document.getElementById('tts-rate').value = nextRate;
-        updateRate(nextRate);
+        applyRateChange(currentRate + 0.1);
         return;
     }
     if (e.code === 'ArrowDown') {
         e.preventDefault();
         e.stopPropagation();
-        const nextRate = Math.max(0.5, currentRate - 0.1);
-        document.getElementById('tts-rate').value = nextRate;
-        updateRate(nextRate);
+        applyRateChange(currentRate - 0.1);
     }
 }, true);
 
 document.addEventListener('DOMContentLoaded', function() {
+    syncGlobalRatePanel();
     const titleNode = document.querySelector('.sidebar-title h2');
     if (titleNode) titleNode.textContent = stripPreviewExtension(titleNode.textContent.trim());
 
@@ -1466,7 +1507,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setTimeout(function() {
         const name = stripPreviewExtension((titleNode && titleNode.textContent) || document.title);
-        const message = '当前是文档预览页面，《' + name + '》。按左右键切换上一个或下一个标题，空格开始或暂停朗读，Esc 停止朗读，上下键调整语速。分页模式下请用 PageUp 和 PageDown 翻页。';
+        const message = '\u5f53\u524d\u662f\u6587\u6863\u9884\u89c8\u9875\u9762\uff0c\u300a' + name + '\u300b\u3002\u6309\u5de6\u952e\u548c\u53f3\u952e\u5207\u6362\u4e0a\u4e00\u4e2a\u6216\u4e0b\u4e00\u4e2a\u6807\u9898\uff0c\u7a7a\u683c\u5f00\u59cb\u6216\u6682\u505c\u6717\u8bfb\uff0cEsc \u505c\u6b62\u6717\u8bfb\uff0c\u4e0a\u952e\u548c\u4e0b\u952e\u8c03\u6574\u8bed\u901f\u3002\u5206\u9875\u6a21\u5f0f\u4e0b\u8bf7\u7528 PageUp \u548c PageDown \u7ffb\u9875\u3002';
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.lang = 'zh-CN';
         utterance.rate = currentRate;
