@@ -109,10 +109,10 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: '↑',
-            matches: ['arrowup'],
+            keyLabel: '+',
+            matches: ['+', 'equal', 'numpadadd'],
             title: '调快语速',
-            description: '按上箭头提高语速。熟悉内容后，可以更快浏览总结。',
+            description: '按加号提高语速。熟悉内容后，可以更快浏览总结。',
             target: function () {
                 return document.getElementById('rate-slider-flask');
             },
@@ -124,10 +124,10 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: '↓',
-            matches: ['arrowdown'],
+            keyLabel: '-',
+            matches: ['-', 'numpadsubtract'],
             title: '调慢语速',
-            description: '按下箭头放慢语速。遇到定义、公式或难点时更适合精听。',
+            description: '按减号放慢语速。遇到定义、公式或难点时更适合精听。',
             target: function () {
                 return document.getElementById('rate-slider-flask');
             },
@@ -139,10 +139,10 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: '→',
-            matches: ['arrowright'],
+            keyLabel: 'E',
+            matches: ['e'],
             title: '进入题目闯关',
-            description: '按右箭头进入示例题目闯关。文档处理完成后，这个快捷键能最快开始练习。',
+            description: '按 E 进入示例题目闯关。文档处理完成后，这个快捷键能最快开始练习。',
             target: function () {
                 return document.getElementById('btn-gen-exercise');
             },
@@ -160,10 +160,10 @@
             title: '选择难度',
             description: '按 1 选择简单模式。题目页支持 1 到 4 在键盘上直接切换难度。',
             target: function () {
-                return document.querySelector('[data-difficulty="简单"]');
+                return document.querySelector('[data-difficulty="Easy"], [data-difficulty="简单"]');
             },
             action: function () {
-                const button = document.querySelector('[data-difficulty="简单"]');
+                const button = document.querySelector('[data-difficulty="Easy"], [data-difficulty="简单"]');
                 if (button) {
                     button.click();
                 }

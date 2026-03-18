@@ -369,7 +369,7 @@
             {% endif %}
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按上下箭头调整语速。
+            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按加号和减号调整语速。
         </p>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
             快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题。
@@ -792,14 +792,16 @@ function initResultSpeechController() {
             return;
         }
 
-        if (event.code === 'ArrowUp' && window.increaseRate && window._speechOwner === 'result-summary') {
+        const plusPressed = event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey);
+        if (plusPressed && window.increaseRate && window._speechOwner === 'result-summary') {
             window.increaseRate();
             event.preventDefault();
             event.stopPropagation();
             return;
         }
 
-        if (event.code === 'ArrowDown' && window.decreaseRate && window._speechOwner === 'result-summary') {
+        const minusPressed = event.key === '-' || event.code === 'NumpadSubtract';
+        if (minusPressed && window.decreaseRate && window._speechOwner === 'result-summary') {
             window.decreaseRate();
             event.preventDefault();
             event.stopPropagation();

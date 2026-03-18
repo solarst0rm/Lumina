@@ -162,9 +162,14 @@
 
 <div id="difficulty-card" class="card">
     <div class="quiz-grid">
-        <button class="btn quiz-choice-btn" data-difficulty="简单">简单</button>
-        <button class="btn btn-secondary quiz-choice-btn" data-difficulty="进阶">进阶</button>
-        <button class="btn btn-danger quiz-choice-btn" data-difficulty="困难">困难</button>
+        {% for difficulty, questions in quiz_data.difficulties.items() %}
+        <button
+            class="btn{% if difficulty in ['Medium', '进阶', '中等'] %} btn-secondary{% elif difficulty in ['Hard', '困难'] %} btn-danger{% endif %} quiz-choice-btn"
+            data-difficulty="{{ difficulty }}"
+        >
+            {{ {'Easy': '简单', 'Medium': '进阶', 'Hard': '困难', '简单': '简单', '进阶': '进阶', '中等': '进阶', '困难': '困难'}.get(difficulty, difficulty) }}
+        </button>
+        {% endfor %}
         <button class="btn quiz-choice-btn" data-skip="1" style="background-color: var(--sidebar-bg);">跳过</button>
     </div>
 </div>
@@ -205,7 +210,16 @@ const AUTO_START_DIFFICULTY = {{ auto_start_difficulty | default('') | tojson }}
 const IS_MISTAKE_REDO = {{ is_mistake_redo | default(false) | tojson }};
 
 let quizData = {{ quiz_data | tojson }};
-const difficultyOrder = ['简单', '进阶', '困难'];
+const difficultyLabels = {
+    Easy: '简单',
+    Medium: '进阶',
+    Hard: '困难',
+    简单: '简单',
+    进阶: '进阶',
+    中等: '进阶',
+    困难: '困难'
+};
+const canonicalDifficultyOrder = ['Easy', 'Medium', 'Hard'];
 const state = {
     currentDifficulty: null,
     questionIndex: 0,
@@ -252,6 +266,33 @@ function isEditableTarget(target) {
 
 function roundRate(value) {
     return Math.round(value * 10) / 10;
+}
+
+function getDifficultyOrder() {
+    const difficulties = (quizData && quizData.difficulties) || {};
+    const canonical = canonicalDifficultyOrder.filter(function(key) {
+        return Object.prototype.hasOwnProperty.call(difficulties, key);
+    });
+    const extras = Object.keys(difficulties).filter(function(key) {
+        return canonical.indexOf(key) === -1;
+    });
+    return canonical.concat(extras);
+}
+
+function getDifficultyLabel(difficulty) {
+    return difficultyLabels[difficulty] || difficulty;
+}
+
+function getDifficultyByRank(index) {
+    return getDifficultyOrder()[index] || null;
+}
+
+function isIncreaseRateKey(event) {
+    return event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey);
+}
+
+function isDecreaseRateKey(event) {
+    return event.key === '-' || event.code === 'NumpadSubtract';
 }
 
 function stopSpeechPlayback() {
@@ -303,20 +344,21 @@ window._aiAssistantGetPageContext = function() {
 };
 
 function nextDifficulty() {
-    const currentIndex = difficultyOrder.indexOf(state.currentDifficulty);
-    if (currentIndex === -1 || currentIndex === difficultyOrder.length - 1) {
+    const order = getDifficultyOrder();
+    const currentIndex = order.indexOf(state.currentDifficulty);
+    if (currentIndex === -1 || currentIndex === order.length - 1) {
         return null;
     }
-    return difficultyOrder[currentIndex + 1];
+    return order[currentIndex + 1];
 }
 
 function buildDifficultySelectionSpeech() {
-    return '请选择你想挑战的难度。按1选择简单，按2选择进阶，按3选择困难，按4选择跳过，按左箭头返回上一级。进入题目后，可按A到D作答，按V键进行语音输入，按左右箭头切换题目，按R重读，按上下箭头调整语速。';
+    return '请选择你想挑战的难度。按1选择简单，按2选择进阶，按3选择困难，按4选择跳过，按左箭头返回上一级。进入题目后，可按A到D作答，按V键进行语音输入，按左右箭头切换题目，按R重读，按加号和减号调整语速。';
 }
 
 function buildQuestionSpeech(question) {
     const options = question.options.map(option => `${option.key}，${option.text}`).join('。');
-    return `${state.currentDifficulty}模式，第${state.questionIndex + 1}题。${question.question}。选项如下。${options}。请按A到D作答，按V键语音输入，按R重读。`;
+    return `${getDifficultyLabel(state.currentDifficulty)}模式，第${state.questionIndex + 1}题。${question.question}。选项如下。${options}。请按A到D作答，按V键语音输入，按R重读。`;
 }
 
 function buildAnswerLabel(question) {
@@ -443,7 +485,7 @@ function renderQuestion() {
     decisionCard.style.display = 'none';
     questionCard.style.display = 'block';
 
-    difficultyBadge.textContent = `${state.currentDifficulty}模式`;
+    difficultyBadge.textContent = `${getDifficultyLabel(state.currentDifficulty)}模式`;
     questionProgress.textContent = `第 ${state.questionIndex + 1} / ${getCurrentQuestions().length} 题`;
     questionText.textContent = question.question;
     optionsBox.innerHTML = '';
@@ -755,16 +797,25 @@ function handleVoiceCommand(transcript) {
     }
 
     if (state.waitingAction === 'difficulty') {
+        const easyDifficulty = getDifficultyByRank(0);
+        const mediumDifficulty = getDifficultyByRank(1);
+        const hardDifficulty = getDifficultyByRank(2);
         if (normalized.includes('简单')) {
-            startDifficulty('简单');
+            if (easyDifficulty) {
+                startDifficulty(easyDifficulty);
+            }
             return;
         }
         if (normalized.includes('进阶') || normalized.includes('中等')) {
-            startDifficulty('进阶');
+            if (mediumDifficulty) {
+                startDifficulty(mediumDifficulty);
+            }
             return;
         }
         if (normalized.includes('困难')) {
-            startDifficulty('困难');
+            if (hardDifficulty) {
+                startDifficulty(hardDifficulty);
+            }
             return;
         }
         if (normalized.includes('跳过') || normalized.includes('结束')) {
@@ -906,33 +957,56 @@ function bindHotkeys() {
             return;
         }
 
+        if (isIncreaseRateKey(event)) {
+            event.preventDefault();
+            event.stopPropagation();
+            adjustQuizSpeechRate(QUIZ_RATE_STEP);
+            return;
+        }
+
+        if (isDecreaseRateKey(event)) {
+            event.preventDefault();
+            event.stopPropagation();
+            adjustQuizSpeechRate(-QUIZ_RATE_STEP);
+            return;
+        }
+
         switch (event.code) {
             case 'Digit1':
             case 'Numpad1':
                 if (state.waitingAction !== 'difficulty') {
                     return;
                 }
+                if (!getDifficultyByRank(0)) {
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
-                startDifficulty('简单');
+                startDifficulty(getDifficultyByRank(0));
                 return;
             case 'Digit2':
             case 'Numpad2':
                 if (state.waitingAction !== 'difficulty') {
                     return;
                 }
+                if (!getDifficultyByRank(1)) {
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
-                startDifficulty('进阶');
+                startDifficulty(getDifficultyByRank(1));
                 return;
             case 'Digit3':
             case 'Numpad3':
                 if (state.waitingAction !== 'difficulty') {
                     return;
                 }
+                if (!getDifficultyByRank(2)) {
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
-                startDifficulty('困难');
+                startDifficulty(getDifficultyByRank(2));
                 return;
             case 'Digit4':
             case 'Numpad4':
@@ -1004,16 +1078,6 @@ function bindHotkeys() {
                 event.preventDefault();
                 event.stopPropagation();
                 repeatCurrentSpeech();
-                return;
-            case 'ArrowUp':
-                event.preventDefault();
-                event.stopPropagation();
-                adjustQuizSpeechRate(QUIZ_RATE_STEP);
-                return;
-            case 'ArrowDown':
-                event.preventDefault();
-                event.stopPropagation();
-                adjustQuizSpeechRate(-QUIZ_RATE_STEP);
                 return;
             default:
                 return;
