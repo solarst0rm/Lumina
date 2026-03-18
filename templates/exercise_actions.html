@@ -3,36 +3,366 @@
 {% block page_title %}练习操作{% endblock %}
 
 {% block content %}
+<style>
+    .exercise-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+    }
+
+    .exercise-actions-grid .btn {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .exercise-loading-mask,
+    .save-note-mask {
+        position: fixed;
+        inset: 0;
+        background: rgba(45, 55, 72, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10020;
+    }
+
+    .exercise-loading-box,
+    .save-note-box {
+        background: white;
+        border-radius: 16px;
+        padding: 28px 32px;
+        min-width: min(92vw, 360px);
+        text-align: center;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .save-note-box {
+        text-align: left;
+    }
+
+    .save-note-box h3 {
+        color: var(--primary-color);
+        margin-bottom: 12px;
+    }
+
+    .save-note-box p {
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+
+    .save-note-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+    }
+
+    .save-note-actions .btn {
+        justify-content: center;
+    }
+
+    .save-note-result {
+        display: none;
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(56, 161, 105, 0.1);
+        border: 1px solid rgba(56, 161, 105, 0.2);
+        color: var(--text-primary);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+    }
+</style>
+
 <div class="card" style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.15));">
     <h2><i class="fas fa-list-check"></i> 练习操作</h2>
     <p style="color: var(--text-secondary); margin-bottom: 22px;">
-        练习题已经准备好了。你可以先下载保存，也可以转成盲文，或者直接进入答题闯关模式。
+        当前练习已经准备好，你可以下载题目、生成盲文、重新生成题目，或者返回上一页继续闯关。
+    </p>
+    <p style="color: var(--text-secondary); margin-bottom: 22px;">
+        快捷键：按 D 下载，按 B 生成盲文，按左箭头返回，按 R 重新生成题目。
     </p>
 
     <div class="card" style="padding: 18px 20px; margin-bottom: 20px;">
-        <h3 style="color: var(--primary-color); margin-bottom: 10px;">当前练习标题</h3>
+        <h3 style="color: var(--primary-color); margin-bottom: 10px;">当前题单</h3>
         <p style="margin: 0; color: var(--text-primary);">{{ quiz_title }}</p>
     </div>
 
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
-        <a href="{{ url_for('download_file', filename=exercise_filename) }}" class="btn btn-success" style="justify-content: center;">
-            <i class="fas fa-download"></i> 下载练习题
+    <div class="exercise-actions-grid">
+        <a id="exercise-download-link" href="{{ url_for('download_file', filename=exercise_filename) }}" class="btn btn-success">
+            <i class="fas fa-download"></i> 下载题单
         </a>
 
-        <form action="{{ url_for('braille_exercise') }}" method="post">
+        <form id="exercise-braille-form" action="{{ url_for('braille_exercise') }}" method="post">
             <textarea name="text" style="display:none;">{{ exercise_markdown }}</textarea>
-            <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center;">
-                <i class="fas fa-braille"></i> 转为盲文
+            <button id="exercise-braille-button" type="submit" class="btn btn-secondary">
+                <i class="fas fa-braille"></i> 生成例题盲文
             </button>
         </form>
 
-        <a href="{% if source_file %}{{ url_for('exercise_challenge', source_file=source_file) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" class="btn" style="justify-content: center;">
-            <i class="fas fa-play"></i> 开始答题闯关
-        </a>
+        <button id="exercise-regenerate-button" type="button" class="btn btn-danger">
+            <i class="fas fa-rotate-right"></i> 重新生成题目
+        </button>
 
-        <a href="{% if source_file %}{{ url_for('result_page', source_file=source_file) }}{% else %}{{ url_for('result_page') }}{% endif %}" class="btn btn-secondary" style="justify-content: center;">
-            <i class="fas fa-arrow-left"></i> 返回总结页
+        <a id="exercise-back-link" href="{{ url_for('exercise_challenge') }}" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回上一页
         </a>
     </div>
 </div>
+
+<div class="card">
+    <h2><i class="fas fa-book-medical"></i> 添加至笔记</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 18px;">
+        当前文档已完成答题闯关。现在可以把它加入“我的笔记”，并选择要放入的文件夹。
+    </p>
+    <div class="card" style="margin: 0 0 18px 0; padding: 16px 18px; background: rgba(255, 210, 63, 0.12);">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; color:var(--text-primary);">
+            <span><i class="fas fa-heading"></i> 建议笔记名：{{ suggested_note_title }}</span>
+            <span><i class="fas fa-folder-tree"></i> 可先在“我的笔记”中创建更多文件夹</span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="note-folder-select">选择要保存到的文件夹</label>
+        <select id="note-folder-select">
+            <option value="">主文件夹</option>
+            {% for folder in folder_options %}
+            <option value="{{ folder.id }}">{{ folder.label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button id="save-current-note-button" type="button" class="btn btn-success">
+            <i class="fas fa-bookmark"></i> 添加至我的笔记
+        </button>
+        <a href="{{ url_for('my_notes') }}" class="btn btn-secondary">
+            <i class="fas fa-folder-open"></i> 打开我的笔记
+        </a>
+    </div>
+
+    <div id="save-note-result" class="save-note-result"></div>
+</div>
+
+<div id="exercise-loading-mask" class="exercise-loading-mask">
+    <div class="exercise-loading-box">
+        <div class="spinner" style="margin-bottom: 16px;"></div>
+        <p id="exercise-loading-text" style="margin: 0; color: var(--text-secondary);">正在重新生成练习题，请稍候…</p>
+    </div>
+</div>
+
+<div id="save-note-mask" class="save-note-mask">
+    <div class="save-note-box">
+        <h3>正在添加到笔记</h3>
+        <p id="save-note-status">系统正在整理当前总结、目录和练习题，请稍候。</p>
+    </div>
+</div>
+
+<div id="exercise-live-region" class="sr-only" aria-live="polite"></div>
+
+<script>
+window._disableGlobalAIAssistantHotkeys = true;
+
+const exerciseDownloadLink = document.getElementById('exercise-download-link');
+const exerciseBrailleForm = document.getElementById('exercise-braille-form');
+const exerciseBackLink = document.getElementById('exercise-back-link');
+const exerciseRegenerateButton = document.getElementById('exercise-regenerate-button');
+const exerciseLoadingMask = document.getElementById('exercise-loading-mask');
+const exerciseLoadingText = document.getElementById('exercise-loading-text');
+const exerciseLiveRegion = document.getElementById('exercise-live-region');
+const noteFolderSelect = document.getElementById('note-folder-select');
+const saveCurrentNoteButton = document.getElementById('save-current-note-button');
+const saveNoteMask = document.getElementById('save-note-mask');
+const saveNoteStatus = document.getElementById('save-note-status');
+const saveNoteResult = document.getElementById('save-note-result');
+let exerciseRegenerating = false;
+let savingCurrentNote = false;
+
+function speakExerciseAction(text) {
+    exerciseLiveRegion.textContent = text || '';
+    if (!window.speechSynthesis || !text) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = window._rate || 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+function showExerciseLoading(text) {
+    exerciseLoadingText.textContent = text;
+    exerciseLoadingMask.style.display = 'flex';
+}
+
+function hideExerciseLoading() {
+    exerciseLoadingMask.style.display = 'none';
+}
+
+function showSaveNoteMask(text) {
+    saveNoteStatus.textContent = text;
+    saveNoteMask.style.display = 'flex';
+}
+
+function hideSaveNoteMask() {
+    saveNoteMask.style.display = 'none';
+}
+
+function downloadExercise() {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    window.location.href = exerciseDownloadLink.href;
+}
+
+function generateExerciseBraille() {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    exerciseBrailleForm.requestSubmit();
+}
+
+function goBackToChallenge() {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    window.location.href = exerciseBackLink.href;
+}
+
+function regenerateExerciseSet() {
+    if (exerciseRegenerating) {
+        return;
+    }
+    exerciseRegenerating = true;
+    showExerciseLoading('正在重新生成练习题，请稍候…');
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    fetch("{{ url_for('api_regenerate_exercise') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        if (!data.success) {
+            exerciseRegenerating = false;
+            hideExerciseLoading();
+            speakExerciseAction(data.error || '重新生成失败，请稍后重试。');
+            return;
+        }
+        window.location.href = "{{ url_for('exercise_challenge') }}";
+    })
+    .catch(function(error) {
+        exerciseRegenerating = false;
+        hideExerciseLoading();
+        speakExerciseAction(`重新生成失败：${error.message}`);
+    });
+}
+
+function saveCurrentNote() {
+    if (savingCurrentNote) {
+        return;
+    }
+
+    savingCurrentNote = true;
+    saveCurrentNoteButton.disabled = true;
+    saveNoteResult.style.display = 'none';
+    showSaveNoteMask('系统正在整理当前总结、目录和练习题，请稍候。');
+    speakExerciseAction('正在添加到我的笔记。');
+
+    fetch("{{ url_for('api_save_current_note') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_id: noteFolderSelect.value || null
+        })
+    })
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        savingCurrentNote = false;
+        saveCurrentNoteButton.disabled = false;
+        hideSaveNoteMask();
+
+        if (!data.success) {
+            speakExerciseAction(data.error || '添加失败，请稍后重试。');
+            return;
+        }
+
+        saveCurrentNoteButton.disabled = true;
+        saveCurrentNoteButton.innerHTML = '<i class="fas fa-check"></i> 已添加到我的笔记';
+        saveNoteResult.textContent = '';
+        const titleText = document.createElement('strong');
+        titleText.textContent = `已成功添加：${data.title}`;
+        const actionWrap = document.createElement('div');
+        actionWrap.style.marginTop = '10px';
+        const detailLink = document.createElement('a');
+        detailLink.href = data.detail_url;
+        detailLink.className = 'btn btn-secondary';
+        detailLink.innerHTML = '<i class="fas fa-arrow-right"></i> 查看这份笔记';
+        actionWrap.appendChild(detailLink);
+        saveNoteResult.appendChild(titleText);
+        saveNoteResult.appendChild(actionWrap);
+        saveNoteResult.style.display = 'block';
+        speakExerciseAction(`已添加到我的笔记，名称为${data.title}`);
+    })
+    .catch(function(error) {
+        savingCurrentNote = false;
+        saveCurrentNoteButton.disabled = false;
+        hideSaveNoteMask();
+        speakExerciseAction(`添加失败：${error.message}`);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    speakExerciseAction('按D下载题单，按B生成例题盲文，按左箭头返回，按R重新生成题目。答题完成后，可选择文件夹并添加至我的笔记。');
+
+    exerciseRegenerateButton.addEventListener('click', regenerateExerciseSet);
+    saveCurrentNoteButton.addEventListener('click', saveCurrentNote);
+
+    document.addEventListener('keydown', function(event) {
+        const target = event.target;
+        const inInput = target && (
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.tagName === 'SELECT' ||
+            target.isContentEditable
+        );
+
+        if (inInput || event.repeat) {
+            return;
+        }
+
+        switch (event.code) {
+            case 'KeyD':
+                event.preventDefault();
+                event.stopPropagation();
+                downloadExercise();
+                return;
+            case 'KeyB':
+                event.preventDefault();
+                event.stopPropagation();
+                generateExerciseBraille();
+                return;
+            case 'ArrowLeft':
+                event.preventDefault();
+                event.stopPropagation();
+                goBackToChallenge();
+                return;
+            case 'KeyR':
+                event.preventDefault();
+                event.stopPropagation();
+                regenerateExerciseSet();
+                return;
+            default:
+                return;
+        }
+    }, true);
+});
+</script>
 {% endblock %}

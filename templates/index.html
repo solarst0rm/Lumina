@@ -3,90 +3,207 @@
 {% block page_title %}上传学习资料{% endblock %}
 
 {% block content %}
-<div class="card">
+<style>
+.upload-card {
+    max-width: 940px;
+    margin: 0 auto;
+}
+
+.upload-intro {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.upload-guide {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.upload-guide-item {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(255, 210, 63, 0.12), rgba(255, 255, 255, 0.96));
+}
+
+.upload-guide-item strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.upload-guide-item p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.prompt-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.upload-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(56, 161, 105, 0.12);
+    color: var(--success-color);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.prompt-helper {
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(247, 147, 30, 0.08);
+    border: 1px solid rgba(247, 147, 30, 0.18);
+}
+
+.prompt-helper p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.prompt-helper p + p {
+    margin-top: 10px;
+}
+
+.voice-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.voice-status::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-color);
+    flex: 0 0 10px;
+}
+
+.voice-status[data-tone="recording"]::before {
+    background: var(--primary-color);
+    box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.16);
+}
+
+.voice-status[data-tone="ready"]::before,
+.voice-status[data-tone="success"]::before {
+    background: var(--success-color);
+}
+
+.voice-status[data-tone="error"]::before {
+    background: var(--error-color);
+}
+
+.upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.upload-hotkeys {
+    color: var(--text-secondary);
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .upload-guide {
+        grid-template-columns: 1fr;
+    }
+
+    .prompt-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<div class="card upload-card" style="min-height: 520px;">
     <h2><i class="fas fa-cloud-upload-alt"></i> 上传学习资料</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 25px;">
-        支持 PDF、Word、PPT 和图片等格式文档，系统会自动为您生成电子学科笔记与练习内容。
+    <p class="upload-intro">
+        支持 PDF、Word、PPT 和图片等资料。系统会把内容整理成适合视障学生阅读的
+        Markdown 笔记，并自动生成后续练习题。
     </p>
+
+    <div class="prompt-helper">
+            <p id="voiceStatus" class="voice-status" role="status" aria-live="polite" data-tone="idle">
+                语音输入待命：长按 V 键说出需求，松开后自动发送。
+            </p>
+    </div>
 
     <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data" id="uploadForm">
         <div class="form-group">
             <label for="file">
-                <i class="fas fa-file-alt"></i> 选择文件：
+                <i class="fas fa-file-alt"></i> 选择文件
             </label>
-            <input type="file" id="file" name="file" accept=".pdf,.docx,.pptx,.pptm,.ppsx,.ppsm,.potx,.potm,.jpg,.jpeg,.png,.bmp,.webp,.gif,.tif,.tiff" required>
+            <input type="file" id="file" name="file" accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" required>
             <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                 支持格式：PDF、Word（.docx）、PowerPoint（.pptx）、图片（JPG、PNG）
             </small>
         </div>
 
         <div class="form-group">
-            <label for="prompt">
-                <i class="fas fa-edit"></i> 处理要求（可选）：
-            </label>
-            <textarea id="prompt" name="prompt" rows="4" placeholder="请描述您对文档的处理要求，例如：
-• 重点总结电子学基础知识
-• 提取关键公式和概念
-• 生成相关练习题
-• 转换为盲文格式"></textarea>
+            <div class="prompt-head">
+                <label for="prompt" style="margin-bottom: 0;">
+                    <i class="fas fa-edit"></i> 处理要求（可选）
+                </label>
+                <span class="upload-chip">
+                    <i class="fas fa-circle-check"></i> 留空则自动总结
+                </span>
+            </div>
+            <textarea
+                id="prompt"
+                name="prompt"
+                rows="7"
+                style="min-height: 190px;"
+                placeholder="例如：
+- 给我讲解这张图片里的题目
+- 只提取这一章的核心概念和易错点
+- 整理成适合视障学生朗读的课堂笔记"
+            ></textarea>
+
         </div>
 
-        <div style="display: flex; gap: 15px; margin-top: 30px;">
-            <button type="submit" class="btn btn-success" id="submitBtn">
-                <i class="fas fa-play"></i> 开始处理
+        <div class="upload-actions">
+            <button type="submit" class="btn btn-success" id="submitBtn" title="快捷键 Enter">
+                <i class="fas fa-play"></i> 开始处理 [Enter]
             </button>
-            <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                <i class="fas fa-redo"></i> 重置
+            <button type="button" class="btn btn-secondary" id="resetBtn" onclick="resetForm()" title="快捷键 R">
+                <i class="fas fa-redo"></i> 重置 [R]
             </button>
         </div>
+        <p class="upload-hotkeys">
+            快捷键：U 上传文档，Enter 开始处理，R 重置，长按 V 语音输入需求并在松开时发送。
+        </p>
     </form>
 
     <div class="loading" id="loadingIndicator">
         <div class="spinner"></div>
-        <p>正在处理您的文件，请稍候...</p>
+        <p>正在处理你的资料，请稍候...</p>
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <h2><i class="fas fa-info-circle"></i> 使用说明</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-        <div>
-            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
-                <i class="fas fa-upload"></i> 1. 上传资料
-            </h3>
-            <p>选择您的电子学习资料，支持多种常见格式。</p>
-        </div>
-        <div>
-            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
-                <i class="fas fa-brain"></i> 2. AI 处理
-            </h3>
-            <p>系统会自动分析内容并生成结构化总结与练习题。</p>
-        </div>
-        <div>
-            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
-                <i class="fas fa-braille"></i> 3. 盲文转换
-            </h3>
-            <p>处理完成后可继续转换为盲文格式，方便后续阅读。</p>
-        </div>
-        <div>
-            <h3 style="color: var(--primary-color); margin-bottom: 10px;">
-                <i class="fas fa-book"></i> 4. 保存笔记
-            </h3>
-            <p>生成的学习笔记会保存到个人笔记库，便于随时查看。</p>
-        </div>
-    </div>
-</div>
-
 <script>
+window._tutorialPageKey = 'index';
 {% if show_tutorial %}
-if (typeof window.startTutorial === 'function') {
-    setTimeout(function() {
-        window.startTutorial();
-    }, 1000);
-}
+window._autoStartTutorial = true;
 {% endif %}
 
 const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
@@ -94,14 +211,37 @@ const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
 const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | tojson }};
 const uploadForm = document.getElementById('uploadForm');
 const submitBtn = document.getElementById('submitBtn');
+const resetBtn = document.getElementById('resetBtn');
 const loadingIndicator = document.getElementById('loadingIndicator');
 const fileInput = document.getElementById('file');
-const PROCESSING_LABEL = '\u5904\u7406\u4e2d...';
-const START_LABEL = '\u5f00\u59cb\u5904\u7406';
-const PROCESSING_SPEECH = '\u6587\u6863\u5df2\u4e0a\u4f20\uff0c\u6b63\u5728\u5904\u7406';
+const promptInput = document.getElementById('prompt');
+const voiceStatus = document.getElementById('voiceStatus');
+const PROCESSING_LABEL = '处理中...';
+const START_LABEL = '开始处理';
+const PROCESSING_SPEECH = '文档已上传，正在处理';
+const DEFAULT_VOICE_STATUS = '语音输入待命：长按 V 键说出需求，松开后自动发送。';
+const READY_VOICE_STATUS = '需求已写入输入框，可继续修改，或再长按 V 补充后发送。';
+const VOICE_HOLD_MS = 350;
 
 let processingAudio = null;
 let processingAudioSyncTimer = null;
+let processingAudioStartTimer = null;
+let processingSubmitTimer = null;
+
+const voiceState = {
+    recognition: null,
+    isRecording: false,
+    isCancelling: false,
+    vPressed: false,
+    vLongPressTriggered: false,
+    vTimer: null,
+    pendingSubmit: false,
+    releaseTriggered: false,
+    initialPromptValue: '',
+    latestTranscript: '',
+    shortPressCharacter: '',
+    shouldInsertShortPress: false,
+};
 
 function setProcessingUi(isProcessing) {
     submitBtn.disabled = isProcessing;
@@ -109,6 +249,25 @@ function setProcessingUi(isProcessing) {
         ? '<i class="fas fa-spinner fa-spin"></i> ' + PROCESSING_LABEL
         : '<i class="fas fa-play"></i> ' + START_LABEL;
     loadingIndicator.style.display = isProcessing ? 'block' : 'none';
+}
+
+function setVoiceStatus(message, tone) {
+    if (!voiceStatus) {
+        return;
+    }
+    voiceStatus.textContent = message;
+    voiceStatus.dataset.tone = tone || 'idle';
+}
+
+function focusControl(control) {
+    if (!control) {
+        return;
+    }
+    try {
+        control.focus({ preventScroll: true });
+    } catch (error) {
+        control.focus();
+    }
 }
 
 function saveProcessingSessionState() {
@@ -170,6 +329,69 @@ function startProcessingAudio() {
     }
 }
 
+function playVoiceStartTone(callback) {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            if (callback) {
+                callback();
+            }
+            return;
+        }
+
+        const context = new AudioContextClass();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, context.currentTime);
+        gain.gain.setValueAtTime(0.22, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.18);
+
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + 0.18);
+        oscillator.onended = function() {
+            context.close();
+            if (callback) {
+                callback();
+            }
+        };
+    } catch (error) {
+        if (callback) {
+            callback();
+        }
+    }
+}
+
+function stopProcessingFeedback() {
+    if (processingSubmitTimer) {
+        window.clearTimeout(processingSubmitTimer);
+        processingSubmitTimer = null;
+    }
+
+    if (processingAudioStartTimer) {
+        window.clearTimeout(processingAudioStartTimer);
+        processingAudioStartTimer = null;
+    }
+
+    if (processingAudioSyncTimer) {
+        window.clearInterval(processingAudioSyncTimer);
+        processingAudioSyncTimer = null;
+    }
+
+    if (processingAudio) {
+        processingAudio.pause();
+        processingAudio.currentTime = 0;
+    }
+
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+}
+
 function speakProcessingStart() {
     if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
         startProcessingAudio();
@@ -193,11 +415,392 @@ function speakProcessingStart() {
 
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
-    window.setTimeout(startAudioOnce, 1200);
+    processingAudioStartTimer = window.setTimeout(function() {
+        processingAudioStartTimer = null;
+        startAudioOnce();
+    }, 1200);
+}
+
+function shouldIgnoreUploadHotkeyTarget(target) {
+    if (!target) {
+        return false;
+    }
+
+    const tagName = target.tagName || '';
+    if (target.isContentEditable) {
+        return true;
+    }
+
+    return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON' || tagName === 'A';
+}
+
+function hasHotkeyModifier(event) {
+    return !!(event.altKey || event.ctrlKey || event.metaKey);
+}
+
+function requestUploadSubmit() {
+    if (uploadForm.dataset.processingSubmit === 'true') {
+        return false;
+    }
+
+    if (typeof uploadForm.requestSubmit === 'function') {
+        uploadForm.requestSubmit(submitBtn);
+    } else {
+        submitBtn.click();
+    }
+    return true;
+}
+
+function triggerProcessingSubmit(event) {
+    if (uploadForm.dataset.processingSubmit === 'true') {
+        return false;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    return requestUploadSubmit();
+}
+
+function triggerUploadAction(target, event, handler) {
+    if (!target || target.disabled || uploadForm.dataset.processingSubmit === 'true') {
+        return false;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    handler();
+    return true;
+}
+
+function combinePromptText(baseText, transcript) {
+    const cleanBase = (baseText || '').trim();
+    const cleanTranscript = (transcript || '').trim();
+
+    if (!cleanBase) {
+        return cleanTranscript;
+    }
+    if (!cleanTranscript) {
+        return cleanBase;
+    }
+    return cleanBase + '\n' + cleanTranscript;
+}
+
+function insertTextAtCursor(input, text) {
+    if (!input || !text) {
+        return;
+    }
+
+    const start = typeof input.selectionStart === 'number' ? input.selectionStart : input.value.length;
+    const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : input.value.length;
+    const value = input.value || '';
+    input.value = value.slice(0, start) + text + value.slice(end);
+
+    const nextCursor = start + text.length;
+    if (typeof input.setSelectionRange === 'function') {
+        input.setSelectionRange(nextCursor, nextCursor);
+    }
+}
+
+function resetVoiceKeyState() {
+    if (voiceState.vTimer) {
+        window.clearTimeout(voiceState.vTimer);
+        voiceState.vTimer = null;
+    }
+    voiceState.vPressed = false;
+    voiceState.vLongPressTriggered = false;
+    voiceState.shortPressCharacter = '';
+    voiceState.shouldInsertShortPress = false;
+}
+
+function cancelVoiceCapture(options) {
+    const config = options || {};
+    voiceState.isCancelling = true;
+
+    if (voiceState.recognition && voiceState.isRecording) {
+        try {
+            voiceState.recognition.abort();
+        } catch (error) {}
+    }
+
+    voiceState.isRecording = false;
+    voiceState.pendingSubmit = false;
+    voiceState.releaseTriggered = false;
+    voiceState.latestTranscript = '';
+    voiceState.initialPromptValue = '';
+    resetVoiceKeyState();
+
+    if (config.resetStatus !== false) {
+        const hasPrompt = !!promptInput.value.trim();
+        setVoiceStatus(hasPrompt ? READY_VOICE_STATUS : DEFAULT_VOICE_STATUS, hasPrompt ? 'ready' : 'idle');
+    }
+
+    window.setTimeout(function() {
+        voiceState.isCancelling = false;
+    }, 0);
+}
+
+function ensureVoiceRecognition() {
+    const RecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!RecognitionClass) {
+        setVoiceStatus('当前浏览器不支持语音输入，请改用手动输入处理要求。', 'error');
+        return null;
+    }
+
+    if (voiceState.recognition) {
+        return voiceState.recognition;
+    }
+
+    voiceState.recognition = new RecognitionClass();
+    voiceState.recognition.lang = 'zh-CN';
+    voiceState.recognition.continuous = false;
+    voiceState.recognition.interimResults = true;
+
+    voiceState.recognition.onresult = function(event) {
+        let transcript = '';
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            transcript += event.results[index][0].transcript;
+        }
+        voiceState.latestTranscript = transcript.trim();
+        promptInput.value = combinePromptText(voiceState.initialPromptValue, voiceState.latestTranscript);
+    };
+
+    voiceState.recognition.onerror = function(event) {
+        voiceState.isRecording = false;
+        voiceState.pendingSubmit = false;
+        voiceState.releaseTriggered = false;
+
+        if (voiceState.isCancelling && event.error === 'aborted') {
+            return;
+        }
+
+        if (event.error === 'aborted') {
+            const hasPrompt = !!promptInput.value.trim();
+            setVoiceStatus(hasPrompt ? READY_VOICE_STATUS : DEFAULT_VOICE_STATUS, hasPrompt ? 'ready' : 'idle');
+            return;
+        }
+
+        let message = '语音识别失败，请重新长按 V。';
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            message = '浏览器没有开启麦克风权限，请先授权后再试。';
+        } else if (event.error === 'no-speech') {
+            message = '没有识别到语音，请重新长按 V。';
+        } else if (event.error === 'audio-capture') {
+            message = '没有检测到可用的麦克风设备。';
+        }
+
+        setVoiceStatus(message, 'error');
+    };
+
+    voiceState.recognition.onend = function() {
+        voiceState.isRecording = false;
+
+        if (voiceState.isCancelling) {
+            voiceState.isCancelling = false;
+            return;
+        }
+
+        if (voiceState.vPressed) {
+            voiceState.pendingSubmit = true;
+            const hasPrompt = !!promptInput.value.trim();
+            setVoiceStatus(
+                hasPrompt ? '已完成识别，松开 V 即可发送。' : '已结束录音，松开 V 后可重新录制。',
+                hasPrompt ? 'ready' : 'idle'
+            );
+            return;
+        }
+
+        if (voiceState.releaseTriggered) {
+            voiceState.releaseTriggered = false;
+            voiceState.pendingSubmit = false;
+            submitPromptFromVoice();
+            return;
+        }
+
+        voiceState.pendingSubmit = false;
+        const hasPrompt = !!promptInput.value.trim();
+        setVoiceStatus(hasPrompt ? READY_VOICE_STATUS : DEFAULT_VOICE_STATUS, hasPrompt ? 'ready' : 'idle');
+    };
+
+    return voiceState.recognition;
+}
+
+function startVoicePromptCapture() {
+    if (uploadForm.dataset.processingSubmit === 'true' || voiceState.isRecording) {
+        return;
+    }
+
+    const recognition = ensureVoiceRecognition();
+    if (!recognition) {
+        return;
+    }
+
+    voiceState.pendingSubmit = false;
+    voiceState.releaseTriggered = false;
+    voiceState.initialPromptValue = promptInput.value.trim();
+    voiceState.latestTranscript = '';
+    setVoiceStatus('正在录音，请按住 V 键说出你的处理要求。', 'recording');
+
+    playVoiceStartTone(function() {
+        try {
+            recognition.start();
+            voiceState.isRecording = true;
+        } catch (error) {
+            voiceState.isRecording = false;
+            setVoiceStatus('语音识别启动失败，请重新长按 V。', 'error');
+        }
+    });
+}
+
+function submitPromptFromVoice() {
+    if (uploadForm.dataset.processingSubmit === 'true') {
+        return false;
+    }
+
+    if (!fileInput.files || !fileInput.files.length) {
+        setVoiceStatus('请先选择资料文件，再长按 V 录入需求。', 'error');
+        focusControl(fileInput);
+        return false;
+    }
+
+    if (!promptInput.value.trim()) {
+        setVoiceStatus('没有识别到语音内容，请重新长按 V。', 'error');
+        focusControl(promptInput);
+        return false;
+    }
+
+    setVoiceStatus('语音需求已写入，正在开始处理。', 'success');
+    return requestUploadSubmit();
+}
+
+function finalizeVoicePromptCapture() {
+    if (voiceState.isRecording) {
+        voiceState.releaseTriggered = true;
+        try {
+            voiceState.recognition.stop();
+        } catch (error) {
+            voiceState.isRecording = false;
+            voiceState.releaseTriggered = false;
+            submitPromptFromVoice();
+        }
+        return;
+    }
+
+    if (voiceState.pendingSubmit) {
+        voiceState.pendingSubmit = false;
+        submitPromptFromVoice();
+        return;
+    }
+
+    const hasPrompt = !!promptInput.value.trim();
+    setVoiceStatus(hasPrompt ? READY_VOICE_STATUS : DEFAULT_VOICE_STATUS, hasPrompt ? 'ready' : 'idle');
+}
+
+function canUseVoiceHotkey(event) {
+    if (
+        uploadForm.dataset.processingSubmit === 'true' ||
+        window._tutorialActive ||
+        window._helpOverlayOpen ||
+        window._aiWindowOpen ||
+        !event ||
+        event.isComposing
+    ) {
+        return false;
+    }
+
+    return !(event.altKey || event.ctrlKey || event.metaKey);
+}
+
+function handleVoiceHotkeyKeydown(event) {
+    if (event.code !== 'KeyV' || event.repeat || !canUseVoiceHotkey(event) || voiceState.vPressed) {
+        return;
+    }
+
+    voiceState.vPressed = true;
+    voiceState.vLongPressTriggered = false;
+    voiceState.shortPressCharacter = typeof event.key === 'string' && event.key.length === 1 ? event.key : 'v';
+    voiceState.shouldInsertShortPress = event.target === promptInput;
+    voiceState.vTimer = window.setTimeout(function() {
+        voiceState.vLongPressTriggered = true;
+        startVoicePromptCapture();
+    }, VOICE_HOLD_MS);
+
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+function handleVoiceHotkeyKeyup(event) {
+    if (event.code !== 'KeyV' || !voiceState.vPressed) {
+        return;
+    }
+
+    const triggeredLongPress = voiceState.vLongPressTriggered;
+    const shortPressCharacter = voiceState.shortPressCharacter;
+    const shouldInsertShortPress = voiceState.shouldInsertShortPress;
+    resetVoiceKeyState();
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (triggeredLongPress) {
+        finalizeVoicePromptCapture();
+        return;
+    }
+
+    if (shouldInsertShortPress) {
+        insertTextAtCursor(promptInput, shortPressCharacter);
+    }
+}
+
+function handleUploadPageHotkeys(event) {
+    if (
+        !event.repeat &&
+        event.code === 'KeyR' &&
+        uploadForm.dataset.processingSubmit === 'true' &&
+        !window._tutorialActive &&
+        !window._helpOverlayOpen &&
+        !window._aiWindowOpen &&
+        !hasHotkeyModifier(event)
+    ) {
+        event.preventDefault();
+        event.stopPropagation();
+        resetForm();
+        return;
+    }
+
+    if (
+        shouldIgnoreUploadHotkeyTarget(event.target) ||
+        window._tutorialActive ||
+        window._helpOverlayOpen ||
+        window._aiWindowOpen ||
+        hasHotkeyModifier(event)
+    ) {
+        return;
+    }
+
+    if (!event.repeat && event.code === 'KeyU' && triggerUploadAction(fileInput, event, function() {
+        fileInput.click();
+    })) {
+        return;
+    }
+
+    if (!event.repeat && event.code === 'KeyR') {
+        event.preventDefault();
+        event.stopPropagation();
+        resetForm();
+        return;
+    }
+
+    if (!event.repeat && event.key === 'Enter') {
+        triggerProcessingSubmit(event);
+    }
 }
 
 clearProcessingSessionState();
 setProcessingUi(false);
+setVoiceStatus(DEFAULT_VOICE_STATUS, 'idle');
+document.addEventListener('keydown', handleVoiceHotkeyKeydown, true);
+document.addEventListener('keyup', handleVoiceHotkeyKeyup, true);
+document.addEventListener('keydown', handleUploadPageHotkeys, true);
 
 uploadForm.addEventListener('submit', function(e) {
     if (uploadForm.dataset.processingSubmit === 'true') {
@@ -207,6 +810,8 @@ uploadForm.addEventListener('submit', function(e) {
     if (!uploadForm.reportValidity()) {
         return;
     }
+
+    cancelVoiceCapture({ resetStatus: false });
 
     e.preventDefault();
     uploadForm.dataset.processingSubmit = 'true';
@@ -223,25 +828,43 @@ uploadForm.addEventListener('submit', function(e) {
     }
 
     speakProcessingStart();
-    window.setTimeout(function() {
+    processingSubmitTimer = window.setTimeout(function() {
+        processingSubmitTimer = null;
         uploadForm.submit();
     }, 150);
 });
 
-window.addEventListener('pagehide', saveProcessingSessionState);
+window.addEventListener('blur', function() {
+    if (!voiceState.vPressed) {
+        return;
+    }
+
+    const triggeredLongPress = voiceState.vLongPressTriggered;
+    resetVoiceKeyState();
+
+    if (triggeredLongPress) {
+        finalizeVoicePromptCapture();
+    }
+});
+
+window.addEventListener('pagehide', function() {
+    cancelVoiceCapture({ resetStatus: false });
+    saveProcessingSessionState();
+});
 
 function resetForm() {
+    const wasProcessing = uploadForm.dataset.processingSubmit === 'true';
+    cancelVoiceCapture({ resetStatus: false });
+    stopProcessingFeedback();
     uploadForm.reset();
     uploadForm.dataset.processingSubmit = '';
     setProcessingUi(false);
     clearProcessingSessionState();
-}
+    setVoiceStatus(DEFAULT_VOICE_STATUS, 'idle');
 
-fileInput.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        console.log('selected file:', file.name);
+    if (wasProcessing) {
+        window.location.replace('{{ url_for("index") }}');
     }
-});
+}
 </script>
 {% endblock %}

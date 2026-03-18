@@ -1,72 +1,517 @@
 {% extends "layout.html" %}
 
+{% macro render_folder_nodes(nodes, children_map, selected_folder_key, expanded_folder_ids, folder_descendant_ids) %}
+{% for folder in nodes %}
+{% set folder_key = folder.id|string %}
+{% set child_nodes = children_map.get(folder.id, []) %}
+{% set has_children = child_nodes|length > 0 %}
+{% set is_active = selected_folder_key == folder_key %}
+{% set is_expanded = folder.id in expanded_folder_ids %}
+<div class="tree-node{% if is_expanded %} is-expanded{% endif %}" data-node-id="{{ folder.id }}">
+    <div
+        class="tree-row js-folder-drag js-folder-drop-target js-note-drop-target"
+        draggable="true"
+        data-folder-id="{{ folder.id }}"
+        data-folder-name="{{ folder.name }}"
+        data-folder-url="{{ url_for('my_notes', folder_id=folder.id) }}"
+        data-parent-folder-id="{{ folder.parent_id if folder.parent_id is not none else '' }}"
+        data-descendant-folder-ids='{{ folder_descendant_ids.get(folder.id, []) | tojson }}'
+    >
+        {% if has_children %}
+        <button
+            type="button"
+            class="tree-toggle"
+            aria-label="展开或折叠 {{ folder.name }}"
+            aria-expanded="{{ 'true' if is_expanded else 'false' }}"
+        >
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        {% else %}
+        <span class="tree-toggle tree-toggle-placeholder" aria-hidden="true"></span>
+        {% endif %}
+        <a
+            href="{{ url_for('my_notes', folder_id=folder.id) }}"
+            class="tree-link js-folder-link{% if is_active %} is-active{% endif %}"
+            {% if is_active %}aria-current="page"{% endif %}
+        >
+            <i class="fas {% if is_active %}fa-folder-open{% else %}fa-folder{% endif %}"></i>
+            <span>{{ folder.name }}</span>
+        </a>
+        <div class="tree-actions">
+            <button
+                type="button"
+                class="tree-action js-rename-folder-btn"
+                aria-label="重命名文件夹 {{ folder.name }}"
+                data-folder-id="{{ folder.id }}"
+                data-folder-name="{{ folder.name }}"
+            >
+                <i class="fas fa-pen"></i>
+            </button>
+            <button
+                type="button"
+                class="tree-action js-move-folder-btn"
+                aria-label="移动文件夹 {{ folder.name }}"
+                data-folder-id="{{ folder.id }}"
+                data-folder-name="{{ folder.name }}"
+                data-parent-folder-id="{{ folder.parent_id if folder.parent_id is not none else '' }}"
+                data-descendant-folder-ids='{{ folder_descendant_ids.get(folder.id, []) | tojson }}'
+            >
+                <i class="fas fa-arrows-up-down-left-right"></i>
+            </button>
+            <button
+                type="button"
+                class="tree-action js-delete-folder-btn"
+                aria-label="删除文件夹 {{ folder.name }}"
+                data-folder-id="{{ folder.id }}"
+                data-folder-name="{{ folder.name }}"
+            >
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+    {% if has_children %}
+    <div class="tree-children">
+        {{ render_folder_nodes(child_nodes, children_map, selected_folder_key, expanded_folder_ids, folder_descendant_ids) }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endmacro %}
+
 {% block page_title %}我的笔记{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2><i class="fas fa-book"></i> 我的笔记</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 25px;">
-        查看您保存的所有学习笔记和处理记录
-    </p>
+<style>
+.notes-workspace{padding:28px}
+.notes-shell{display:grid;grid-template-columns:minmax(310px,360px) minmax(0,1fr);gap:24px;align-items:start}
+.panel-card{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,248,240,.95));border:1px solid rgba(255,107,53,.12);border-radius:22px;box-shadow:0 18px 40px rgba(45,55,72,.08)}
+.explorer-panel{position:sticky;top:20px}
+.explorer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid rgba(255,107,53,.08)}
+.explorer-root{display:inline-flex;align-items:center;gap:12px;color:var(--primary-color);font-size:1.3rem;font-weight:700;text-decoration:none}
+.explorer-root.is-active{color:var(--secondary-color)}
+.icon-btn,.tree-action,.tree-toggle{border:none;cursor:pointer}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:rgba(255,107,53,.12);color:var(--primary-color)}
+.explorer-head.is-drop-ready,.tree-row.is-drop-ready{box-shadow:inset 0 0 0 1px rgba(56,161,105,.28);background:rgba(56,161,105,.08)}
+.explorer-help{margin:16px 20px 0;padding:12px 14px;border-radius:16px;background:rgba(45,55,72,.05);color:var(--text-secondary);line-height:1.75}
+.tree-view{display:grid;gap:8px;padding:18px 14px 20px}
+.tree-node{display:grid;gap:8px}
+.tree-children{display:none;gap:8px;margin-left:18px;padding-left:14px;border-left:1px dashed rgba(255,107,53,.2)}
+.tree-node.is-expanded>.tree-children{display:grid}
+.tree-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;border-radius:14px;padding-right:4px;transition:.2s}
+.tree-row.is-dragging,.note-row.is-dragging,.folder-card.is-dragging{opacity:.56;transform:scale(.99)}
+.tree-toggle{width:22px;height:22px;border-radius:8px;background:transparent;color:var(--text-secondary)}
+.tree-toggle i{transition:transform .2s;font-size:.85rem}
+.tree-node.is-expanded>.tree-row .tree-toggle i{transform:rotate(90deg)}
+.tree-link{display:flex;align-items:center;gap:10px;min-width:0;padding:11px 12px;border-radius:14px;background:rgba(255,107,53,.04);border:1px solid transparent;color:var(--text-primary);text-decoration:none;font-weight:600}
+.tree-link:hover,.tree-link.is-active{color:var(--primary-color);background:rgba(255,107,53,.12);border-color:rgba(255,107,53,.2)}
+.tree-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-actions{display:flex;gap:6px;opacity:0;pointer-events:none}
+.tree-row:hover .tree-actions,.tree-row:focus-within .tree-actions,.tree-link.is-active~.tree-actions,.tree-action:focus{opacity:1;pointer-events:auto}
+.tree-action{width:32px;height:32px;border-radius:10px;background:transparent;color:var(--text-secondary)}
+.tree-action:hover{background:rgba(255,107,53,.1);color:var(--primary-color)}
+.browser-card{padding:24px}
+.browser-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.breadcrumbs,.browser-top p,.note-date,.note-meta,.modal p,.section-note{color:var(--text-secondary)}
+.breadcrumbs{display:flex;gap:8px;flex-wrap:wrap}
+.breadcrumbs a{text-decoration:none;color:inherit}
+.breadcrumbs .is-current,.breadcrumbs a:hover,.browser-top h2,.section-head h3,.modal h3{color:var(--primary-color)}
+.browser-top h2{margin:10px 0 8px;font-size:1.6rem}
+.summary-chips{display:flex;gap:10px;flex-wrap:wrap}
+.stat-chip{padding:8px 12px;border-radius:999px;background:rgba(45,55,72,.06);color:var(--text-secondary)}
+.browser-tip{margin:18px 0 22px;padding:16px 18px;border-radius:18px;background:linear-gradient(135deg,rgba(255,107,53,.12),rgba(255,210,63,.14));color:var(--text-secondary);line-height:1.8}
+.section-block+.section-block{margin-top:24px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.folder-grid,.note-list{display:grid;gap:14px}
+.folder-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.folder-card,.note-row{border:1px solid rgba(45,55,72,.08);background:rgba(255,255,255,.92);box-shadow:0 10px 22px rgba(45,55,72,.05);transition:.2s}
+.folder-card{display:grid;gap:14px;padding:18px;border-radius:20px}
+.folder-card:hover,.note-row:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(45,55,72,.08);border-color:rgba(255,107,53,.18)}
+.folder-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.folder-card-link{display:inline-flex;align-items:center;gap:10px;color:var(--primary-color);text-decoration:none;font-size:1.05rem;font-weight:700}
+.folder-card-text{color:var(--text-secondary);line-height:1.7}
+.folder-card-actions,.note-actions{display:flex;gap:10px;flex-wrap:wrap}
+.folder-card-actions .btn,.note-actions .btn{padding:10px 16px;font-size:.95rem}
+.note-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:14px;align-items:start;padding:18px;border-radius:20px}
+.note-drag-handle{padding-top:6px;color:var(--text-secondary);cursor:grab}
+.note-main{display:grid;gap:10px;min-width:0}
+.note-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.note-title{display:inline-flex;align-items:center;gap:10px;color:var(--primary-color);text-decoration:none;font-size:1.08rem;font-weight:700}
+.note-title:hover{color:var(--secondary-color)}
+.note-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:.92rem}
+.note-preview{margin:0;color:var(--text-primary);line-height:1.75;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
+.empty-browser{text-align:center;padding:42px 20px;border-radius:20px;background:rgba(45,55,72,.04);border:1px dashed rgba(45,55,72,.12)}
+.empty-browser.empty-browser--compact{padding:28px 20px}
+.empty-browser i{font-size:3rem;margin-bottom:14px;color:rgba(255,107,53,.4)}
+.empty-browser h4{margin-bottom:8px;color:var(--primary-color)}
+.modal-wrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(45,55,72,.55);z-index:10030;padding:20px}
+.modal-wrap.is-open{display:flex}
+.modal{width:min(92vw,440px);background:#fff;border-radius:18px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,0,0,.22)}
+.modal label{display:grid;gap:8px;margin-top:16px;color:var(--text-secondary)}
+.modal-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.modal select,.modal input{width:100%;padding:12px;border:2px solid var(--border-color);border-radius:10px;font-size:1rem}
+.modal select:focus,.modal input:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 0 3px rgba(255,107,53,.1)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.note-row:focus-visible,.folder-card:focus-visible,.tree-link:focus-visible,.tree-toggle:focus-visible,.tree-action:focus-visible,.icon-btn:focus-visible,.btn:focus-visible{outline:3px solid rgba(255,107,53,.35);outline-offset:3px}
+@media (max-width:1100px){.notes-shell{grid-template-columns:1fr}.explorer-panel{position:static}}
+@media (max-width:720px){.notes-workspace,.browser-card{padding-left:18px;padding-right:18px}.note-row{grid-template-columns:20px minmax(0,1fr)}.note-actions{grid-column:2;justify-content:flex-start}.folder-grid{grid-template-columns:1fr}}
+</style>
 
-    {% if notes %}
-        <div style="display: grid; gap: 20px;">
-            {% for note in notes %}
-            <div class="card" style="margin: 0; padding: 20px; background-color: var(--background-color);">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                    <h3 style="color: var(--primary-color); margin: 0; flex: 1;">
-                        <i class="fas fa-file-alt"></i> {{ note.title }}
-                    </h3>
-                    <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                        <i class="fas fa-calendar"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}
-                    </span>
-                </div>
-                <div style="border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; background-color: white; max-height: 200px; overflow-y: auto;">
-                    <pre style="margin: 0; white-space: pre-wrap; font-family: inherit; color: var(--text-primary);">{{ note.content }}</pre>
-                </div>
-                <div style="margin-top: 15px; display: flex; gap: 10px;">
-                    <form action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
-                        <input type="hidden" name="text" value="{{ note.content }}">
-                        <button type="submit" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-braille"></i> 转换为盲文
-                        </button>
-                    </form>
-                    <button class="btn btn-danger btn-sm" onclick="deleteNote({{ note.id }})">
-                        <i class="fas fa-trash"></i> 删除
+<div class="card notes-workspace">
+    <div class="notes-shell">
+        <aside class="explorer-panel">
+            <div class="panel-card">
+                <div class="explorer-head js-folder-drop-target" data-folder-id="" data-folder-name="主文件夹">
+                    <a href="{{ url_for('my_notes') }}" class="explorer-root{% if selected_folder_key == 'root' %} is-active{% endif %}" {% if selected_folder_key == 'root' %}aria-current="page"{% endif %}>
+                        <i class="fas fa-house"></i>
+                        <span>主文件夹</span>
+                    </a>
+                    <button id="open-create-folder" type="button" class="icon-btn" aria-label="新建文件夹" title="新建文件夹（快捷键 +）">
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
+
+                <div class="explorer-help">
+                    用 Tab 在文件夹、笔记和按钮之间切换，按 Enter 打开，按 F2 重命名文件夹，按 M 移动当前聚焦项目，按 Delete 删除，按 Ctrl+Space 唤醒AI语音助手。
+                </div>
+
+                <div id="notes-tree" class="tree-view" data-default-parent-id="{{ default_parent_folder_id or '' }}" data-initial-expanded-ids='{{ expanded_folder_ids|list|tojson }}'>
+                    {{ render_folder_nodes(root_folders, children_map, selected_folder_key, expanded_folder_ids, folder_descendant_ids) }}
+                </div>
             </div>
-            {% endfor %}
+        </aside>
+
+        <section>
+            <div class="panel-card browser-card">
+                <div class="browser-top">
+                    <div>
+                        <div class="breadcrumbs">
+                            <a href="{{ url_for('my_notes') }}">我的笔记</a>
+                            {% if selected_folder %}
+                            {% for crumb in selected_folder_breadcrumbs %}
+                            <span>/</span>{% if loop.last %}<span class="is-current">{{ crumb.name }}</span>{% else %}<a href="{{ url_for('my_notes', folder_id=crumb.id) }}">{{ crumb.name }}</a>{% endif %}
+                            {% endfor %}
+                            {% else %}
+                            <span>/</span><span class="is-current">主文件夹</span>
+                            {% endif %}
+                        </div>
+                        <h2 id="folder-name">{{ current_folder_name }}</h2>
+                        <div class="summary-chips">
+                            <span class="stat-chip">当前 {{ notes|length }} 篇笔记</span>
+                            <span class="stat-chip">子文件夹 {{ child_folders|length }} 个</span>
+                            <span class="stat-chip">全部 {{ all_notes_count }} 篇</span>
+                        </div>
+                    </div>
+                    {% if selected_folder %}
+                    <a href="{{ url_for('my_notes', folder_id=parent_folder_id) if parent_folder_id else url_for('my_notes') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回上一级
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="browser-tip">
+                    进入页面后会自动播报当前路径下的笔记和子文件夹。播报结束后，你可以直接通过语音助手继续操作，例如“打开第一篇笔记”“进入一年级”“返回上一级”或“新建文件夹三年级”。
+                </div>
+
+                <section class="section-block">
+                    <div class="section-head">
+                        <h3><i class="fas fa-folder-tree"></i> 当前路径下的子文件夹</h3>
+                        <span class="stat-chip">{{ child_folders|length }} 个</span>
+                    </div>
+                    
+                    {% if child_folders %}
+                    <div class="folder-grid">
+                        {% for folder in child_folders %}
+                        <article
+                            class="folder-card js-folder-card"
+                            tabindex="0"
+                            data-folder-id="{{ folder.id }}"
+                            data-folder-name="{{ folder.name }}"
+                            data-folder-url="{{ url_for('my_notes', folder_id=folder.id) }}"
+                            data-parent-folder-id="{{ folder.parent_id if folder.parent_id is not none else '' }}"
+                            data-descendant-folder-ids='{{ folder_descendant_ids.get(folder.id, []) | tojson }}'
+                            aria-label="文件夹 {{ folder.name }}。按回车打开，按 F2 重命名，按 M 移动，按 Delete 删除。"
+                        >
+                            <div class="folder-card-head">
+                                <a href="{{ url_for('my_notes', folder_id=folder.id) }}" class="folder-card-link">
+                                    <i class="fas fa-folder-open"></i>
+                                    <span>{{ folder.name }}</span>
+                                </a>
+                            </div>
+                            <p class="folder-card-text">这是当前路径下的直接子文件夹。你可以用 Enter 打开，也可以用移动或删除按钮继续操作。</p>
+                            <div class="folder-card-actions">
+                                <a href="{{ url_for('my_notes', folder_id=folder.id) }}" class="btn">
+                                    <i class="fas fa-arrow-right"></i> 打开文件夹
+                                </a>
+                                <button
+                                    type="button"
+                                    class="btn js-rename-folder-btn"
+                                    data-folder-id="{{ folder.id }}"
+                                    data-folder-name="{{ folder.name }}"
+                                >
+                                    <i class="fas fa-pen"></i> 重命名
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary js-move-folder-btn"
+                                    data-folder-id="{{ folder.id }}"
+                                    data-folder-name="{{ folder.name }}"
+                                    data-parent-folder-id="{{ folder.parent_id if folder.parent_id is not none else '' }}"
+                                    data-descendant-folder-ids='{{ folder_descendant_ids.get(folder.id, []) | tojson }}'
+                                >
+                                    <i class="fas fa-arrows-up-down-left-right"></i> 移动
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-danger js-delete-folder-btn"
+                                    data-folder-id="{{ folder.id }}"
+                                    data-folder-name="{{ folder.name }}"
+                                >
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-browser empty-browser--compact">
+                        <i class="fas fa-folder-tree"></i>
+                        <h4>当前路径下还没有子文件夹</h4>
+                        <p>你可以按右上角加号，或直接按键盘加号来新建文件夹。</p>
+                    </div>
+                    {% endif %}
+                </section>
+
+                <section class="section-block">
+                    <div class="section-head">
+                        <h3><i class="fas fa-note-sticky"></i> 当前路径下的笔记</h3>
+                        <span class="stat-chip">{{ notes|length }} 篇</span>
+                    </div>
+                    {% if notes %}
+                    <div class="note-list">
+                        {% for note in notes %}
+                        <article
+                            class="note-row js-note-drag js-note-card"
+                            id="note-card-{{ note.id }}"
+                            draggable="true"
+                            tabindex="0"
+                            data-note-id="{{ note.id }}"
+                            data-note-title="{{ note.title }}"
+                            data-note-url="{{ url_for('note_detail', note_id=note.id) }}"
+                            data-current-folder-id="{{ note.folder_id or '' }}"
+                            aria-label="笔记 {{ note.title }}。按回车查看详情，按 M 移动，按 Delete 删除。"
+                        >
+                            <div class="note-drag-handle" aria-hidden="true"><i class="fas fa-grip-vertical"></i></div>
+                            <div class="note-main">
+                                <div class="note-line">
+                                    <a href="{{ url_for('note_detail', note_id=note.id) }}" class="note-title">
+                                        <i class="fas fa-file-lines"></i>
+                                        <span>{{ note.title }}</span>
+                                    </a>
+                                    <span class="note-date"><i class="fas fa-calendar"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                </div>
+                                <div class="note-meta">
+                                    <span><i class="fas fa-folder-open"></i> {{ note_folder_labels.get(note.id, '主文件夹') }}</span>
+                                    {% if note.exercise_payload %}
+                                    <span><i class="fas fa-bolt"></i> 已生成练习</span>
+                                    {% else %}
+                                    <span><i class="fas fa-wand-magic-sparkles"></i> 查看详情可继续生成练习</span>
+                                    {% endif %}
+                                </div>
+                                <p class="note-preview">{% if note.content %}{{ note.content[:220] }}{% if note.content|length > 220 %}...{% endif %}{% else %}暂无摘要预览内容{% endif %}</p>
+                            </div>
+                            <div class="note-actions">
+                                <a href="{{ url_for('note_detail', note_id=note.id) }}" class="btn">
+                                    <i class="fas fa-arrow-right"></i> 查看详情
+                                </a>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary js-move-note-btn"
+                                    data-note-id="{{ note.id }}"
+                                    data-note-title="{{ note.title }}"
+                                    data-current-folder-id="{{ note.folder_id or '' }}"
+                                >
+                                    <i class="fas fa-arrows-up-down-left-right"></i> 移动
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-danger js-delete-note-btn"
+                                    data-note-id="{{ note.id }}"
+                                    data-note-title="{{ note.title }}"
+                                >
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-browser">
+                        <i class="fas fa-folder-open"></i>
+                        <h4>当前路径下还没有笔记</h4>
+                        <p>{% if selected_folder %}这个文件夹下暂时还没有直接归属的笔记。{% else %}先上传学习资料并生成笔记，之后就能在这里统一查看和管理。{% endif %}</p>
+                        <a href="{{ url_for('index') }}" class="btn">
+                            <i class="fas fa-upload"></i> 上传学习资料
+                        </a>
+                    </div>
+                    {% endif %}
+                </section>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div id="my-notes-live-region" class="sr-only" aria-live="polite"></div>
+
+<div id="create-folder-modal" class="modal-wrap" aria-hidden="true">
+    <div class="modal">
+        <h3><i class="fas fa-folder-plus"></i> 新建文件夹</h3>
+        <p>默认会在当前路径下创建；如果你修改父文件夹，下次移动或保存笔记时也可以继续调整位置。</p>
+        <label for="create-folder-name">
+            文件夹名称
+            <input id="create-folder-name" type="text" placeholder="例如：数学 / 一年级 / 错题本">
+        </label>
+        <label for="create-folder-parent">
+            父文件夹
+            <select id="create-folder-parent">
+                <option value="">主文件夹</option>
+                {% for folder in folder_options %}
+                <option value="{{ folder.id }}" {% if default_parent_folder_id == folder.id %}selected{% endif %}>{{ folder.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="modal-actions">
+            <button id="confirm-create-folder" type="button" class="btn btn-success"><i class="fas fa-plus"></i> 创建</button>
+            <button id="cancel-create-folder" type="button" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> 取消</button>
         </div>
-    {% else %}
-        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-            <i class="fas fa-book-open" style="font-size: 4rem; color: var(--border-color); margin-bottom: 20px;"></i>
-            <h3>暂无笔记</h3>
-            <p>开始上传学习资料，系统会自动为您生成笔记</p>
-            <a href="{{ url_for('index') }}" class="btn" style="margin-top: 20px;">
-                <i class="fas fa-upload"></i> 上传第一个文件
-            </a>
+    </div>
+</div>
+
+<div id="move-item-modal" class="modal-wrap" aria-hidden="true">
+    <div class="modal">
+        <h3 id="move-item-title"><i class="fas fa-arrows-up-down-left-right"></i> 移动项目</h3>
+        <p id="move-item-text">请选择新的位置。</p>
+        <label for="move-item-target">
+            目标位置
+            <select id="move-item-target"></select>
+        </label>
+        <div class="modal-actions">
+            <button id="confirm-move-item" type="button" class="btn btn-success"><i class="fas fa-check"></i> 确认移动</button>
+            <button id="cancel-move-item" type="button" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> 取消</button>
         </div>
-    {% endif %}
+    </div>
+</div>
+
+<div id="rename-folder-modal" class="modal-wrap" aria-hidden="true">
+    <div class="modal">
+        <h3><i class="fas fa-pen"></i> 重命名文件夹</h3>
+        <p id="rename-folder-text">请输入新的文件夹名称。</p>
+        <label for="rename-folder-name">
+            新名称
+            <input id="rename-folder-name" type="text" placeholder="请输入新的文件夹名称">
+        </label>
+        <div class="modal-actions">
+            <button id="confirm-rename-folder" type="button" class="btn btn-success"><i class="fas fa-check"></i> 确认重命名</button>
+            <button id="cancel-rename-folder" type="button" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> 取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="delete-folder-modal" class="modal-wrap" aria-hidden="true">
+    <div class="modal">
+        <h3><i class="fas fa-triangle-exclamation"></i> 确认删除文件夹</h3>
+        <p id="delete-folder-text">是否确认删除这个文件夹？</p>
+        <div class="modal-actions">
+            <button id="confirm-delete-folder" type="button" class="btn btn-danger"><i class="fas fa-trash"></i> 删除文件夹</button>
+            <button id="cancel-delete-folder" type="button" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> 取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="delete-note-modal" class="modal-wrap" aria-hidden="true">
+    <div class="modal">
+        <h3><i class="fas fa-triangle-exclamation"></i> 确认删除笔记</h3>
+        <p id="delete-note-text">是否确认删除这份笔记？</p>
+        <div class="modal-actions">
+            <button id="confirm-delete-note" type="button" class="btn btn-danger"><i class="fas fa-trash"></i> 删除</button>
+            <button id="cancel-delete-note" type="button" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> 取消</button>
+        </div>
+    </div>
+</div>
+
+<button id="ai-sprite-btn" title="我的笔记语音助手" aria-label="打开我的笔记语音助手">
+    <i class="fas fa-hat-wizard"></i>
+</button>
+
+<div id="ai-overlay" role="dialog" aria-modal="true" aria-label="我的笔记语音助手">
+    <div id="ai-window">
+        <div class="ai-header">
+            <h3><i class="fas fa-folder-open" style="margin-right:8px;"></i>我的笔记语音助手</h3>
+            <button id="ai-close-btn" aria-label="关闭我的笔记语音助手"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="ai-messages" role="log" aria-live="polite">
+            <div class="ai-welcome">
+                <p>你好，我可以帮你打开笔记、进入文件夹、返回上一级，或新建文件夹。</p>
+                <p>例如：打开第一篇笔记、进入一年级、返回上一级、新建文件夹三年级，或把一年级改名为一年级上册。</p>
+                <p style="font-size:0.8rem;margin-top:8px;color:var(--text-secondary);">Ctrl+Space 可直接聚焦输入框，长按空格可直接语音输入。</p>
+            </div>
+        </div>
+        <div class="ai-input-bar">
+            <input type="text" id="ai-text-input" placeholder="输入要执行的操作..." autocomplete="off">
+            <button id="ai-mic-btn" aria-label="语音输入" aria-pressed="false"><i class="fas fa-microphone"></i></button>
+            <button id="ai-send-btn" aria-label="发送"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
 </div>
 
 <script>
-function deleteNote(noteId) {
-    if (confirm('确定要删除这条笔记吗？')) {
-        // 这里可以添加删除笔记的AJAX请求
-        // 暂时显示提示信息
-        alert('删除功能开发中，请联系管理员');
-    }
-}
+window._myNotesPageActive = true;
+window._aiAssistantPageEnabled = true;
+window._aiAssistantPageName = 'my-notes';
+window._myNotesPageData = {
+    rootUrl: {{ url_for('my_notes') | tojson }},
+    currentFolderId: {{ (selected_folder.id if selected_folder else none) | tojson }},
+    currentFolderName: {{ current_folder_name | tojson }},
+    parentFolderId: {{ parent_folder_id | tojson }},
+    defaultParentFolderId: {{ default_parent_folder_id | tojson }},
+    notes: [
+        {% for note in notes %}
+        {
+            id: {{ note.id | tojson }},
+            title: {{ note.title | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ],
+    childFolders: [
+        {% for folder in child_folders %}
+        {
+            id: {{ folder.id | tojson }},
+            name: {{ folder.name | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ],
+    folderOptions: [
+        {% for folder in folder_options %}
+        {
+            id: {{ folder.id | tojson }},
+            label: {{ folder.label | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ],
+    folderDescendantIds: {{ folder_descendant_ids | tojson }}
+};
 
-// 添加小按钮样式
-const style = document.createElement('style');
-style.textContent = `
-    .btn-sm {
-        padding: 8px 16px;
-        font-size: 0.9rem;
-    }
-`;
-document.head.appendChild(style);
+window._aiAssistantGetPageContext = function() {
+    const data = window._myNotesPageData || {};
+    return {
+        page: 'my-notes',
+        current_folder_id: data.currentFolderId,
+        current_folder_name: data.currentFolderName || '主文件夹',
+        parent_folder_id: data.parentFolderId,
+        notes: data.notes || [],
+        child_folders: data.childFolders || []
+    };
+};
 </script>
+<script src="{{ url_for('static', filename='js/my-notes-page.js') }}"></script>
+<script src="{{ url_for('static', filename='js/my-notes-assistant.js') }}"></script>
 {% endblock %}

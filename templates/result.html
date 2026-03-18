@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block page_title %}处理结果{% endblock %}
+{% block page_title %}{{ page_heading or '处理结果' }}{% endblock %}
 
 {% block content %}
 <style>
@@ -22,6 +22,8 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     background: linear-gradient(180deg, rgba(255, 107, 53, 0.08), rgba(255, 210, 63, 0.12));
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .summary-toc-panel.is-hidden .summary-toc {
@@ -42,7 +44,6 @@
 }
 
 .summary-toc {
-    max-height: 520px;
     overflow-y: auto;
     padding-right: 4px;
 }
@@ -293,10 +294,21 @@
 </div>
 
 <div id="summary-card" class="card">
-    <h2><i class="fas fa-check-circle" style="color: var(--success-color);"></i> 处理完成</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 25px;">
-        文档总结和练习题都已经准备好了。现在可以先查看总结，再进入答题闯关页。
-    </p>
+    <h2>
+        <i class="fas {% if page_mode == 'note' %}fa-book-open{% else %}fa-check-circle{% endif %}" style="color: var(--success-color);"></i>
+        {{ page_heading or '处理结果' }}
+    </h2>
+    
+    {% if page_mode == 'note' and note_folder_label %}
+    <div class="card" style="margin: 0 0 20px 0; padding: 16px 18px; background: rgba(255, 210, 63, 0.12);">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; color:var(--text-primary);">
+            <span><i class="fas fa-folder-open"></i> 所在文件夹：{{ note_folder_label }}</span>
+            {% if uploaded_filename %}
+            <span><i class="fas fa-file"></i> 原始文件：{{ uploaded_filename }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card" style="margin: 0 0 25px 0; padding: 20px;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom: 15px;">
@@ -341,49 +353,92 @@
                     <i class="fas fa-braille"></i> 生成总结盲文 [B]
                 </button>
             </form>
-            <a id="btn-download-summary" class="btn" href="{{ url_for('download_summary') }}" title="快捷键 D">
+            <a id="btn-download-summary" class="btn" href="{{ download_summary_url or url_for('download_summary') }}" title="快捷键 D">
                 <i class="fas fa-download"></i> 下载总结文档 [D]
             </a>
-            <button type="button" class="btn btn-success" id="btn-upload-to-community" title="上传到学习社区">
-                <i class="fas fa-users"></i> 上传到学习社区
-            </button>
         </div>
     </div>
 
     <div class="card" style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(247,147,30,0.12)); border: 1px solid rgba(255,107,53,0.18);">
         <h3 style="color: var(--primary-color); margin-bottom: 10px;">
-            <i class="fas fa-flag-checkered"></i> 练习闯关已就绪
+            <i class="fas fa-flag-checkered"></i>
+            {% if page_mode == 'note' and not note_has_exercises %}
+            生成例题并开始闯关
+            {% else %}
+            练习闯关已就绪
+            {% endif %}
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
             点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按上下箭头调整语速。
         </p>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题，R 上传新文件。
+            快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题。
         </p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a id="btn-gen-exercise" class="btn btn-success" href="{% if uploaded_filename %}{{ url_for('exercise_challenge', source_file=uploaded_filename) }}{% else %}{{ url_for('exercise_challenge') }}{% endif %}" title="快捷键 E">
-                <i class="fas fa-pencil-alt"></i> 前往例题 [E]
+            <a id="btn-gen-exercise" class="btn btn-success" href="{{ challenge_url or url_for('exercise_challenge') }}" title="快捷键 E">
+                <i class="fas fa-pencil-alt"></i>
+                {% if page_mode == 'note' and not note_has_exercises %}
+                生成例题并闯关 [E]
+                {% else %}
+                前往例题 [E]
+                {% endif %}
             </a>
+            {% if page_mode == 'note' %}
+            <form action="{{ note_exercise_braille_url }}" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fas fa-braille"></i> 生成例题盲文
+                </button>
+            </form>
+            {% endif %}
+            {% if show_upload_to_community %}
+            <button id="btn-upload-to-community" type="button" class="btn">
+                <i class="fas fa-users"></i> 上传到学习社区
+            </button>
+            {% endif %}
+            {% if show_upload_new_file %}
             <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 R">
                 <i class="fas fa-upload"></i> 上传新文件 [R]
             </a>
+            {% elif back_library_url %}
+            <a href="{{ back_library_url }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回我的笔记
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>
 
-{% if status %}
-<div class="card" style="background-color: rgba(56, 161, 105, 0.1); border-left: 4px solid var(--success-color);">
-    <h3 style="color: var(--success-color); margin-bottom: 10px;">
-        <i class="fas fa-info-circle"></i> 处理状态
-    </h3>
-    <p style="margin: 0; color: var(--text-primary);">{{ status }}</p>
-</div>
-{% endif %}
-
 <script>
+window._tutorialPageKey = {{ ('tutorial-result' if tutorial_demo else 'result') | tojson }};
 window._sumText = {{ summary | tojson }};
 window._exText = {{ exercise | tojson }};
 window._uploadedFileName = {{ uploaded_filename | default('') | tojson }};
+const RESULT_PAGE_MODE = {{ page_mode | default('current') | tojson }};
+window._resultPageMode = RESULT_PAGE_MODE;
+window._aiAssistantPageEnabled = true;
+window._aiAssistantPageName = 'result';
+window._aiAssistantDocumentName = window._uploadedFileName || '';
+window._savedNoteBackUrl = {{ (back_library_url or '') | tojson }};
+window.onResultArrowLeft = function() {
+    if (RESULT_PAGE_MODE !== 'note' || !window._savedNoteBackUrl) {
+        return false;
+    }
+    if (document.activeElement) {
+        const tagName = document.activeElement.tagName;
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || document.activeElement.isContentEditable) {
+            return false;
+        }
+    }
+    window.location.href = window._savedNoteBackUrl;
+    return true;
+};
+window._aiAssistantGetPageContext = function() {
+    return {
+        page: 'result',
+        uploaded_filename: window._aiAssistantDocumentName || '',
+        current_section: 'summary',
+    };
+};
 const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
 const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
 const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | tojson }};
@@ -426,6 +481,11 @@ function speakProcessingComplete() {
 }
 
 function finishProcessingFeedback() {
+    if (RESULT_PAGE_MODE !== 'current') {
+        clearProcessingFeedbackState();
+        return;
+    }
+
     const processingStatus = readSessionJson(PROCESSING_STATUS_KEY);
     if (!processingStatus || !processingStatus.pending) {
         return;
@@ -438,9 +498,9 @@ function finishProcessingFeedback() {
     }
 
     const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
+    clearProcessingFeedbackState();
 
     if (!audioState || !audioState.active) {
-        clearProcessingFeedbackState();
         speakProcessingComplete();
         return;
     }
@@ -458,7 +518,6 @@ function finishProcessingFeedback() {
 
     const finalize = function() {
         audio.pause();
-        clearProcessingFeedbackState();
         speakProcessingComplete();
     };
 
@@ -494,10 +553,6 @@ function speakSummary() {
         alert('没有总结内容');
         return;
     }
-    window._allSections = window.splitSections(window._sumText);
-    window._sectionIdx = 0;
-    window._currentSource = 'sum';
-    window.speakFromIndex();
 }
 
 function toggleSpeechPause() {
@@ -643,6 +698,9 @@ function initSummaryToc() {
     }
 }
 
+
+
+
 function initResultSpeechController() {
     const summaryRoot = document.getElementById('summary-rendered');
     if (!summaryRoot) {
@@ -766,9 +824,9 @@ function initResultSpeechController() {
         }
 
         if (controller.isPaused) {
-            toggleButton.innerHTML = '<i class="fas fa-play"></i> 继续 [空格]';
+            toggleButton.innerHTML = '<i class="fas fa-play"></i> \u7ee7\u7eed [\u7a7a\u683c]';
         } else {
-            toggleButton.innerHTML = '<i class="fas fa-pause"></i> 暂停/继续 [空格]';
+            toggleButton.innerHTML = '<i class="fas fa-pause"></i> \u6682\u505c/\u7ee7\u7eed [\u7a7a\u683c]';
         }
     }
 
@@ -807,7 +865,6 @@ function initResultSpeechController() {
             return summaryFromTextarea;
         }
 
-        const summaryRoot = document.getElementById('summary-rendered');
         const summaryFromDom = summaryRoot && typeof summaryRoot.innerText === 'string'
             ? normalizeLineBreaks(summaryRoot.innerText).trim()
             : '';
@@ -867,7 +924,7 @@ function initResultSpeechController() {
 
     function speakSection(index) {
         if (!synth || !controller.sections.length || index < 0 || index >= controller.sections.length) {
-            resetPlaybackState('无可朗读内容');
+            resetPlaybackState('\u65e0\u53ef\u6717\u8bfb\u5185\u5bb9');
             return false;
         }
 
@@ -884,7 +941,7 @@ function initResultSpeechController() {
         utterance.lang = 'zh-CN';
         utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
         utterance.onstart = function() {
-            updateSpeechUi('正在朗读第' + (controller.currentIndex + 1) + '段');
+            updateSpeechUi('\u6b63\u5728\u6717\u8bfb\u7b2c' + (controller.currentIndex + 1) + '\u6bb5');
         };
         utterance.onboundary = function(event) {
             if (typeof event.charIndex === 'number') {
@@ -896,14 +953,14 @@ function initResultSpeechController() {
                 return;
             }
             controller.isPaused = true;
-            updateSpeechUi('已暂停');
+            updateSpeechUi('\u5df2\u6682\u505c');
         };
         utterance.onresume = function() {
             if (sessionId !== controller.sessionId) {
                 return;
             }
             controller.isPaused = false;
-            updateSpeechUi('继续朗读第' + (controller.currentIndex + 1) + '段');
+            updateSpeechUi('\u7ee7\u7eed\u6717\u8bfb\u7b2c' + (controller.currentIndex + 1) + '\u6bb5');
         };
         utterance.onend = function() {
             if (sessionId !== controller.sessionId) {
@@ -913,13 +970,13 @@ function initResultSpeechController() {
                 speakSection(controller.currentIndex + 1);
                 return;
             }
-            resetPlaybackState('朗读完成');
+            resetPlaybackState('\u6717\u8bfb\u5b8c\u6210');
         };
         utterance.onerror = function() {
             if (sessionId !== controller.sessionId) {
                 return;
             }
-            resetPlaybackState('朗读失败');
+            resetPlaybackState('\u6717\u8bfb\u5931\u8d25');
         };
 
         window._currentUtteranceText = utteranceText;
@@ -936,15 +993,15 @@ function initResultSpeechController() {
 
     function startSummarySpeech() {
         if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-            alert('当前浏览器不支持语音朗读');
+            alert('\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u8bed\u97f3\u6717\u8bfb');
             return false;
         }
 
         controller.sections = buildSectionsFromSummary();
         controller.currentIndex = 0;
         if (!controller.sections.length) {
-            updateSpeechUi('暂无总结内容');
-            alert('请先上传文档并完成转换后再试');
+            updateSpeechUi('\u6682\u65e0\u603b\u7ed3\u5185\u5bb9');
+            alert('\u8bf7\u5148\u4e0a\u4f20\u6587\u6863\u5e76\u5b8c\u6210\u8f6c\u6362\u540e\u518d\u8bd5');
             return false;
         }
 
@@ -972,7 +1029,7 @@ function initResultSpeechController() {
         }
         controller.sessionId += 1;
         synth.cancel();
-        resetPlaybackState(statusText || '已停止朗读');
+        resetPlaybackState(statusText || '\u5df2\u505c\u6b62\u6717\u8bfb');
         return true;
     }
 
@@ -985,7 +1042,7 @@ function initResultSpeechController() {
             Math.max(0, controller.currentIndex + step)
         );
         if (targetIndex === controller.currentIndex) {
-            updateSpeechUi(step > 0 ? '已经是最后一段' : '已经是第一段');
+            updateSpeechUi(step > 0 ? '\u5df2\u7ecf\u662f\u6700\u540e\u4e00\u6bb5' : '\u5df2\u7ecf\u662f\u7b2c\u4e00\u6bb5');
             return false;
         }
         return speakSection(targetIndex);
@@ -1001,12 +1058,12 @@ function initResultSpeechController() {
         syncRateDisplay(nextRate);
 
         if (!ownsCurrentSpeech()) {
-            updateSpeechUi('语速已调整为' + nextRate.toFixed(1) + 'x');
+            updateSpeechUi('\u8bed\u901f\u5df2\u8c03\u6574\u4e3a' + nextRate.toFixed(1) + 'x');
             return true;
         }
 
         if (controller.isPaused) {
-            updateSpeechUi('已暂停，当前语速' + nextRate.toFixed(1) + 'x');
+            updateSpeechUi('\u5df2\u6682\u505c\uff0c\u5f53\u524d\u8bed\u901f' + nextRate.toFixed(1) + 'x');
             return true;
         }
 
@@ -1015,7 +1072,7 @@ function initResultSpeechController() {
 
     window._rate = parseFloat(rateSlider && rateSlider.value ? rateSlider.value : '1') || 1;
     syncRateDisplay(window._rate);
-    updateSpeechUi('已就绪');
+    updateSpeechUi('\u5df2\u5c31\u7eea');
 
     if (rateSlider) {
         rateSlider.addEventListener('input', function() {
@@ -1025,7 +1082,7 @@ function initResultSpeechController() {
             if (ownsCurrentSpeech() && !controller.isPaused) {
                 speakSection(controller.currentIndex);
             } else {
-                updateSpeechUi('语速已调整为' + nextRate.toFixed(1) + 'x');
+                updateSpeechUi('\u8bed\u901f\u5df2\u8c03\u6574\u4e3a' + nextRate.toFixed(1) + 'x');
             }
         });
     }
@@ -1056,7 +1113,7 @@ function initResultSpeechController() {
 
     window.stopCurrentSpeech = function() {
         if (ownsCurrentSpeech()) {
-            return stopSummarySpeech('已停止朗读');
+            return stopSummarySpeech('\u5df2\u505c\u6b62\u6717\u8bfb');
         }
         if (typeof originalStopCurrentSpeech === 'function') {
             return originalStopCurrentSpeech();

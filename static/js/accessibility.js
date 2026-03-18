@@ -1,9 +1,9 @@
-// ============== 新手教程示例数据 ==============
-window._TUTORIAL_SAMPLE_SUMMARY = '# 第一章 人工智能概述\n\n人工智能是计算机科学的一个分支，旨在创建能够模拟人类智能的系统。\n\n## 第一节 定义与发展\n\n人工智能诞生于二十世纪五十年代，经历了多个发展阶段。\n\n# 第二章 机器学习基础\n\n机器学习是人工智能的核心技术之一。\n\n## 第一节 监督学习\n\n监督学习通过标记数据训练模型，常用于分类和回归任务。';
+﻿// ============== 鏂版墜鏁欑▼绀轰緥鏁版嵁 ==============
+window._TUTORIAL_SAMPLE_SUMMARY = '# 绗竴绔?浜哄伐鏅鸿兘姒傝堪\n\n浜哄伐鏅鸿兘鏄绠楁満绉戝鐨勪竴涓垎鏀紝鏃ㄥ湪鍒涘缓鑳藉妯℃嫙浜虹被鏅鸿兘鐨勭郴缁熴€俓n\n## 绗竴鑺?瀹氫箟涓庡彂灞昞n\n浜哄伐鏅鸿兘璇炵敓浜庝簩鍗佷笘绾簲鍗佸勾浠ｏ紝缁忓巻浜嗗涓彂灞曢樁娈点€俓n\n# 绗簩绔?鏈哄櫒瀛︿範鍩虹\n\n鏈哄櫒瀛︿範鏄汉宸ユ櫤鑳界殑鏍稿績鎶€鏈箣涓€銆俓n\n## 绗竴鑺?鐩戠潱瀛︿範\n\n鐩戠潱瀛︿範閫氳繃鏍囪鏁版嵁璁粌妯″瀷锛屽父鐢ㄤ簬鍒嗙被鍜屽洖褰掍换鍔°€?;
 
-window._TUTORIAL_SAMPLE_EXERCISE = '## 第1题（基础）\n\n### 题干\n\n请简述人工智能的定义。\n\n### 答案\n\n人工智能是计算机科学的一个分支，旨在模拟人类智能。\n\n### 解析\n\n一、核心目标是模拟人类智能行为。\n二、应用已渗透到日常生活。';
+window._TUTORIAL_SAMPLE_EXERCISE = '## 绗?棰橈紙鍩虹锛塡n\n### 棰樺共\n\n璇风畝杩颁汉宸ユ櫤鑳界殑瀹氫箟銆俓n\n### 绛旀\n\n浜哄伐鏅鸿兘鏄绠楁満绉戝鐨勪竴涓垎鏀紝鏃ㄥ湪妯℃嫙浜虹被鏅鸿兘銆俓n\n### 瑙ｆ瀽\n\n涓€銆佹牳蹇冪洰鏍囨槸妯℃嫙浜虹被鏅鸿兘琛屼负銆俓n浜屻€佸簲鐢ㄥ凡娓楅€忓埌鏃ュ父鐢熸椿銆?;
 
-// ============== 教程状态机 ==============
+// ============== 鏁欑▼鐘舵€佹満 ==============
 window._tutorialActive = false;
 window._tutorialStep = 0;
 window._tutorialSpeaking = false;
@@ -11,76 +11,71 @@ window._rate = 1.0;
 
 window._tutorialSteps = [
   {
-    prompt: '第一步，点击"开始处理"按钮上传文件。',
+    prompt: '绗竴姝ワ紝鐐瑰嚮"寮€濮嬪鐞?鎸夐挳涓婁紶鏂囦欢銆?,
     expectedKey: 'any',
     action: function() {}
   },
   {
-    prompt: '文件已上传。第二步，等待AI处理完成。',
+    prompt: '鏂囦欢宸蹭笂浼犮€傜浜屾锛岀瓑寰匒I澶勭悊瀹屾垚銆?,
     expectedKey: 'any',
     action: function() {}
   },
   {
-    prompt: '处理完成。第三步，按S键朗读总结。',
+    prompt: '澶勭悊瀹屾垚銆傜涓夋锛屾寜S閿湕璇绘€荤粨銆?,
     expectedKey: 's',
     action: function() {
-      if(window._sumText) {
-        window._allSections = window.splitSections(window._sumText);
-        window._sectionIdx = 0;
-        window._currentSource = 'sum';
-        window.speakFromIndex();
-      }
+      window.playSummarySpeech();
     },
     delay: 4000
   },
   {
-    prompt: '第四步，按空格键暂停朗读。',
+    prompt: '绗洓姝ワ紝鎸夌┖鏍奸敭鏆傚仠鏈楄銆?,
     expectedKey: ' ',
     action: function() {}
   },
   {
-    prompt: '已暂停。第五步，再按空格键继续。',
+    prompt: '宸叉殏鍋溿€傜浜旀锛屽啀鎸夌┖鏍奸敭缁х画銆?,
     expectedKey: ' ',
     action: function() {}
   },
   {
-    prompt: '第六步，按X键停止朗读。',
+    prompt: '绗叚姝ワ紝鎸塜閿仠姝㈡湕璇汇€?,
     expectedKey: 'x',
     action: function() {}
   },
   {
-    prompt: '已停止。第七步，按右箭头键跳到下一段。',
+    prompt: '宸插仠姝€傜涓冩锛屾寜鍙崇澶撮敭璺冲埌涓嬩竴娈点€?,
     expectedKey: 'arrowright',
     action: function() { window.speakNext(); },
     delay: 3000
   },
   {
-    prompt: '第八步，按左箭头键返回上一段。',
+    prompt: '绗叓姝ワ紝鎸夊乏绠ご閿繑鍥炰笂涓€娈点€?,
     expectedKey: 'arrowleft',
     action: function() { window.speakPrev(); },
     delay: 3000
   },
   {
-    prompt: '第九步，按上箭头键加快语速。',
+    prompt: '绗節姝ワ紝鎸変笂绠ご閿姞蹇閫熴€?,
     expectedKey: 'arrowup',
     action: function() { window.increaseRate(); }
   },
   {
-    prompt: '第十步，按下箭头键减慢语速。',
+    prompt: '绗崄姝ワ紝鎸変笅绠ご閿噺鎱㈣閫熴€?,
     expectedKey: 'arrowdown',
     action: function() { window.decreaseRate(); }
   },
   {
-    prompt: '恭喜！新手教程全部完成。按H键可随时查看快捷键帮助。按任意键进入正常模式。',
+    prompt: '鎭枩锛佹柊鎵嬫暀绋嬪叏閮ㄥ畬鎴愩€傛寜H閿彲闅忔椂鏌ョ湅蹇嵎閿府鍔┿€傛寜浠绘剰閿繘鍏ユ甯告ā寮忋€?,
     expectedKey: 'any',
     action: function() {}
   }
 ];
 
-// ============== 教程控制函数 ==============
+// ============== 鏁欑▼鎺у埗鍑芥暟 ==============
 window._tutorialTimeout = null;
 
-function refreshAIAssistantAvailability() {
+function notifyAIAssistantAvailability() {
   if (typeof window.refreshAIAssistantAvailability === 'function') {
     window.refreshAIAssistantAvailability();
   }
@@ -97,10 +92,10 @@ window.startTutorial = function() {
   window._tutorialActive = true;
   window._tutorialStep = 0;
   window._tutorialSpeaking = true;
-  refreshAIAssistantAvailability();
+  notifyAIAssistantAvailability();
   window.speechSynthesis.cancel();
   window.showTutorialPopup();
-  var welcome = new SpeechSynthesisUtterance('欢迎使用聆光一闪，即将开始新手教程。按F键可随时跳过。');
+  var welcome = new SpeechSynthesisUtterance('娆㈣繋浣跨敤鑱嗗厜涓€闂紝鍗冲皢寮€濮嬫柊鎵嬫暀绋嬨€傛寜F閿彲闅忔椂璺宠繃銆?);
   welcome.lang = 'zh-CN';
   welcome.rate = window._rate;
   welcome.onend = function() { window.speakTutorialStep(); };
@@ -108,17 +103,17 @@ window.startTutorial = function() {
 };
 
 window._tutorialDescriptions = [
-  '学习如何上传文档',
-  '等待AI处理',
-  '使用语音朗读总结内容',
-  '学习暂停朗读功能',
-  '学习继续朗读功能',
-  '学习停止朗读功能',
-  '学习跳转到下一段',
-  '学习返回上一段',
-  '学习加快语速',
-  '学习减慢语速',
-  '教程完成'
+  '瀛︿範濡備綍涓婁紶鏂囨。',
+  '绛夊緟AI澶勭悊',
+  '浣跨敤璇煶鏈楄鎬荤粨鍐呭',
+  '瀛︿範鏆傚仠鏈楄鍔熻兘',
+  '瀛︿範缁х画鏈楄鍔熻兘',
+  '瀛︿範鍋滄鏈楄鍔熻兘',
+  '瀛︿範璺宠浆鍒颁笅涓€娈?,
+  '瀛︿範杩斿洖涓婁竴娈?,
+  '瀛︿範鍔犲揩璇€?,
+  '瀛︿範鍑忔參璇€?,
+  '鏁欑▼瀹屾垚'
 ];
 
 window.showTutorialPopup = function() {
@@ -132,14 +127,14 @@ window.showTutorialPopup = function() {
   var stepNum = window._tutorialStep + 1;
   var totalSteps = window._tutorialSteps.length;
   var step = window._tutorialSteps[window._tutorialStep];
-  var desc = window._tutorialDescriptions[window._tutorialStep] || '教程进行中';
-  var keyMap = {enter:'回车',' ':'空格',arrowright:'→',arrowleft:'←',arrowup:'↑',arrowdown:'↓',any:'任意键'};
-  var keyHint = step ? '按 ' + (keyMap[step.expectedKey] || step.expectedKey.toUpperCase()) + ' 键继续' : '';
-  popup.innerHTML = '<div style="font-weight:bold;margin-bottom:8px;font-size:14px;">📚 新手教程</div>' +
-    '<div style="font-size:28px;font-weight:bold;margin-bottom:6px;">第 ' + stepNum + ' / ' + totalSteps + ' 步</div>' +
+  var desc = window._tutorialDescriptions[window._tutorialStep] || '鏁欑▼杩涜涓?;
+  var keyMap = {enter:'鍥炶溅',' ':'绌烘牸',arrowright:'鈫?,arrowleft:'鈫?,arrowup:'鈫?,arrowdown:'鈫?,any:'浠绘剰閿?};
+  var keyHint = step ? '鎸?' + (keyMap[step.expectedKey] || step.expectedKey.toUpperCase()) + ' 閿户缁? : '';
+  popup.innerHTML = '<div style="font-weight:bold;margin-bottom:8px;font-size:14px;">馃摎 鏂版墜鏁欑▼</div>' +
+    '<div style="font-size:28px;font-weight:bold;margin-bottom:6px;">绗?' + stepNum + ' / ' + totalSteps + ' 姝?/div>' +
     '<div style="font-size:15px;margin-bottom:8px;line-height:1.4;">' + desc + '</div>' +
     '<div style="font-size:13px;background:rgba(255,255,255,0.2);padding:6px 10px;border-radius:6px;margin-bottom:8px;">' + keyHint + '</div>' +
-    '<div style="font-size:11px;opacity:0.7;">按 F 键跳过教程</div>';
+    '<div style="font-size:11px;opacity:0.7;">鎸?F 閿烦杩囨暀绋?/div>';
 };
 
 window.hideTutorialPopup = function() {
@@ -153,7 +148,7 @@ window.speakTutorialStep = function() {
     window._tutorialActive = false;
     window._tutorialSpeaking = false;
     window.hideTutorialPopup();
-    refreshAIAssistantAvailability();
+    notifyAIAssistantAvailability();
     return;
   }
   if(window._tutorialTimeout) { clearTimeout(window._tutorialTimeout); window._tutorialTimeout = null; }
@@ -183,9 +178,9 @@ window.advanceTutorial = function() {
   if(window._tutorialStep >= window._tutorialSteps.length) {
     window._tutorialActive = false;
     window.hideTutorialPopup();
-    refreshAIAssistantAvailability();
+    notifyAIAssistantAvailability();
     setTimeout(function() {
-      var done = new SpeechSynthesisUtterance('教程已完成！');
+      var done = new SpeechSynthesisUtterance('鏁欑▼宸插畬鎴愶紒');
       done.lang = 'zh-CN'; done.rate = window._rate;
       window.speechSynthesis.speak(done);
     }, 500);
@@ -201,31 +196,39 @@ window.skipTutorial = function() {
   window._tutorialSpeaking = false;
   window.speechSynthesis.cancel();
   window.hideTutorialPopup();
-  refreshAIAssistantAvailability();
-  var msg = new SpeechSynthesisUtterance('已跳过教程。按H键查看快捷键帮助。');
+  notifyAIAssistantAvailability();
+  var msg = new SpeechSynthesisUtterance('宸茶烦杩囨暀绋嬨€傛寜H閿煡鐪嬪揩鎹烽敭甯姪銆?);
   msg.lang = 'zh-CN'; msg.rate = window._rate;
   window.speechSynthesis.speak(msg);
 };
 
-// ============== AI 窗口状态 ==============
+// ============== AI 绐楀彛鐘舵€?==============
 window._aiWindowOpen = false;
 window._spacebarDownTime = 0;
 window._spacebarTimer = null;
 window._spacebarHandled = false;
 
-// ============== 全局 TTS 状态 ==============
+// ============== 鍏ㄥ眬 TTS 鐘舵€?==============
 window._sumText = typeof window._sumText === 'string' ? window._sumText : '';
 window._exText = typeof window._exText === 'string' ? window._exText : '';
-window._allSections = [];
-window._sectionIdx = 0;
-window._currentSource = 'sum';
-window._currentUtteranceText = '';
-window._currentPosition = 0;
-window._answerText = '';
-window._waitingForAnswer = false;
-window._applyingNewRate = false;
+window._allSections = Array.isArray(window._allSections) ? window._allSections : [];
+window._sectionIdx = typeof window._sectionIdx === 'number' ? window._sectionIdx : 0;
+window._currentSource = window._currentSource || 'sum';
+window._currentUtteranceText = window._currentUtteranceText || '';
+window._currentPosition = typeof window._currentPosition === 'number' ? window._currentPosition : 0;
+window._answerText = window._answerText || '';
+window._waitingForAnswer = !!window._waitingForAnswer;
+window._applyingNewRate = !!window._applyingNewRate;
 
-// 按标题分割段落
+window.hasSpeechPlaybackSupport = function() {
+  return !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+};
+
+window.getSpeechSourceText = function(source) {
+  return source === 'ex' ? (window._exText || '') : (window._sumText || '');
+};
+
+// 鎸夋爣棰樺垎鍓叉钀?
 window.splitSections = function(text) {
   var sections = [], lines = text.split('\n'), current = [];
   for(var i = 0; i < lines.length; i++) {
@@ -238,7 +241,7 @@ window.splitSections = function(text) {
   return sections.filter(function(s){ return s.trim().length > 0; });
 };
 
-// 清理markdown格式
+// 娓呯悊markdown鏍煎紡
 window.cleanMarkdown = function(text) {
   return text.replace(/^#+\s*/gm,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1');
 };
@@ -250,9 +253,65 @@ window.findSectionIndex = function(sections, title) {
   return 0;
 };
 
-// 例题朗读（题干+答案分段）
+window.stopCurrentSpeech = function() {
+  if(!window.speechSynthesis) return false;
+  window._applyingNewRate = false;
+  window._waitingForAnswer = false;
+  window._answerText = '';
+  window._currentPosition = 0;
+  window._currentUtteranceText = '';
+  window._allSections = [];
+  window._sectionIdx = 0;
+  window.speechSynthesis.cancel();
+  return true;
+};
+
+window.startSpeechPlayback = function(source) {
+  if(!window.hasSpeechPlaybackSupport()) return false;
+  var nextSource = source === 'ex' ? 'ex' : 'sum';
+  var sourceText = window.getSpeechSourceText(nextSource);
+  if(!sourceText || !sourceText.trim()) return false;
+
+  var sections = window.splitSections(sourceText);
+  if(!sections.length) return false;
+
+  window._allSections = sections;
+  window._sectionIdx = 0;
+  window._currentSource = nextSource;
+  window._waitingForAnswer = false;
+  window._answerText = '';
+  window.speakFromIndex();
+  return true;
+};
+
+window.playSummarySpeech = function() {
+  return window.startSpeechPlayback('sum');
+};
+
+window.toggleCurrentSpeechPause = function() {
+  if(!window.speechSynthesis) return false;
+  if(window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+    return true;
+  }
+  if(window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+    return true;
+  }
+  return false;
+};
+
+window.onAssistantShortSpacePress = function() {
+  if(window._waitingForAnswer) {
+    window.speakAnswer();
+    return true;
+  }
+  return window.toggleCurrentSpeechPause();
+};
+
+// 渚嬮鏈楄锛堥骞?绛旀鍒嗘锛?
 window.speakExerciseWithPause = function(text) {
-  var answerKeywords = ['答案', '解答', '参考答案', '解：', '解:'];
+  var answerKeywords = ['绛旀', '瑙ｇ瓟', '鍙傝€冪瓟妗?, '瑙ｏ細', '瑙?'];
   var questionPart = text, answerPart = '';
   for(var i = 0; i < answerKeywords.length; i++) {
     var idx = text.indexOf(answerKeywords[i]);
@@ -277,7 +336,7 @@ window.speakExerciseWithPause = function(text) {
   u.onend = function() {
     if(answerPart && answerPart.trim()) {
       window._waitingForAnswer = true;
-      var hint = new SpeechSynthesisUtterance('题干朗读完毕，按空格键听答案');
+      var hint = new SpeechSynthesisUtterance('棰樺共鏈楄瀹屾瘯锛屾寜绌烘牸閿惉绛旀');
       hint.lang = 'zh-CN'; hint.rate = window._rate;
       window.speechSynthesis.speak(hint);
     }
@@ -337,13 +396,13 @@ window.speakNext = function() {
   window.speakFromIndex();
 };
 
-// 语速调节
+// 璇€熻皟鑺?
 window.applyNewRate = function() {
   var wasSpeaking = (window.speechSynthesis.speaking || window.speechSynthesis.paused) && window._currentUtteranceText;
   var remainingText = wasSpeaking ? window._currentUtteranceText.substring(window._currentPosition) : '';
   window._applyingNewRate = true;
   window.speechSynthesis.cancel();
-  var tip = new SpeechSynthesisUtterance('语速已调整为' + window._rate + '倍');
+  var tip = new SpeechSynthesisUtterance('璇€熷凡璋冩暣涓? + window._rate + '鍊?);
   tip.lang = 'zh-CN'; tip.rate = window._rate;
   tip.onend = function() {
     window._applyingNewRate = false;
@@ -368,11 +427,8 @@ window.decreaseRate = function() {
   if(window._rate > 0.5) { window._rate = Math.round((window._rate - 0.1) * 10) / 10; window.applyNewRate(); }
 };
 
-// ============== 快捷键 ==============
+// ============== 蹇嵎閿?==============
 document.addEventListener('keydown', function(e) {
-  if(window._quizVoiceMode && (e.key === ' ' || (e.key === ' ' && e.ctrlKey))) {
-    return;
-  }
   var inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
   if(inInput) {
     if(e.key === 'Escape') { e.target.blur(); e.preventDefault(); }
@@ -380,7 +436,7 @@ document.addEventListener('keydown', function(e) {
   }
   var k = e.key.toLowerCase();
 
-  // 教程模式拦截
+  // 鏁欑▼妯″紡鎷︽埅
   if(window._tutorialActive) {
     if(k === 'f') { window.skipTutorial(); e.preventDefault(); return; }
     var step = window._tutorialSteps[window._tutorialStep];
@@ -391,7 +447,7 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault(); return;
   }
 
-  // AI窗口打开时，除Esc外所有快捷键挂起
+  // AI绐楀彛鎵撳紑鏃讹紝闄sc澶栨墍鏈夊揩鎹烽敭鎸傝捣
   if(window._aiWindowOpen) {
     if(k === 'escape') {
       if(typeof window.closeAIAssistant === 'function') window.closeAIAssistant();
@@ -404,25 +460,17 @@ document.addEventListener('keydown', function(e) {
     closeAIAssistantIfOpen();
   }
 
-  // 正常模式
+  // Normal playback hotkeys
   if(k === 's') {
-    if(window._sumText) {
-      window._allSections = window.splitSections(window._sumText);
-      window._sectionIdx = 0; window._currentSource = 'sum';
-      window.speakFromIndex();
-    } else { alert('请先上传文档并处理'); }
+    if(!window.playSummarySpeech()) { alert('请先上传文档并完成处理'); }
     e.preventDefault();
   }
   if(k === 'e') {
-    if(window._exText) {
-      window._allSections = window.splitSections(window._exText);
-      window._sectionIdx = 0; window._currentSource = 'ex';
-      window.speakFromIndex();
-    } else { alert('请先上传文档并处理'); }
+    if(!window.startSpeechPlayback('ex')) { alert('请先上传文档并完成处理'); }
     e.preventDefault();
   }
-  if(k === 'x') { window.speechSynthesis.cancel(); window._currentPosition = 0; window._currentUtteranceText = ''; e.preventDefault(); }
-  // F键不再在正常模式下启动教程，教程仅通过侧边栏按钮或首次登录触发
+  if(k === 'x') { window.stopCurrentSpeech(); e.preventDefault(); }
+  // F閿笉鍐嶅湪姝ｅ父妯″紡涓嬪惎鍔ㄦ暀绋嬶紝鏁欑▼浠呴€氳繃渚ц竟鏍忔寜閽垨棣栨鐧诲綍瑙﹀彂
 
   if(k === 'h') {
     e.preventDefault();
@@ -431,27 +479,54 @@ document.addEventListener('keydown', function(e) {
       existingHelp.remove();
       window._helpOverlayOpen = false;
       window.speechSynthesis.cancel();
-      refreshAIAssistantAvailability();
+      notifyAIAssistantAvailability();
       return;
     }
     closeAIAssistantIfOpen();
     window._helpOverlayOpen = true;
-    refreshAIAssistantAvailability();
+    notifyAIAssistantAvailability();
     var overlay = document.createElement('div');
     overlay.id = 'help-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
     var box = document.createElement('div');
     box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:500px;font-size:15px;line-height:1.8;white-space:pre-wrap;';
-    box.textContent = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← 上一段  → 下一段\n\n【语速调节】\n↑ 加速  ↓ 减速\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+    var isResultPage = !!document.getElementById('btn-download-summary');
+    var isSavedNotePage = window._resultPageMode === 'note';
+    var isUploadPage = !!document.getElementById('uploadForm');
+    var isMyNotesPage = !!window._myNotesPageActive;
+    var overlayHelpText = '';
+    if (isMyNotesPage) {
+      overlayHelpText = '【我的笔记页快捷键】\nTab - 在文件夹、笔记卡片和按钮之间切换\nEnter - 打开当前笔记或文件夹\nF2 - 重命名当前聚焦的文件夹\nM - 移动当前聚焦的笔记或文件夹\nDelete / Backspace - 删除当前聚焦的笔记或文件夹\n+ - 新建文件夹\nCtrl+Space - 唤醒语音助手并聚焦输入框\n长按空格 - 直接语音输入，松开发送\nEsc - 退出输入框、关闭弹窗或关闭语音助手\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+    } else if (isResultPage) {
+      overlayHelpText = isSavedNotePage
+        ? '【历史笔记页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← - 返回我的笔记  ↑/↓ - 调整语速\nB - 生成总结盲文  D - 下载总结文档\n→ - 进入练习闯关\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助'
+        : '【结果页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← - 上一段  ↑/↓ - 调整语速\nB - 生成总结盲文  D - 下载总结文档\n→ - 生成练习题  R - 上传新文件\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+    } else if (isUploadPage) {
+      overlayHelpText = '【上传页快捷键】\nU - 上传文档\nEnter - 开始处理\nR - 重置\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+    } else {
+      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← 上一段  → 下一段\n\n【语速调整】\n↑ 加速  ↓ 减速\n\n【其他】\n点击侧边栏"新手教程"按钮可重新开始教程\nH - 关闭帮助';
+    }
+    box.textContent = overlayHelpText;
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     overlay.onclick = function() {
       overlay.remove();
       window._helpOverlayOpen = false;
       window.speechSynthesis.cancel();
-      refreshAIAssistantAvailability();
+      notifyAIAssistantAvailability();
     };
-    var helpText = '按H键可跳过。快捷键说明。S键朗读总结。E键朗读例题。空格键暂停或继续。X键停止。左箭头上一段。右箭头下一段。上箭头加速。下箭头减速。点击侧边栏新手教程按钮可重新开始教程。H键关闭帮助。';
+    var helpText = '';
+    if (isMyNotesPage) {
+      helpText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 键或 Backspace 键删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开后发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
+    } else if (isResultPage) {
+      helpText = isSavedNotePage
+        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左箭头返回我的笔记。上箭头和下箭头调整语速。B 键生成总结盲文。D 键下载总结文档。右箭头进入练习闯关。'
+        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左箭头回到上一段。上箭头和下箭头调整语速。B 键生成总结盲文。D 键下载总结文档。右箭头生成练习题。R 键上传新文件。';
+    } else if (isUploadPage) {
+      helpText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
+    } else {
+      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左箭头上一段。右箭头下一段。上箭头加速。下箭头减速。点击侧边栏新手教程按钮可重新开始教程。';
+    }
     window.speechSynthesis.cancel();
     var msg = new SpeechSynthesisUtterance(helpText);
     msg.lang = 'zh-CN'; msg.rate = 0.9;
@@ -459,88 +534,38 @@ document.addEventListener('keydown', function(e) {
       var el = document.getElementById('help-overlay');
       if(el) el.remove();
       window._helpOverlayOpen = false;
-      refreshAIAssistantAvailability();
+      notifyAIAssistantAvailability();
     };
     window.speechSynthesis.speak(msg);
   }
 
-  if(e.key === 'ArrowUp') { window.increaseRate(); e.preventDefault(); }
-  if(e.key === 'ArrowDown') { window.decreaseRate(); e.preventDefault(); }
-  if(e.key === ' ' && e.ctrlKey) {
-    if (!window._aiAssistantPageEnabled || window._helpOverlayOpen || window._tutorialActive) {
-      return;
-    }
-    // Ctrl+Space → 打开AI助手
-    e.preventDefault();
-    if(typeof window.openAIAssistant === 'function') window.openAIAssistant();
+  if(window._myNotesPageActive) {
     return;
   }
+
+  if(e.key === 'ArrowUp') { window.increaseRate(); e.preventDefault(); }
+  if(e.key === 'ArrowDown') { window.decreaseRate(); e.preventDefault(); }
   if(e.key === ' ') {
-    if(window._waitingForAnswer) { window.speakAnswer(); }
-    else if(window.speechSynthesis.paused) { window.speechSynthesis.resume(); }
-    else if(window.speechSynthesis.speaking) { window.speechSynthesis.pause(); }
+    if(window.onAssistantShortSpacePress && window.onAssistantShortSpacePress()) {
+      e.preventDefault();
+    }
+  }
+  if(e.key === 'ArrowLeft') {
+    if(typeof window.onResultArrowLeft === 'function' && window.onResultArrowLeft()) {
+      e.preventDefault();
+      return;
+    }
+    window.speakPrev();
     e.preventDefault();
   }
-  if(e.key === 'ArrowLeft') { window.speakPrev(); e.preventDefault(); }
   if(e.key === 'ArrowRight') { window.speakNext(); e.preventDefault(); }
 });
 
-// ============== 页面初始化 ==============
-// 教程不再自动启动，仅在首次注册登录时由后端传递 show_tutorial 标志触发，
-// 或用户主动点击侧边栏"新手教程"按钮时调用 window.startTutorial()。
+// ============== 椤甸潰鍒濆鍖?==============
+// 鏁欑▼涓嶅啀鑷姩鍚姩锛屼粎鍦ㄩ娆℃敞鍐岀櫥褰曟椂鐢卞悗绔紶閫?show_tutorial 鏍囧織瑙﹀彂锛?
+// 鎴栫敤鎴蜂富鍔ㄧ偣鍑讳晶杈规爮"鏂版墜鏁欑▼"鎸夐挳鏃惰皟鐢?window.startTutorial()銆?
 
-// ============== 盲人视角聚光灯 ==============
-(function() {
-  var overlay, toggleBtn, toggleIcon;
-  var active = false;
-  var rafPending = false;
-
-  function init() {
-    overlay = document.getElementById('blind-spotlight-overlay');
-    toggleBtn = document.getElementById('blind-spotlight-toggle');
-    if (!overlay || !toggleBtn) return;
-    toggleIcon = toggleBtn.querySelector('i');
-
-    toggleBtn.addEventListener('click', function() {
-      active = !active;
-      if (active) {
-        overlay.style.display = 'block';
-        toggleBtn.classList.add('active');
-        toggleBtn.setAttribute('aria-pressed', 'true');
-        if (toggleIcon) {
-          toggleIcon.className = 'fas fa-eye-slash';
-        }
-      } else {
-        overlay.style.display = 'none';
-        toggleBtn.classList.remove('active');
-        toggleBtn.setAttribute('aria-pressed', 'false');
-        if (toggleIcon) {
-          toggleIcon.className = 'fas fa-eye';
-        }
-      }
-    });
-
-    document.addEventListener('mousemove', function(e) {
-      if (!active || rafPending) return;
-      rafPending = true;
-      requestAnimationFrame(function() {
-        overlay.style.background =
-          'radial-gradient(circle 100px at ' + e.clientX + 'px ' + e.clientY + 'px, ' +
-          'transparent 0%, transparent 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.97) 100%)';
-        rafPending = false;
-      });
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-
-
-// ============== 盲人视角聚光灯 ==============
+// ============== 鐩蹭汉瑙嗚鑱氬厜鐏?==============
 (function() {
   var overlay, toggleBtn, toggleIcon;
   var active = false;
@@ -548,7 +573,11 @@ document.addEventListener('keydown', function(e) {
 
   function setActive(on) {
     active = on;
-    localStorage.setItem('blind-spotlight', on ? '1' : '0');
+    try {
+      localStorage.setItem('blind-spotlight', on ? '1' : '0');
+    } catch (error) {
+      // Ignore storage access errors in restricted browsing contexts.
+    }
     if (on) {
       overlay.style.display = 'block';
       toggleBtn.classList.add('active');
@@ -568,9 +597,13 @@ document.addEventListener('keydown', function(e) {
     if (!overlay || !toggleBtn) return;
     toggleIcon = toggleBtn.querySelector('i');
 
-    // 恢复上次的状态
-    if (localStorage.getItem('blind-spotlight') === '1') {
-      setActive(true);
+    // 鎭㈠涓婃鐨勭姸鎬?
+    try {
+      if (localStorage.getItem('blind-spotlight') === '1') {
+        setActive(true);
+      }
+    } catch (error) {
+      // Ignore storage access errors in restricted browsing contexts.
     }
 
     toggleBtn.addEventListener('click', function() {

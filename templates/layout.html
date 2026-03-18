@@ -649,10 +649,12 @@
                 <ul class="sidebar-nav">
                     <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}"><i class="fas fa-upload"></i> 上传资料</a></li>
                     {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('my_notes') }}" class="{% if request.endpoint == 'my_notes' %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
+                    <li><a href="{{ url_for('my_notes') }}" class="{% if request.path.startswith(url_for('my_notes')) %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
                     {% endif %}
                     <li><a href="{{ url_for('mistake_notebook') }}" class="{% if request.endpoint == 'mistake_notebook' %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
+                    {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
+                    {% endif %}
                     <li><a href="#" onclick="showHelp()"><i class="fas fa-question-circle"></i> 使用帮助</a></li>
                     <li><a href="#" onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"><i class="fas fa-graduation-cap"></i> 新手教程</a></li>
                 </ul>
@@ -689,13 +691,22 @@
     </div>
 
     <script>
-        window._aiAssistantPageEnabled = {{ (request.endpoint == 'index') | tojson }};
+        window._aiAssistantPageEnabled = !!window._aiAssistantPageEnabled;
+        window._aiAssistantPageName = window._aiAssistantPageName || '';
         window._helpOverlayOpen = false;
         window._currentUsername = {{ (current_user.username if current_user.is_authenticated else '') | tojson }};
         window._learningCommunityUrl = {{ url_for('learning_community') | tojson }};
+        window._appUrls = {
+            index: {{ url_for('index') | tojson }},
+            myNotes: {{ (url_for('my_notes') if current_user.is_authenticated else '') | tojson }},
+            community: {{ (url_for('learning_community') if current_user.is_authenticated else '') | tojson }},
+            tutorialDemoResult: {{ (url_for('tutorial_demo_result') if current_user.is_authenticated else '') | tojson }},
+            tutorialDemoChallenge: {{ (url_for('tutorial_demo_challenge') if current_user.is_authenticated else '') | tojson }}
+        };
     </script>
     <script src="{{ url_for('static', filename='js/accessibility.js') }}"></script>
     <script src="{{ url_for('static', filename='js/local-community.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
     <script>
         function showHelp() {
             if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {
@@ -716,8 +727,10 @@
         <i class="fas fa-eye"></i>
     </button>
 
+    {% set global_ai_assistant_enabled = show_global_ai_assistant is not defined or show_global_ai_assistant %}
+    {% if global_ai_assistant_enabled %}
     <!-- AI 精灵图标 -->
-    <button id="ai-sprite-btn" title="AI语音助手（长按空格也可打开）" aria-label="打开AI语音助手">
+    <button id="ai-sprite-btn" title="AI语音助手" aria-label="打开AI语音助手">
         <i class="fas fa-hat-wizard"></i>
     </button>
 
@@ -744,5 +757,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/ai-assistant.js') }}"></script>
+    {% endif %}
 </body>
 </html>

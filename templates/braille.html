@@ -26,10 +26,10 @@
 <div class="card">
     <h2>
         <i class="fas fa-braille"></i>
-        {{ '总结' if type == 'summary' else '例题' }} 盲文转换结果
+        {{ '总结' if type=='summary' else '例题' }} 盲文转换结果
     </h2>
     <p style="color: var(--text-secondary); margin-bottom: 25px;">
-        以下是转换后的盲文内容，可以直接复制或下载 BRF 文件用于盲文阅读器。
+        以下是转换后的盲文内容，可以直接复制或下载BRF文件用于盲文阅读器
     </p>
 
     <div class="form-group">
@@ -61,6 +61,7 @@
     </div>
 </div>
 
+<!-- 使用说明 -->
 <div class="card">
     <h3 style="color: var(--primary-color); margin-bottom: 15px;">
         <i class="fas fa-info-circle"></i> 盲文使用说明
@@ -70,19 +71,19 @@
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-download"></i> 下载BRF文件
             </h4>
-            <p>BRF 格式文件可直接在盲文阅读器或盲文打印机上使用。</p>
+            <p>BRF格式文件可直接在盲文阅读器或盲文打印机上使用</p>
         </div>
         <div>
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-copy"></i> 复制使用
             </h4>
-            <p>复制盲文文本后，可粘贴到其他盲文处理软件中继续使用。</p>
+            <p>复制盲文文本，可粘贴到其他盲文处理软件中使用</p>
         </div>
         <div>
             <h4 style="color: var(--secondary-color); margin-bottom: 10px;">
                 <i class="fas fa-print"></i> 打印盲文
             </h4>
-            <p>使用专用盲文打印机可将 BRF 文件打印成可触摸的盲文。</p>
+            <p>使用专用盲文打印机可将BRF文件打印成可触摸的盲文</p>
         </div>
     </div>
 </div>
@@ -172,7 +173,7 @@ function copyBrailleText() {
 
 function downloadBrfFile() {
     if (!brailleDownloadLink) {
-        announceBrailleAction('当前没有可下载的 BRF 文件。');
+        announceBrailleAction('当前没有可下载的BRF文件。');
         return;
     }
     if (window.speechSynthesis) {
@@ -189,7 +190,7 @@ function goBackToPreviousPage() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    announceBrailleAction('按 D 下载 BRF 文件，按 Ctrl 加 C 复制盲文，按左箭头返回上一级。');
+    announceBrailleAction('按D下载BRF文件，按Ctrl加C复制盲文，按左箭头返回上一级。');
 
     if (brailleCopyButton) {
         brailleCopyButton.addEventListener('click', copyBrailleText);
