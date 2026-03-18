@@ -822,8 +822,12 @@ document.addEventListener('keydown', function(e) {
   }
 
   function syncRateUi(rateValue) {
+    var panel = document.getElementById('global-rate-panel');
+    var panelLabel = document.querySelector('label[for="global-rate-slider"]');
     var slider = document.getElementById('global-rate-slider');
     var label = document.getElementById('global-rate-value');
+    if (panel) panel.setAttribute('aria-label', '语速调节');
+    if (panelLabel) panelLabel.textContent = '语速';
     if (slider) slider.value = String(rateValue);
     if (label) label.textContent = Number(rateValue).toFixed(1) + 'x';
 
@@ -857,9 +861,13 @@ document.addEventListener('keydown', function(e) {
   window.applyNewRate = function(nextRate, options) {
     var opts = options || {};
     var targetRate = clampRate(typeof nextRate === 'number' ? nextRate : window._rate);
-    var shouldAnnounce = opts.announce !== false;
-    var hadSpeech = !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.paused) && window._currentUtteranceText);
-    var remainingText = hadSpeech ? window._currentUtteranceText.substring(window._currentPosition || 0) : '';
+    var shouldAnnounce = opts.announce === true;
+    var hasManagedSpeech = !!(
+      window.speechSynthesis &&
+      (window.speechSynthesis.speaking || window.speechSynthesis.paused) &&
+      window._currentUtteranceText
+    );
+    var remainingText = hasManagedSpeech ? window._currentUtteranceText.substring(window._currentPosition || 0) : '';
 
     window._rate = targetRate;
     persistRate(window._rate);
@@ -869,11 +877,15 @@ document.addEventListener('keydown', function(e) {
       return window._rate;
     }
 
+    if (!hasManagedSpeech) {
+      return window._rate;
+    }
+
     window._applyingNewRate = true;
     window.speechSynthesis.cancel();
 
     function resumeSpeech() {
-      if (hadSpeech && remainingText.trim()) {
+      if (hasManagedSpeech && remainingText.trim()) {
         window._currentUtteranceText = remainingText;
         window._currentPosition = 0;
         var utterance = new SpeechSynthesisUtterance(remainingText);
@@ -919,6 +931,21 @@ document.addEventListener('keydown', function(e) {
 
   function bindRatePanel() {
     restoreRate();
+    if (window.speechSynthesis && !window._speechRateInterceptorBound) {
+      try {
+        var synth = window.speechSynthesis;
+        var originalSpeak = typeof synth.speak === 'function' ? synth.speak.bind(synth) : null;
+        if (originalSpeak) {
+          synth.speak = function(utterance) {
+            if (utterance && typeof window._rate === 'number') {
+              utterance.rate = clampRate(window._rate);
+            }
+            return originalSpeak(utterance);
+          };
+          window._speechRateInterceptorBound = true;
+        }
+      } catch (error) {}
+    }
     var slider = document.getElementById('global-rate-slider');
     if (!slider || slider.dataset.bound === '1') return;
     slider.dataset.bound = '1';

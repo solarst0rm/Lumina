@@ -1164,7 +1164,9 @@ function initResultSpeechController() {
         return speakSection(controller.currentIndex);
     }
 
-    window._rate = parseFloat(rateSlider && rateSlider.value ? rateSlider.value : '1') || 1;
+    window._rate = typeof window._rate === 'number'
+        ? window._rate
+        : (parseFloat(rateSlider && rateSlider.value ? rateSlider.value : '1') || 1);
     syncRateDisplay(window._rate);
     updateSpeechUi('\u5df2\u5c31\u7eea');
 
@@ -1235,18 +1237,31 @@ function initResultSpeechController() {
         return false;
     };
 
-    window.increaseRate = function() {
-        if (!ownsCurrentSpeech() && window._currentSource === 'ex' && typeof originalIncreaseRate === 'function') {
-            return originalIncreaseRate();
+    function applySharedRateStep(delta) {
+        const currentRate = typeof window._rate === 'number' ? window._rate : 1;
+        const nextRate = Math.max(0.5, Math.min(2.0, Math.round((currentRate + delta) * 10) / 10));
+        if (nextRate === currentRate) {
+            return false;
         }
-        return adjustRate(0.1);
+        if (typeof window.applyNewRate === 'function') {
+            window.applyNewRate(nextRate, { announce: false });
+        } else {
+            window._rate = nextRate;
+        }
+        syncRateDisplay(window._rate);
+        if (ownsCurrentSpeech() && !controller.isPaused) {
+            return speakSection(controller.currentIndex);
+        }
+        updateSpeechUi('\u8bed\u901f\u5df2\u8c03\u6574\u4e3a' + window._rate.toFixed(1) + 'x');
+        return true;
+    }
+
+    window.increaseRate = function() {
+        return applySharedRateStep(0.1);
     };
 
     window.decreaseRate = function() {
-        if (!ownsCurrentSpeech() && window._currentSource === 'ex' && typeof originalDecreaseRate === 'function') {
-            return originalDecreaseRate();
-        }
-        return adjustRate(-0.1);
+        return applySharedRateStep(-0.1);
     };
 
     document.addEventListener('keydown', handleResultSpeechHotkeys, true);
@@ -1257,6 +1272,10 @@ document.addEventListener('DOMContentLoaded', initSummaryToc);
 document.addEventListener('DOMContentLoaded', initResultSpeechController);
 document.addEventListener('DOMContentLoaded', function() {
     const rateSlider = document.getElementById('rate-slider-flask');
+    const legacyRateControl = rateSlider && rateSlider.closest ? rateSlider.closest('label') : null;
+    if (legacyRateControl) {
+        legacyRateControl.remove();
+    }
     if (rateSlider && rateSlider.dataset.globalBound !== '1') {
         rateSlider.dataset.globalBound = '1';
         rateSlider.addEventListener('input', function() {

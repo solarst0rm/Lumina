@@ -974,7 +974,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             uploaded_filename=TUTORIAL_SAMPLE_FILENAME,
             challenge_url=url_for("tutorial_demo_challenge"),
             download_summary_url=url_for("tutorial_demo_download_summary"),
-            show_upload_to_community=True,
+            show_upload_to_community=False,
             show_upload_new_file=True,
             tutorial_demo=True,
         )
@@ -1056,7 +1056,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             uploaded_filename=file.filename,
             challenge_url=url_for("exercise_challenge"),
             download_summary_url=url_for("download_summary"),
-            show_upload_to_community=True,
+            show_upload_to_community=False,
             show_upload_new_file=True,
         )
 
@@ -1113,7 +1113,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             uploaded_filename=uploaded_filename,
             challenge_url=url_for("exercise_challenge", source_file=uploaded_filename) if uploaded_filename else url_for("exercise_challenge"),
             download_summary_url=url_for("download_summary"),
-            show_upload_to_community=True,
+            show_upload_to_community=False,
             show_upload_new_file=True,
         )
 
@@ -1141,7 +1141,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             uploaded_filename=uploaded_filename,
             challenge_url=url_for("exercise_challenge", source_file=uploaded_filename) if uploaded_filename else url_for("exercise_challenge"),
             download_summary_url=url_for("download_summary"),
-            show_upload_to_community=True,
+            show_upload_to_community=False,
             show_upload_new_file=True,
         )
 
@@ -1212,6 +1212,8 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             quiz_title=(quiz_data or {}).get("title", "练习题"),
             exercise_markdown=exercise_markdown,
             exercise_filename=DEFAULT_EXERCISE_FILENAME,
+            summary_text=summary_text,
+            uploaded_filename=assistant_context.get("filename", ""),
             folder_options=_build_folder_option_items(folders),
             suggested_note_title=suggested_note_title,
         )
