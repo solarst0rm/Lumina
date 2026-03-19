@@ -531,7 +531,8 @@
         if (announce !== false) {
             const intro = state.introAnnouncement ? `${state.introAnnouncement}。` : '';
             state.introAnnouncement = '';
-            speak(`${intro}第${state.stepIndex + 1}步。${step.title}。${step.description}`);
+            const spokenBody = step.description || step.title || '';
+            speak(`${intro}第${state.stepIndex + 1}步。${spokenBody}`);
             return;
         }
 
