@@ -769,16 +769,31 @@
                     target: '#summary-toc-panel',
                     keys: ['arrowright'],
                     onShow: function () {
-                        return { previousHash: getSummaryActiveHash() };
+                        return {
+                            previousHash: getSummaryActiveHash(),
+                            previousSectionIndex: typeof window._sectionIdx === 'number' ? window._sectionIdx : -1,
+                        };
                     },
                     run: function (api) {
-                        if (typeof window.speakNext === 'function') {
-                            window.speakNext();
+                        function triggerNextHeading() {
+                            if (typeof window.speakNext !== 'function') {
+                                return false;
+                            }
+                            return window.speakNext() === true;
+                        }
+
+                        if (!triggerNextHeading() && typeof window.playSummarySpeech === 'function') {
+                            window.playSummarySpeech();
+                            window.setTimeout(triggerNextHeading, 180);
                         }
                         api.waitFor(function () {
                             const currentHash = getSummaryActiveHash();
-                            return !!currentHash && currentHash !== api.meta.previousHash;
-                        }, { announceNext: true });
+                            const currentIndex = typeof window._sectionIdx === 'number' ? window._sectionIdx : -1;
+                            if (currentHash && currentHash !== api.meta.previousHash) {
+                                return true;
+                            }
+                            return currentIndex > (typeof api.meta.previousSectionIndex === 'number' ? api.meta.previousSectionIndex : -1);
+                        }, { announceNext: true, timeoutMs: 3200 });
                     },
                 },
                 {
