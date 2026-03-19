@@ -9,6 +9,7 @@
         gap: 12px;
         align-items: center;
         flex-wrap: wrap;
+        margin-bottom: 16px;
     }
 
     .community-search {
@@ -50,6 +51,7 @@
     .community-post-snippet {
         color: var(--text-secondary);
         white-space: pre-wrap;
+        line-height: 1.8;
     }
 
     .community-post-actions {
@@ -68,18 +70,23 @@
 </style>
 
 <div class="card" id="community-page-root">
-    <div class="community-toolbar" style="margin-bottom: 12px;">
-        <div class="community-search" role="search" aria-label="学习社区搜索栏">
-            <input id="community-search-input" type="text" placeholder="搜索帖子关键词（标题/内容）" autocomplete="off" />
+    <div class="community-toolbar">
+        <div class="community-search" role="search" aria-label="学习社区搜索">
+            <input
+                id="community-search-input"
+                type="text"
+                placeholder="搜索标题、内容或发布者"
+                autocomplete="off"
+            />
             <button type="button" class="btn btn-secondary" id="community-file-toggle" style="display:none;">
-                <i class="fas fa-file"></i> 备份同步
+                <i class="fas fa-file"></i> 同步到本地文件
             </button>
         </div>
         <div class="community-meta" id="community-storage-hint" aria-live="polite"></div>
     </div>
 
     <div class="community-meta">
-        学习社区：支持发帖、搜索与长期保存。
+        在这里可以查看自己和其他同学上传的总结、学习包与经验分享。
     </div>
 </div>
 

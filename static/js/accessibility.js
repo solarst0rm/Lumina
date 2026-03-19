@@ -577,6 +577,15 @@ document.addEventListener('keydown', function(e) {
   var active = false;
   var rafPending = false;
 
+  function isEditableTarget(target) {
+    return !!(target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    ));
+  }
+
   function setActive(on) {
     active = on;
     try {
@@ -597,11 +606,17 @@ document.addEventListener('keydown', function(e) {
     }
   }
 
+  function toggleSpotlight() {
+    if (!overlay || !toggleBtn) return;
+    setActive(!active);
+  }
+
   function init() {
     overlay = document.getElementById('blind-spotlight-overlay');
     toggleBtn = document.getElementById('blind-spotlight-toggle');
     if (!overlay || !toggleBtn) return;
     toggleIcon = toggleBtn.querySelector('i');
+    window.toggleBlindSpotlight = toggleSpotlight;
 
     // 鎭㈠涓婃鐨勭姸鎬?
     try {
@@ -613,8 +628,18 @@ document.addEventListener('keydown', function(e) {
     }
 
     toggleBtn.addEventListener('click', function() {
-      setActive(!active);
+      toggleSpotlight();
     });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) return;
+      if (isEditableTarget(e.target)) return;
+      if (String(e.key || '').toLowerCase() !== 't') return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSpotlight();
+    }, true);
 
     document.addEventListener('mousemove', function(e) {
       if (!active || rafPending) return;

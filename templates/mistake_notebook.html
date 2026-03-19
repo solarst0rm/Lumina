@@ -340,13 +340,12 @@ function buildDocumentSpeech(group) {
 }
 
 function buildQuestionSpeech(group, mistake) {
-    const name = stripFileExtension(group.source_file);
     const options = (mistake.options || []).map(function(option) {
         return `${option.key}，${option.text}`;
     }).join('；');
     const answerText = mistake.correct_answer || '暂无';
     const explanationText = normalizeMultilineText(mistake.explanation, '暂无解析');
-    return `文档《${name}》。第 ${notebookState.mistakeIndex + 1} 题，共 ${getCurrentMistakes().length} 题。题目：${mistake.question_text || ''}。${options ? `选项：${options}。` : ''}正确答案：${answerText}。解析：${explanationText}。按回车开始整份文档错题重做，按左右键切换题目，按 Backspace 返回文档列表，按 R 重读。`;
+    return `第 ${notebookState.mistakeIndex + 1} 题，共 ${getCurrentMistakes().length} 题。题目：${mistake.question_text || ''}。${options ? `选项：${options}。` : ''}正确答案：${answerText}。解析：${explanationText}。按回车开始整份文档错题重做，按左右键切换题目，按 Backspace 返回文档列表，按 R 重读。`;
 }
 
 function buildPageShortcutSpeech() {
