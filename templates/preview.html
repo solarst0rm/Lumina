@@ -780,6 +780,7 @@ a:focus {
     <span id="global-rate-value" style="min-width:48px;text-align:right;color:#475569;">1.0x</span>
 </div>
 
+<script src="{{ url_for('static', filename='js/speech-config.js') }}"></script>
 <script>
 function clampGlobalRate(value) {
     const numeric = typeof value === 'number' ? value : parseFloat(value);
@@ -790,6 +791,9 @@ function clampGlobalRate(value) {
 }
 
 function readStoredRate() {
+    if (typeof window.getSpeechDisplayRate === 'function') {
+        return clampGlobalRate(window.getSpeechDisplayRate());
+    }
     try {
         const stored = parseFloat(localStorage.getItem('global-speech-rate') || '');
         if (!Number.isNaN(stored)) {
@@ -799,7 +803,12 @@ function readStoredRate() {
     return 1;
 }
 
-function syncGlobalRatePanel() {
+function syncGlobalRatePanel(nextRate) {
+    if (typeof nextRate === 'number' && Number.isFinite(nextRate)) {
+        currentRate = clampGlobalRate(nextRate);
+    } else if (typeof window.getSpeechDisplayRate === 'function') {
+        currentRate = clampGlobalRate(window.getSpeechDisplayRate());
+    }
     const slider = document.getElementById('global-rate-slider');
     const value = document.getElementById('global-rate-value');
     if (slider) {
@@ -813,12 +822,19 @@ function syncGlobalRatePanel() {
 
 function applyRateChange(value, options) {
     const opts = options || {};
-    currentRate = clampGlobalRate(value);
-    window._rate = currentRate;
-    try {
-        localStorage.setItem('global-speech-rate', String(currentRate));
-    } catch (error) {}
-    syncGlobalRatePanel();
+    if (typeof window.setSpeechDisplayRate === 'function') {
+        currentRate = clampGlobalRate(window.setSpeechDisplayRate(value, {
+            source: opts.source || 'preview-rate',
+            forceEvent: true
+        }));
+    } else {
+        currentRate = clampGlobalRate(value);
+        window._rate = currentRate;
+        try {
+            localStorage.setItem('global-speech-rate', String(currentRate));
+        } catch (error) {}
+    }
+    syncGlobalRatePanel(currentRate);
 
     if (opts.restartIfPlaying && isPlaying && !isPaused) {
         synth.cancel();
@@ -1134,13 +1150,11 @@ function seekProgress(event) {
 
 // 更新语速
 function updateRate(value) {
-    currentRate = parseFloat(value);
-    document.getElementById('rate-display').textContent = currentRate.toFixed(1) + 'x';
-    
-    if (isPlaying && !isPaused) {
-        synth.cancel();
-        speakElement(currentIndex);
-    }
+    applyRateChange(value, {
+        restartIfPlaying: isPlaying && !isPaused,
+        announce: false,
+        source: 'preview-slider'
+    });
 }
 
 // 键盘快捷键
@@ -1478,23 +1492,24 @@ initReadableElements = function() {
     updateProgressDisplay();
 };
 
-document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.ctrlKey && e.code === 'ArrowUp') {
-        e.preventDefault();
-        e.stopPropagation();
-        applyRateChange(currentRate + 0.1);
-        return;
-    }
-    if (e.ctrlKey && e.code === 'ArrowDown') {
-        e.preventDefault();
-        e.stopPropagation();
-        applyRateChange(currentRate - 0.1);
-    }
-}, true);
+window._handleSpeechRateHotkey = function(delta) {
+    return applyRateChange(currentRate + delta, {
+        restartIfPlaying: isPlaying && !isPaused,
+        source: 'preview-hotkey'
+    });
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     syncGlobalRatePanel();
+    if (window.SPEECH_RATE_CHANGE_EVENT) {
+        window.addEventListener(window.SPEECH_RATE_CHANGE_EVENT, function(event) {
+            const detail = event && event.detail ? event.detail : null;
+            if (!detail || typeof detail.displayRate !== 'number') {
+                return;
+            }
+            syncGlobalRatePanel(detail.displayRate);
+        });
+    }
     const titleNode = document.querySelector('.sidebar-title h2');
     if (titleNode) titleNode.textContent = stripPreviewExtension(titleNode.textContent.trim());
 

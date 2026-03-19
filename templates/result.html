@@ -1167,6 +1167,13 @@ if (event.code === 'KeyS') {
     if (rateSlider) {
         rateSlider.addEventListener('input', function() {
             const nextRate = parseFloat(this.value) || 1;
+            if (typeof window.applyNewRate === 'function') {
+                window.applyNewRate(nextRate, {
+                    announce: false,
+                    source: 'result-slider'
+                });
+                return;
+            }
             window._rate = nextRate;
             syncRateDisplay(nextRate);
             if (ownsCurrentSpeech() && !controller.isPaused) {

@@ -1009,17 +1009,6 @@ document.addEventListener('keydown', function(e) {
 
   document.addEventListener('keydown', function(e) {
     if (shouldIgnoreRateHotkey(e.target)) return;
-    var rateHotkey = !e.altKey && !e.metaKey && e.ctrlKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown');
-    if (rateHotkey) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.code === 'ArrowUp') {
-        window.increaseRate();
-      } else {
-        window.decreaseRate();
-      }
-      return;
-    }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (window._tutorialActive || window._helpOverlayOpen) return;
 
