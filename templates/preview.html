@@ -1492,8 +1492,11 @@ initReadableElements = function() {
     updateProgressDisplay();
 };
 
-window._handleSpeechRateHotkey = function(delta) {
-    return applyRateChange(currentRate + delta, {
+window._handleSpeechRateHotkey = function(delta, event, details) {
+    const targetRate = details && typeof details.currentRate === 'number'
+        ? details.currentRate
+        : (currentRate + delta);
+    return applyRateChange(targetRate, {
         restartIfPlaying: isPlaying && !isPaused,
         source: 'preview-hotkey'
     });

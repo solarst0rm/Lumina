@@ -103,26 +103,36 @@
     return setDisplayRate(nextRate, options);
   }
 
-  function isIncreaseHotkey(event) {
+  function hasRateModifier(event) {
     return !!(
       event &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      event.code === 'ArrowUp'
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey
     );
   }
 
+  function matchesArrowHotkey(event, direction) {
+    var key = String((event && event.key) || '').toLowerCase();
+    var code = String((event && event.code) || '').toLowerCase();
+    var numericCode = Number(event && (event.which || event.keyCode || 0));
+
+    if (direction === 'up') {
+      return key === 'arrowup' || key === 'up' || code === 'arrowup' || numericCode === 38;
+    }
+
+    if (direction === 'down') {
+      return key === 'arrowdown' || key === 'down' || code === 'arrowdown' || numericCode === 40;
+    }
+
+    return false;
+  }
+
+  function isIncreaseHotkey(event) {
+    return hasRateModifier(event) && matchesArrowHotkey(event, 'up');
+  }
+
   function isDecreaseHotkey(event) {
-    return !!(
-      event &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      event.code === 'ArrowDown'
-    );
+    return hasRateModifier(event) && matchesArrowHotkey(event, 'down');
   }
 
   function normalize(value) {
@@ -254,14 +264,26 @@
       return;
     }
 
+    var previousRate = getDisplayRate();
+    var currentRate = adjustDisplayRate(delta, { source: 'global-hotkey' });
+    var hookPayload = {
+      previousRate: previousRate,
+      currentRate: currentRate,
+      source: 'global-hotkey'
+    };
+    var handled = false;
+
     if (typeof window._handleSpeechRateHotkey === 'function') {
-      window._handleSpeechRateHotkey(delta, event);
-    } else {
-      adjustDisplayRate(delta, { source: 'global-hotkey' });
+      handled = window._handleSpeechRateHotkey(delta, event, hookPayload) !== false;
+    } else if (typeof window.onGlobalRateChange === 'function') {
+      handled = window.onGlobalRateChange(currentRate, hookPayload) === true;
     }
 
     event.preventDefault();
-    event.stopImmediatePropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+    event.stopPropagation();
   }
 
   function installSpeakInterceptor() {
@@ -312,4 +334,5 @@
   }
 
   window.addEventListener('keydown', handleRateHotkey, true);
+  document.addEventListener('keydown', handleRateHotkey, true);
 })();

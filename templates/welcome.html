@@ -1109,13 +1109,15 @@
             speak(text, { force: true });
         }
 
-        function adjustWelcomeSpeechRate(delta) {
+        function adjustWelcomeSpeechRate(delta, details) {
             const currentRate = typeof window.getSpeechDisplayRate === 'function'
                 ? window.getSpeechDisplayRate()
                 : (typeof window._rate === 'number' ? window._rate : 1);
-            const nextRate = typeof window.adjustSpeechDisplayRate === 'function'
-                ? window.adjustSpeechDisplayRate(delta, { source: 'welcome-hotkey' })
-                : Math.max(0.5, Math.min(10, Math.round((currentRate + delta) * 10) / 10));
+            const nextRate = details && typeof details.currentRate === 'number'
+                ? details.currentRate
+                : (typeof window.adjustSpeechDisplayRate === 'function'
+                    ? window.adjustSpeechDisplayRate(delta, { source: 'welcome-hotkey' })
+                    : Math.max(0.5, Math.min(10, Math.round((currentRate + delta) * 10) / 10)));
 
             window._rate = nextRate;
 
@@ -1128,8 +1130,8 @@
             return true;
         }
 
-        window._handleSpeechRateHotkey = function(delta) {
-            return adjustWelcomeSpeechRate(delta);
+        window._handleSpeechRateHotkey = function(delta, event, details) {
+            return adjustWelcomeSpeechRate(delta, details);
         };
 
         function safeFocus(element) {

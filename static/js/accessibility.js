@@ -897,6 +897,15 @@ document.addEventListener('keydown', function(e) {
     }
 
     if (!hasManagedSpeech) {
+      if (shouldAnnounce && window.speechSynthesis) {
+        var tipOnly = new SpeechSynthesisUtterance('当前语速 ' + window._rate.toFixed(1) + ' 倍');
+        tipOnly.lang = 'zh-CN';
+        tipOnly.rate = window._rate;
+        window.speechSynthesis.cancel();
+        setTimeout(function() {
+          window.speechSynthesis.speak(tipOnly);
+        }, 30);
+      }
       return window._rate;
     }
 
@@ -948,14 +957,14 @@ document.addEventListener('keydown', function(e) {
     return window.applyNewRate((window._rate || 1) - 0.1);
   };
 
-  window._handleSpeechRateHotkey = function(delta) {
-    if (delta > 0) {
-      return window.increaseRate();
-    }
-    if (delta < 0) {
-      return window.decreaseRate();
-    }
-    return window._rate;
+  window._handleSpeechRateHotkey = function(delta, event, details) {
+    var targetRate = details && typeof details.currentRate === 'number'
+      ? details.currentRate
+      : ((window._rate || 1) + delta);
+    return window.applyNewRate(targetRate, {
+      announce: true,
+      source: 'global-hotkey'
+    });
   };
 
   function bindRatePanel() {
