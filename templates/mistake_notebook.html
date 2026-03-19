@@ -317,6 +317,14 @@ function getCurrentMistake() {
     return getCurrentMistakes()[notebookState.mistakeIndex] || null;
 }
 
+function normalizeMultilineText(value, fallback) {
+    const text = (value || fallback || '').toString().trim();
+    if (!text) {
+        return fallback || '';
+    }
+    return text.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+}
+
 function buildDocumentSpeech(group) {
     const name = stripFileExtension(group.source_file);
     const count = getCurrentMistakes().length;
@@ -329,7 +337,7 @@ function buildQuestionSpeech(group, mistake) {
         return `${option.key}，${option.text}`;
     }).join('；');
     const answerText = mistake.correct_answer || '暂无';
-    const explanationText = mistake.explanation || '暂无解析';
+    const explanationText = normalizeMultilineText(mistake.explanation, '暂无解析');
     return `文档《${name}》。第 ${notebookState.mistakeIndex + 1} 题，共 ${getCurrentMistakes().length} 题。题目：${mistake.question_text || ''}。${options ? `选项：${options}。` : ''}正确答案：${answerText}。解析：${explanationText}。按回车开始整份文档错题重做，按左右键切换题目，按 Backspace 返回文档列表，按 R 重读。`;
 }
 
@@ -378,7 +386,7 @@ function updateQuestionView(group, mistake) {
     questionTextNode.textContent = mistake.question_text || '';
     correctAnswerNode.textContent = mistake.correct_answer || '暂无';
     lastAnswerNode.textContent = mistake.last_selected_answer || '暂无';
-    explanationNode.textContent = mistake.explanation || '暂无解析';
+    explanationNode.textContent = normalizeMultilineText(mistake.explanation, '暂无解析');
     metaNode.textContent = `错误次数：${mistake.wrong_count || 0}\n首次答错：${mistake.first_wrong_at || '暂无'}\n最近答错：${mistake.last_wrong_at || '暂无'}`;
     redoLink.href = mistake.redo_url || '#';
 

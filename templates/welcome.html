@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聆光一闪</title>
+    <style>
+        :root {
+            --warm-1: #ff7a45;
+            --warm-2: #ff9a3c;
+            --warm-3: #ffd36e;
+            --warm-4: #fff2dd;
+            --warm-5: #fff9f1;
+            --surface: rgba(255, 255, 255, 0.88);
+            --surface-soft: rgba(255, 247, 239, 0.82);
+            --ink-1: #2d3748;
+            --ink-2: #6b5a4d;
+            --ink-3: #8c735f;
+            --line: rgba(247, 147, 30, 0.16);
+            --shadow: 0 24px 60px rgba(196, 115, 34, 0.14);
+            --shadow-strong: 0 28px 80px rgba(196, 115, 34, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+        }
+
+        body {
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink-1);
+            background:
+                radial-gradient(circle at top left, rgba(255, 210, 150, 0.38), transparent 32%),
+                radial-gradient(circle at top right, rgba(255, 122, 69, 0.14), transparent 28%),
+                linear-gradient(180deg, #fffaf5 0%, #fff4e8 54%, #fff8f0 100%);
+            overflow-x: hidden;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        body.auth-open {
+            overflow: hidden;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .welcome-background {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 16% 14%, rgba(255, 211, 110, 0.28), transparent 24%),
+                radial-gradient(circle at 82% 20%, rgba(255, 154, 60, 0.18), transparent 24%),
+                radial-gradient(circle at 74% 78%, rgba(255, 122, 69, 0.12), transparent 22%);
+        }
+
+        .welcome-background::before,
+        .welcome-background::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+        }
+
+        .welcome-background::before {
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.34), transparent 22%, transparent 78%, rgba(255, 255, 255, 0.18)),
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 166, 76, 0.04) 0,
+                    rgba(255, 166, 76, 0.04) 1px,
+                    transparent 1px,
+                    transparent 120px
+                );
+        }
+
+        .welcome-background::after {
+            background:
+                radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.46), transparent 18%),
+                radial-gradient(circle at 80% 22%, rgba(255, 235, 192, 0.4), transparent 18%),
+                radial-gradient(circle at 68% 78%, rgba(255, 145, 77, 0.18), transparent 18%);
+            animation: floatLights 16s ease-in-out infinite alternate;
+        }
+
+        .ambient {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(24px);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .ambient-a {
+            width: 260px;
+            height: 260px;
+            top: 8%;
+            left: -70px;
+            background: rgba(255, 212, 116, 0.3);
+            animation: driftA 14s ease-in-out infinite;
+        }
+
+        .ambient-b {
+            width: 320px;
+            height: 320px;
+            right: -80px;
+            bottom: 6%;
+            background: rgba(255, 154, 60, 0.18);
+            animation: driftB 18s ease-in-out infinite;
+        }
+
+        .ambient-c {
+            width: 180px;
+            height: 180px;
+            top: 56%;
+            left: 48%;
+            background: rgba(255, 255, 255, 0.28);
+            animation: driftC 11s ease-in-out infinite;
+        }
+
+        .welcome-shell {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .welcome-shell:focus {
+            outline: none;
+        }
+
+        .welcome-panel {
+            width: min(1180px, 100%);
+            padding: 38px;
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            border-radius: 34px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 239, 0.9)),
+                rgba(255, 255, 255, 0.9);
+            box-shadow: var(--shadow-strong);
+            backdrop-filter: blur(18px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-panel::before {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: 34px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 211, 110, 0.36), rgba(247, 147, 30, 0.14));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        .welcome-panel::after {
+            content: "";
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            right: -84px;
+            top: -120px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 211, 110, 0.24), transparent 68%);
+            filter: blur(4px);
+            pointer-events: none;
+        }
+
+        .hero-copy {
+            max-width: 720px;
+            position: relative;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.78);
+            color: #b86416;
+            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            box-shadow: 0 12px 28px rgba(255, 166, 76, 0.14);
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #ffe7a9, #ff934d);
+            box-shadow: 0 0 20px rgba(255, 211, 110, 0.9);
+        }
+
+        .hero-title {
+            margin: 22px 0 16px;
+            line-height: 1.06;
+        }
+
+        .hero-title-main,
+        .hero-title-sub {
+            display: block;
+        }
+
+        .hero-title-main {
+            font-size: clamp(3.1rem, 7.4vw, 5.7rem);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: #ff6b35;
+            text-shadow: 0 10px 24px rgba(255, 166, 76, 0.12);
+        }
+
+        .hero-title-sub {
+            margin-top: 10px;
+            font-size: clamp(1.2rem, 2.7vw, 2.2rem);
+            font-weight: 600;
+            color: var(--ink-1);
+            max-width: 760px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-description {
+            margin: 0 auto;
+            max-width: 720px;
+            color: var(--ink-2);
+            font-size: 1.05rem;
+            line-height: 1.9;
+        }
+
+        .hero-visual {
+            position: relative;
+            width: min(100%, 760px);
+            min-height: 248px;
+            margin: 26px auto 0;
+            padding: 24px;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(247, 147, 30, 0.16);
+            display: flex;
+            align-items: stretch;
+            background:
+                linear-gradient(135deg, rgba(255, 250, 245, 0.84), rgba(255, 237, 210, 0.52)),
+                linear-gradient(135deg, rgba(255, 154, 60, 0.1), rgba(255, 122, 69, 0.1)),
+                url("{{ url_for('static', filename='img/background.png') }}");
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 22px 50px rgba(196, 115, 34, 0.14);
+        }
+
+        .hero-visual::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background:
+                linear-gradient(120deg, rgba(255, 250, 245, 0.92), rgba(255, 247, 239, 0.54) 42%, rgba(255, 230, 195, 0.22)),
+                radial-gradient(circle at 72% 30%, rgba(255, 211, 110, 0.42), transparent 26%);
+        }
+
+        .hero-visual::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background:
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 24%, transparent 76%, rgba(255, 255, 255, 0.08)),
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.16) 0,
+                    rgba(255, 255, 255, 0.16) 1px,
+                    transparent 1px,
+                    transparent 84px
+                );
+            opacity: 0.45;
+        }
+
+        .hero-sparkline {
+            width: min(100%, 520px);
+            height: 18px;
+            margin: 22px auto 0;
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(90deg, rgba(255, 214, 170, 0.34), rgba(255, 211, 110, 0.58), rgba(255, 214, 170, 0.34));
+        }
+
+        .hero-sparkline::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent),
+                linear-gradient(90deg, rgba(255, 196, 119, 0.1), rgba(255, 196, 119, 0.55), rgba(255, 196, 119, 0.1));
+            transform: translateX(-100%);
+            animation: sweep 4.8s ease-in-out infinite;
+        }
+
+        .hero-features {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            position: relative;
+            z-index: 1;
+            align-self: stretch;
+        }
+
+        .hero-feature-card {
+            min-height: 178px;
+            padding: 18px;
+            border-radius: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 10px;
+            text-align: left;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 247, 239, 0.76));
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            box-shadow: 0 16px 30px rgba(196, 115, 34, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        .hero-feature-tag {
+            width: fit-content;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 211, 110, 0.22);
+            color: #c66515;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero-feature-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--ink-1);
+            line-height: 1.4;
+        }
+
+        .hero-feature-text {
+            margin: 0;
+            color: var(--ink-2);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .flash-stack {
+            margin-top: 28px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .flash-item {
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            color: var(--ink-1);
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 12px 28px rgba(196, 115, 34, 0.1);
+        }
+
+        .flash-item.error {
+            background: rgba(255, 241, 238, 0.96);
+            border-color: rgba(200, 75, 49, 0.22);
+        }
+
+        .flash-item.success {
+            background: rgba(241, 255, 247, 0.96);
+            border-color: rgba(47, 143, 91, 0.22);
+        }
+
+        .auth-zone {
+            margin-top: 34px;
+        }
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .mode-card {
+            position: relative;
+            padding: 24px;
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 247, 239, 0.92));
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background 0.28s ease;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .mode-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 20%, rgba(255, 211, 110, 0.24) 50%, transparent 80%);
+            transform: translateX(-120%);
+            transition: transform 0.7s ease;
+        }
+
+        .mode-card:hover::before,
+        .mode-card:focus-visible::before,
+        .mode-card.active::before {
+            transform: translateX(120%);
+        }
+
+        .mode-card:hover,
+        .mode-card:focus-visible,
+        .mode-card.active {
+            transform: translateY(-4px);
+            border-color: rgba(247, 147, 30, 0.22);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 243, 229, 0.96));
+            box-shadow: 0 24px 60px rgba(196, 115, 34, 0.16);
+            outline: none;
+        }
+
+        .mode-card.active {
+            background:
+                linear-gradient(135deg, rgba(255, 211, 110, 0.22), rgba(255, 122, 69, 0.08)),
+                rgba(255, 255, 255, 0.98);
+        }
+
+        .mode-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+
+        .mode-card-title {
+            margin: 0;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--ink-1);
+        }
+
+        .mode-card-label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 46px;
+            padding: 9px 12px;
+            border-radius: 14px;
+            background: rgba(255, 211, 110, 0.18);
+            color: #c66515;
+            font-weight: 700;
+        }
+
+        .mode-card p {
+            margin: 0;
+            color: var(--ink-2);
+            line-height: 1.8;
+        }
+
+        .auth-stage {
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 18px;
+            background: rgba(255, 243, 229, 0.62);
+            backdrop-filter: blur(10px);
+        }
+
+        .auth-stage.active {
+            display: flex;
+        }
+
+        .auth-dialog {
+            position: relative;
+            width: min(680px, 100%);
+            max-height: min(88vh, 860px);
+            overflow-y: auto;
+            padding: 28px;
+            border-radius: 28px;
+            border: 1px solid rgba(247, 147, 30, 0.14);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 239, 0.94)),
+                rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .auth-dialog::after {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            border-radius: 27px;
+            pointer-events: none;
+            border: 1px solid rgba(247, 147, 30, 0.08);
+        }
+
+        .auth-dialog-head {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .auth-dialog-kicker {
+            margin: 0 0 8px;
+            color: #b86416;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+
+        .auth-dialog-title {
+            margin: 0;
+            color: var(--ink-1);
+            font-size: clamp(1.7rem, 4vw, 2.4rem);
+        }
+
+        .auth-dialog-desc {
+            margin: 10px 0 0;
+            color: var(--ink-2);
+            line-height: 1.8;
+        }
+
+        .auth-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--ink-1);
+            font-size: 1.25rem;
+            background: rgba(255, 211, 110, 0.18);
+            transition: background 0.22s ease, transform 0.22s ease;
+        }
+
+        .auth-close:hover,
+        .auth-close:focus-visible {
+            background: rgba(255, 211, 110, 0.28);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
+        .auth-form {
+            display: none;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px 18px;
+            align-items: start;
+        }
+
+        .auth-form.active {
+            display: grid;
+        }
+
+        .field-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        .field-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .field-group label {
+            font-weight: 600;
+            color: var(--ink-1);
+        }
+
+        .field-group small {
+            color: var(--ink-3);
+            line-height: 1.6;
+        }
+
+        .field-group input {
+            width: 100%;
+            padding: 15px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 251, 247, 0.9);
+            color: var(--ink-1);
+            font-size: 1rem;
+            transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+        }
+
+        .field-group input::placeholder {
+            color: #967966;
+        }
+
+        .field-group input:focus {
+            outline: none;
+            border-color: rgba(255, 145, 77, 0.88);
+            box-shadow: 0 0 0 4px rgba(255, 145, 77, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .submit-wrap {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .submit-hint {
+            color: var(--ink-2);
+            line-height: 1.8;
+        }
+
+        .submit-btn {
+            min-width: 182px;
+            padding: 15px 24px;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fffaf3;
+            background: linear-gradient(135deg, var(--warm-1), var(--warm-2));
+            box-shadow: 0 16px 34px rgba(255, 106, 48, 0.28);
+            transition: transform 0.24s ease, box-shadow 0.24s ease, filter 0.24s ease;
+        }
+
+        .submit-btn:hover,
+        .submit-btn:focus-visible {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 40px rgba(255, 106, 48, 0.34);
+            filter: brightness(1.03);
+            outline: none;
+        }
+
+        .login-accent .submit-btn {
+            background: linear-gradient(135deg, #ff7a45, #ffa64f);
+        }
+
+        .register-accent .submit-btn {
+            background: linear-gradient(135deg, #ff934d, #ffba5c);
+        }
+
+        @media (max-width: 900px) {
+            .welcome-shell {
+                padding: 18px;
+            }
+
+            .welcome-panel {
+                padding: 26px 20px;
+                border-radius: 26px;
+            }
+
+            .mode-grid,
+            .auth-form {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-dialog {
+                padding: 22px 18px;
+            }
+
+            .submit-wrap {
+                align-items: stretch;
+            }
+
+            .submit-btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .hero-features {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-feature-card {
+                min-height: 164px;
+                padding: 16px 14px;
+            }
+
+            .hero-visual {
+                min-height: 216px;
+                padding: 18px 16px;
+            }
+
+            .mode-card {
+                padding: 20px;
+            }
+
+            .auth-stage {
+                padding: 22px 18px;
+            }
+        }
+
+        @keyframes sweep {
+            0% {
+                transform: translateX(-120%);
+            }
+            60%,
+            100% {
+                transform: translateX(120%);
+            }
+        }
+
+        @keyframes floatLights {
+            from {
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+            to {
+                transform: translate3d(10px, -16px, 0) scale(1.04);
+            }
+        }
+
+        @keyframes driftA {
+            0%,
+            100% {
+                transform: translate3d(0, 0, 0);
+            }
+            50% {
+                transform: translate3d(36px, -16px, 0);
+            }
+        }
+
+        @keyframes driftB {
+            0%,
+            100% {
+                transform: translate3d(0, 0, 0);
+            }
+            50% {
+                transform: translate3d(-28px, 18px, 0);
+            }
+        }
+
+        @keyframes driftC {
+            0%,
+            100% {
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+            50% {
+                transform: translate3d(10px, -22px, 0) scale(1.08);
+            }
+        }
+</style>
+    <script src="{{ url_for('static', filename='js/speech-config.js') }}"></script>
+</head>
+<body>
+    <div class="welcome-background" aria-hidden="true"></div>
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
+    <div class="ambient ambient-c" aria-hidden="true"></div>
+
+    <main class="welcome-shell" id="welcomeShell" tabindex="-1">
+        <section class="welcome-panel" aria-label="聆光一闪欢迎页">
+            <div class="hero-copy">
+                
+                <h1 class="hero-title">
+                    <span class="hero-title-main">聆光一闪</span>
+                    <span class="hero-title-sub">专为视障学生设计的AI无障碍学习助手</span>
+                </h1>
+                <div class="hero-visual">
+                    <div class="hero-features" aria-label="核心能力介绍">
+                        <article class="hero-feature-card">
+                            <span class="hero-feature-tag">Keyboard</span>
+                            <div class="hero-feature-title">全键盘操作</div>
+                            <p class="hero-feature-text">无需鼠标，也能顺畅切换模块、定位输入框并完成主要流程。</p>
+                        </article>
+                        <article class="hero-feature-card">
+                            <span class="hero-feature-tag">Voice</span>
+                            <div class="hero-feature-title">语音播报</div>
+                            <p class="hero-feature-text">页面反馈会及时转成语音提示，帮助用户更轻松地确认当前状态。</p>
+                        </article>
+                        <article class="hero-feature-card">
+                            <span class="hero-feature-tag">Agent</span>
+                            <div class="hero-feature-title">智能Agent</div>
+                            <p class="hero-feature-text">结合学习场景提供理解、引导与交互支持，让操作更自然、更省心。</p>
+                        </article>
+                    </div>
+                </div>
+                <div class="hero-sparkline" aria-hidden="true"></div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=True) %}
+                {% if messages %}
+                    <div class="flash-stack" aria-live="polite">
+                        {% for category, message in messages %}
+                            {% set flash_class = category if category in ['error', 'success'] else '' %}
+                            <div class="flash-item {{ flash_class }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <section class="auth-zone" aria-label="身份验证入口">
+                <div class="mode-grid" role="tablist" aria-label="登录与注册模式切换">
+                    <button
+                        type="button"
+                        class="mode-card"
+                        id="mode-login"
+                        data-mode="login"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="login-form"
+                    >
+                        <div class="mode-card-head">
+                            <h2 class="mode-card-title">登录</h2>
+                            <span class="mode-card-label">按 1</span>
+                        </div>
+                        <p>快速进入个人学习空间，继续使用笔记、练习和语音辅助能力。</p>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="mode-card"
+                        id="mode-register"
+                        data-mode="register"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="register-form"
+                    >
+                        <div class="mode-card-head">
+                            <h2 class="mode-card-title">注册</h2>
+                            <span class="mode-card-label">按 2</span>
+                        </div>
+                        <p>创建新账号，开启更适合视障学生的智能学习与朗读辅助体验。</p>
+                    </button>
+                </div>
+
+            </section>
+        </section>
+    </main>
+
+    <div class="auth-stage" id="authStage" data-active-mode="{{ active_mode or '' }}" aria-hidden="true" hidden>
+        <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle">
+            <button type="button" class="auth-close" id="authCloseBtn" aria-label="关闭登录或注册窗口">×</button>
+            <div class="auth-dialog-head">
+                <p class="auth-dialog-kicker">身份验证</p>
+                <h2 class="auth-dialog-title" id="authDialogTitle">登录聆光一闪</h2>
+                <p class="auth-dialog-desc" id="authDialogDesc">请输入账号与密码，系统会自动播报下一步操作。</p>
+            </div>
+
+            <form
+                id="login-form"
+                class="auth-form login-accent"
+                method="post"
+                action="{{ url_for('login') }}"
+                autocomplete="on"
+            >
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <div class="field-group full">
+                    <label for="login-username">账号</label>
+                    <input
+                        type="text"
+                        id="login-username"
+                        name="username"
+                        value="{{ login_username }}"
+                        placeholder="请输入账号"
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+
+                <div class="field-group full">
+                    <label for="login-password">密码</label>
+                    <input
+                        type="password"
+                        id="login-password"
+                        name="password"
+                        placeholder="请输入密码"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <div class="submit-wrap">
+                    <div class="submit-hint">账号输入后按 Enter 会自动跳到密码框，密码框按 Enter 直接登录。</div>
+                    <button type="submit" class="submit-btn">进入学习空间</button>
+                </div>
+            </form>
+
+            <form
+                id="register-form"
+                class="auth-form register-accent"
+                method="post"
+                action="{{ url_for('register') }}"
+                autocomplete="on"
+            >
+                <div class="field-group full">
+                    <label for="register-username">账号</label>
+                    <input
+                        type="text"
+                        id="register-username"
+                        name="username"
+                        value="{{ register_username }}"
+                        placeholder="请输入账号"
+                        autocomplete="username"
+                        minlength="3"
+                        maxlength="20"
+                        required
+                    >
+                    <small>账号长度为 3 到 20 个字符。</small>
+                </div>
+
+                <div class="field-group">
+                    <label for="register-password">密码</label>
+                    <input
+                        type="password"
+                        id="register-password"
+                        name="password"
+                        placeholder="请输入密码"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+                    <small>密码至少 6 位。</small>
+                </div>
+
+                <div class="field-group">
+                    <label for="register-confirm-password">确认密码</label>
+                    <input
+                        type="password"
+                        id="register-confirm-password"
+                        name="confirm_password"
+                        placeholder="请再次输入密码"
+                        autocomplete="new-password"
+                        required
+                    >
+                    <small>按 Enter 将直接提交注册。</small>
+                </div>
+
+                <div class="submit-wrap">
+                    <div class="submit-hint">账号按 Enter 进入密码，密码按 Enter 进入确认密码，确认密码按 Enter 直接注册。</div>
+                    <button type="submit" class="submit-btn">创建账号</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="welcomeLiveRegion" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+    <script>
+        const pageState = {
+            activeMode: {{ active_mode | tojson }},
+            focusTarget: {{ focus_target | tojson }},
+            speechText: {{ speech_text | tojson }},
+            speechTone: {{ speech_tone | tojson }}
+        };
+
+        const ERROR_AUDIO_URL = {{ url_for('static', filename='audio/incorrect.mp3') | tojson }};
+        const welcomeShell = document.getElementById('welcomeShell');
+        const authStage = document.getElementById('authStage');
+        const authDialogTitle = document.getElementById('authDialogTitle');
+        const authDialogDesc = document.getElementById('authDialogDesc');
+        const authCloseBtn = document.getElementById('authCloseBtn');
+        const liveRegion = document.getElementById('welcomeLiveRegion');
+        const modeButtons = Array.from(document.querySelectorAll('.mode-card'));
+        const modeMeta = {
+            login: {
+                title: '登录聆光一闪',
+                description: '请输入账号与密码，系统会自动播报下一步操作。'
+            },
+            register: {
+                title: '注册聆光一闪',
+                description: '请输入账号与密码信息，完成后即可创建新账号。'
+            }
+        };
+        const forms = {
+            login: document.getElementById('login-form'),
+            register: document.getElementById('register-form')
+        };
+        const registerPasswordInput = document.getElementById('register-password');
+        const registerConfirmInput = document.getElementById('register-confirm-password');
+        const defaultFocusMap = {
+            login: 'login-username',
+            register: 'register-username'
+        };
+        const fieldPromptMap = {
+            'login-username': '请输入账号',
+            'register-username': '请输入账号',
+            'login-password': '请输入密码',
+            'register-password': '请输入密码',
+            'register-confirm-password': '请再次输入密码'
+        };
+        const speechState = {
+            lastText: '',
+            lastAt: 0,
+            skipFocusPromptId: ''
+        };
+
+        function isTypingTarget(target) {
+            if (!target) {
+                return false;
+            }
+            if (target.isContentEditable) {
+                return true;
+            }
+            const tagName = target.tagName;
+            return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+        }
+
+        function isDigitHotkey(event, digit) {
+            const code = event.code || '';
+            return event.key === digit || code === 'Digit' + digit || code === 'Numpad' + digit;
+        }
+
+        function updateLiveRegion(text) {
+            if (!liveRegion || !text) {
+                return;
+            }
+            liveRegion.textContent = '';
+            window.requestAnimationFrame(function() {
+                liveRegion.textContent = text;
+            });
+        }
+
+        function speak(text, options) {
+            const config = options || {};
+            if (!text) {
+                return;
+            }
+
+            const now = Date.now();
+            if (!config.force && speechState.lastText === text && now - speechState.lastAt < 500) {
+                return;
+            }
+
+            speechState.lastText = text;
+            speechState.lastAt = now;
+            updateLiveRegion(text);
+
+            if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+                return;
+            }
+
+            try {
+                window.speechSynthesis.cancel();
+            } catch (error) {}
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (typeof window.configureSpeechUtterance === 'function') {
+                window.configureSpeechUtterance(utterance);
+            } else {
+                utterance.lang = 'zh-CN';
+                utterance.rate = 1;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function playErrorThenSpeak(text) {
+            let spoken = false;
+
+            function speakOnce() {
+                if (spoken) {
+                    return;
+                }
+                spoken = true;
+                speak(text, { force: true });
+            }
+
+            try {
+                const audio = new Audio(ERROR_AUDIO_URL);
+                audio.preload = 'auto';
+                audio.addEventListener('ended', speakOnce, { once: true });
+                audio.addEventListener('error', speakOnce, { once: true });
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(speakOnce);
+                }
+            } catch (error) {
+                speakOnce();
+            }
+        }
+
+        function announce(text, tone) {
+            if (!text) {
+                return;
+            }
+            if (tone === 'error') {
+                playErrorThenSpeak(text);
+                return;
+            }
+            speak(text, { force: true });
+        }
+
+        function adjustWelcomeSpeechRate(delta) {
+            const currentRate = typeof window.getSpeechDisplayRate === 'function'
+                ? window.getSpeechDisplayRate()
+                : (typeof window._rate === 'number' ? window._rate : 1);
+            const nextRate = typeof window.adjustSpeechDisplayRate === 'function'
+                ? window.adjustSpeechDisplayRate(delta, { source: 'welcome-hotkey' })
+                : Math.max(0.5, Math.min(10, Math.round((currentRate + delta) * 10) / 10));
+
+            window._rate = nextRate;
+
+            if (nextRate === currentRate) {
+                announce(delta > 0 ? '已经是最快语速' : '已经是最慢语速', 'prompt');
+                return false;
+            }
+
+            announce(`当前语速为 ${nextRate.toFixed(1)} 倍`, 'prompt');
+            return true;
+        }
+
+        window._handleSpeechRateHotkey = function(delta) {
+            return adjustWelcomeSpeechRate(delta);
+        };
+
+        function safeFocus(element) {
+            if (!element) {
+                return;
+            }
+            try {
+                element.focus({ preventScroll: true });
+            } catch (error) {
+                element.focus();
+            }
+        }
+
+        function updateAuthDialog(mode) {
+            const meta = modeMeta[mode] || {
+                title: '进入聆光一闪',
+                description: '请选择登录或注册。'
+            };
+
+            if (authDialogTitle) {
+                authDialogTitle.textContent = meta.title;
+            }
+
+            if (authDialogDesc) {
+                authDialogDesc.textContent = meta.description;
+            }
+        }
+
+        function setActiveMode(mode) {
+            authStage.dataset.activeMode = mode || '';
+            authStage.classList.toggle('active', !!mode);
+            authStage.hidden = !mode;
+            authStage.setAttribute('aria-hidden', mode ? 'false' : 'true');
+            document.body.classList.toggle('auth-open', !!mode);
+            updateAuthDialog(mode);
+
+            modeButtons.forEach(function(button) {
+                const isActive = button.dataset.mode === mode;
+                button.classList.toggle('active', isActive);
+                button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                button.setAttribute('tabindex', mode ? (isActive ? '0' : '-1') : '0');
+            });
+
+            Object.keys(forms).forEach(function(key) {
+                const form = forms[key];
+                const isActive = key === mode;
+                form.classList.toggle('active', isActive);
+                form.hidden = !isActive;
+                form.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+            });
+        }
+
+        function closeAuthStage(options) {
+            const config = options || {};
+            const activeMode = authStage.dataset.activeMode || '';
+            setActiveMode('');
+
+            if (config.returnFocus !== false) {
+                const activeButton = modeButtons.find(function(button) {
+                    return button.dataset.mode === activeMode;
+                }) || welcomeShell;
+                window.setTimeout(function() {
+                    safeFocus(activeButton);
+                }, 40);
+            }
+
+            if (config.announce) {
+                announce(config.announce, config.tone || 'prompt');
+            }
+        }
+
+        function focusField(fieldId, options) {
+            const config = options || {};
+            const field = document.getElementById(fieldId);
+            if (!field) {
+                return;
+            }
+
+            const prompt = config.prompt || fieldPromptMap[fieldId];
+            if (config.suppressFocusPrompt || (config.announce !== false && prompt)) {
+                speechState.skipFocusPromptId = fieldId;
+            }
+
+            window.setTimeout(function() {
+                safeFocus(field);
+                if (config.announce !== false && prompt) {
+                    announce(prompt, config.tone || 'prompt');
+                }
+            }, typeof config.delay === 'number' ? config.delay : 16);
+        }
+
+        function selectMode(mode, options) {
+            const config = options || {};
+            if (!forms[mode]) {
+                setActiveMode('');
+                return;
+            }
+
+            setActiveMode(mode);
+
+            if (config.focus === false) {
+                if (config.announce && config.prompt) {
+                    announce(config.prompt, config.tone || 'prompt');
+                }
+                return;
+            }
+
+            focusField(config.focusFieldId || defaultFocusMap[mode], {
+                announce: config.announce !== false,
+                prompt: config.prompt,
+                tone: config.tone,
+                delay: config.delay,
+                suppressFocusPrompt: config.suppressFocusPrompt
+            });
+        }
+
+        function submitForm(form) {
+            if (!form) {
+                return;
+            }
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+                return;
+            }
+            form.submit();
+        }
+
+        function validateRegisterPasswords(announceMismatch) {
+            if (!registerPasswordInput || !registerConfirmInput) {
+                return true;
+            }
+
+            if (registerPasswordInput.value === registerConfirmInput.value) {
+                registerConfirmInput.setCustomValidity('');
+                return true;
+            }
+
+            const message = '两次输入的密码不一致，请重新输入';
+            registerConfirmInput.setCustomValidity(message);
+
+            if (announceMismatch !== false) {
+                safeFocus(registerConfirmInput);
+                announce(message, 'error');
+            }
+            return false;
+        }
+
+        function handleAdvance(currentFieldId, nextFieldId, nextPrompt) {
+            const field = document.getElementById(currentFieldId);
+            if (!field) {
+                return;
+            }
+
+            field.addEventListener('keydown', function(event) {
+                if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (!field.reportValidity()) {
+                    announce(field.validationMessage || fieldPromptMap[currentFieldId], 'error');
+                    safeFocus(field);
+                    return;
+                }
+
+                if (nextFieldId) {
+                    focusField(nextFieldId, {
+                        prompt: nextPrompt,
+                        tone: 'prompt'
+                    });
+                    return;
+                }
+
+                submitForm(field.form);
+            });
+        }
+
+        function bindFieldPrompts(form) {
+            if (!form) {
+                return;
+            }
+
+            form.querySelectorAll('input').forEach(function(input) {
+                input.addEventListener('focus', function() {
+                    if (speechState.skipFocusPromptId === input.id) {
+                        speechState.skipFocusPromptId = '';
+                        return;
+                    }
+                    const prompt = fieldPromptMap[input.id];
+                    if (prompt) {
+                        speak(prompt);
+                    }
+                });
+            });
+
+            form.addEventListener('submit', function(event) {
+                if (form === forms.register && !validateRegisterPasswords(false)) {
+                    event.preventDefault();
+                    safeFocus(registerConfirmInput);
+                    announce(registerConfirmInput.validationMessage || '两次输入的密码不一致，请重新输入', 'error');
+                    return;
+                }
+
+                const invalidField = Array.from(form.querySelectorAll('input')).find(function(input) {
+                    return !input.checkValidity();
+                });
+
+                if (!invalidField) {
+                    return;
+                }
+
+                event.preventDefault();
+                safeFocus(invalidField);
+                announce(invalidField.validationMessage || fieldPromptMap[invalidField.id] || '请完善输入信息', 'error');
+            });
+        }
+
+        modeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                selectMode(button.dataset.mode, {
+                    announce: true,
+                    tone: 'prompt'
+                });
+            });
+        });
+
+        function handleModeShortcut(event) {
+            if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) {
+                return;
+            }
+
+            if (event.key === 'Escape' && authStage.dataset.activeMode) {
+                event.preventDefault();
+                closeAuthStage({
+                    announce: '已返回欢迎界面',
+                    tone: 'prompt'
+                });
+                return;
+            }
+
+            if (isTypingTarget(event.target)) {
+                return;
+            }
+
+            if (isDigitHotkey(event, '1')) {
+                event.preventDefault();
+                selectMode('login', {
+                    announce: true,
+                    tone: 'prompt'
+                });
+                return;
+            }
+
+            if (isDigitHotkey(event, '2')) {
+                event.preventDefault();
+                selectMode('register', {
+                    announce: true,
+                    tone: 'prompt'
+                });
+            }
+        }
+
+        window.addEventListener('keydown', handleModeShortcut, true);
+
+        if (authCloseBtn) {
+            authCloseBtn.addEventListener('click', function() {
+                closeAuthStage({
+                    announce: '已返回欢迎界面',
+                    tone: 'prompt'
+                });
+            });
+        }
+
+        if (authStage) {
+            authStage.addEventListener('click', function(event) {
+                if (event.target !== authStage) {
+                    return;
+                }
+                closeAuthStage({
+                    announce: '已返回欢迎界面',
+                    tone: 'prompt'
+                });
+            });
+        }
+
+        handleAdvance('login-username', 'login-password', '请输入密码');
+        handleAdvance('login-password', '', '');
+        handleAdvance('register-username', 'register-password', '请输入密码');
+        handleAdvance('register-password', 'register-confirm-password', '请再次输入密码');
+        handleAdvance('register-confirm-password', '', '');
+        bindFieldPrompts(forms.login);
+        bindFieldPrompts(forms.register);
+
+        if (registerPasswordInput && registerConfirmInput) {
+            registerPasswordInput.addEventListener('input', function() {
+                registerConfirmInput.setCustomValidity('');
+            });
+            registerConfirmInput.addEventListener('input', function() {
+                validateRegisterPasswords(false);
+            });
+        }
+
+        function initWelcomePage() {
+            setActiveMode('');
+
+            if (pageState.activeMode) {
+                selectMode(pageState.activeMode, {
+                    focusFieldId: pageState.focusTarget || defaultFocusMap[pageState.activeMode],
+                    announce: false,
+                    suppressFocusPrompt: true
+                });
+            } else if (welcomeShell) {
+                window.setTimeout(function() {
+                    safeFocus(welcomeShell);
+                }, 40);
+            }
+
+            window.setTimeout(function() {
+                if (pageState.activeMode) {
+                    announce(
+                        pageState.speechText || fieldPromptMap[pageState.focusTarget] || '请输入账号',
+                        pageState.speechTone || 'prompt'
+                    );
+                    return;
+                }
+
+                announce(pageState.speechText || '欢迎使用聆光一闪，按1登录，按2注册', pageState.speechTone || 'welcome');
+            }, 48);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initWelcomePage, { once: true });
+        } else {
+            initWelcomePage();
+        }
+    </script>
+</body>
+</html>

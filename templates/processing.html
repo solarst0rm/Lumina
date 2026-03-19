@@ -103,18 +103,20 @@ function restoreProcessingAudio() {
     }
 
     const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
-    if (!audioState || !audioState.active) {
-        return;
-    }
+    const isActive = !audioState || audioState.active !== false;
 
     processingAudio = new Audio(WAITING_AUDIO_URL);
     processingAudio.loop = true;
     processingAudio.preload = 'auto';
-    processingAudio.volume = Math.max(0.05, Math.min(0.28, Number(audioState.volume) || 0.28));
+    processingAudio.volume = Math.max(0.05, Math.min(0.28, Number(audioState && audioState.volume) || 0.28));
 
     try {
-        processingAudio.currentTime = Math.max(0, Number(audioState.currentTime) || 0);
+        processingAudio.currentTime = Math.max(0, Number(audioState && audioState.currentTime) || 0);
     } catch (error) {
+        processingAudio.currentTime = 0;
+    }
+
+    if (!isActive) {
         processingAudio.currentTime = 0;
     }
 

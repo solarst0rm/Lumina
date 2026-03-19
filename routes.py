@@ -204,6 +204,13 @@ def _load_mistake_options(record) -> list[dict]:
     return options if isinstance(options, list) else []
 
 
+def _normalize_multiline_text(value: str | None, fallback: str = "") -> str:
+    text = str(value or fallback or "").strip()
+    if not text:
+        return fallback
+    return text.replace("\\r\\n", "\n").replace("\\n", "\n")
+
+
 def _build_mistake_payload(record) -> dict:
     options = _load_mistake_options(record)
     return {
@@ -211,7 +218,7 @@ def _build_mistake_payload(record) -> dict:
         "question": record.question_text,
         "options": options,
         "answer": _extract_answer_key(record.correct_answer, options),
-        "explanation": record.explanation or "æš‚æ— è§£æž",
+        "explanation": _normalize_multiline_text(record.explanation, "暂无解析"),
     }
 
 
@@ -953,9 +960,41 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             )
         }
 
+    def _get_safe_next_url() -> str:
+        next_url = (request.values.get("next") or "").strip()
+        if next_url.startswith("/") and not next_url.startswith("//"):
+            return next_url
+        return ""
+
+    def _render_welcome(
+        *,
+        active_mode: str = "",
+        focus_target: str = "",
+        speech_text: str = "",
+        speech_tone: str = "welcome",
+        login_username: str = "",
+        register_username: str = "",
+        next_url: str | None = None,
+    ):
+        return render_template(
+            "welcome.html",
+            active_mode=active_mode if active_mode in {"login", "register"} else "",
+            focus_target=focus_target,
+            speech_text=speech_text,
+            speech_tone=speech_tone,
+            login_username=login_username,
+            register_username=register_username,
+            next_url=_get_safe_next_url() if next_url is None else next_url,
+        )
+
     @app.route("/")
-    @login_required
     def index():
+        if not current_user.is_authenticated:
+            return _render_welcome(
+                speech_text="欢迎使用聆光一闪，按 1 登录，按 2 注册",
+                speech_tone="welcome",
+            )
+
         show_tutorial = bool(session.pop("show_tutorial_once", False))
         return render_template("index.html", show_tutorial=show_tutorial)
 
@@ -1348,42 +1387,149 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
 
     @app.route("/register", methods=["GET", "POST"])
     def register():
+        if current_user.is_authenticated:
+            return redirect(url_for("index"))
+
         if request.method == "POST":
-            username = request.form["username"]
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
+
+            if not username:
+                message = "请输入账号"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="register",
+                    focus_target="register-username",
+                    speech_text=message,
+                    speech_tone="error",
+                    register_username=username,
+                )
+
+            if len(username) < 3 or len(username) > 20:
+                message = "账号长度需要在 3 到 20 个字符之间"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="register",
+                    focus_target="register-username",
+                    speech_text=message,
+                    speech_tone="error",
+                    register_username=username,
+                )
+
             if User.query.filter_by(username=username).first():
-                flash("用户名已存在，请换一个")
-                return redirect(url_for("register"))
+                message = "账号已存在，请重新输入"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="register",
+                    focus_target="register-username",
+                    speech_text=message,
+                    speech_tone="error",
+                    register_username=username,
+                )
+
+            if len(password) < 6:
+                message = "密码至少需要 6 位"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="register",
+                    focus_target="register-password",
+                    speech_text=message,
+                    speech_tone="error",
+                    register_username=username,
+                )
+
+            if password != confirm_password:
+                message = "两次输入的密码不一致，请重新输入"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="register",
+                    focus_target="register-confirm-password",
+                    speech_text=message,
+                    speech_tone="error",
+                    register_username=username,
+                )
 
             db.session.add(
                 User(
                     username=username,
-                    password_hash=generate_password_hash(request.form["password"]),
+                    password_hash=generate_password_hash(password),
                 )
             )
             db.session.commit()
             session["pending_tutorial_username"] = username
-            flash("注册成功，请登录")
+            flash("注册成功，请登录", "success")
             return redirect(url_for("login"))
 
-        return render_template("register.html")
+        return _render_welcome(
+            active_mode="register",
+            focus_target="register-username",
+            speech_text="请输入账号",
+            speech_tone="prompt",
+        )
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
-        speak_login_error = False
+        if current_user.is_authenticated:
+            return redirect(url_for("index"))
+
+        next_url = _get_safe_next_url()
         if request.method == "POST":
-            user = User.query.filter_by(username=request.form["username"]).first()
-            if user and check_password_hash(user.password_hash, request.form["password"]):
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
+
+            if not username:
+                message = "请输入账号"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="login",
+                    focus_target="login-username",
+                    speech_text=message,
+                    speech_tone="error",
+                    login_username=username,
+                    next_url=next_url,
+                )
+
+            if not password:
+                message = "请输入密码"
+                flash(message, "error")
+                return _render_welcome(
+                    active_mode="login",
+                    focus_target="login-password",
+                    speech_text=message,
+                    speech_tone="error",
+                    login_username=username,
+                    next_url=next_url,
+                )
+
+            user = User.query.filter_by(username=username).first()
+            if user and check_password_hash(user.password_hash, password):
                 login_user(user)
                 pending_username = session.pop("pending_tutorial_username", None)
                 if pending_username == user.username and not user.has_seen_tutorial:
                     user.has_seen_tutorial = True
                     db.session.commit()
                     session["show_tutorial_once"] = True
-                return redirect(url_for("index"))
-            speak_login_error = True
-            flash("用户名或密码错误")
+                return redirect(next_url or url_for("index"))
 
-        return render_template("login.html", speak_login_error=speak_login_error)
+            message = "用户名或密码错误"
+            flash(message, "error")
+            return _render_welcome(
+                active_mode="login",
+                focus_target="login-password",
+                speech_text=message,
+                speech_tone="error",
+                login_username=username,
+                next_url=next_url,
+            )
+
+        return _render_welcome(
+            active_mode="login",
+            focus_target="login-username",
+            speech_text="请输入账号",
+            speech_tone="prompt",
+            next_url=next_url,
+        )
 
     @app.route("/logout")
     @login_required
@@ -1752,7 +1898,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
                     "question_text": record.question_text,
                     "options": options,
                     "correct_answer": record.correct_answer,
-                    "explanation": record.explanation or "",
+                    "explanation": _normalize_multiline_text(record.explanation, ""),
                     "last_selected_answer": record.last_selected_answer or "",
                     "wrong_count": record.wrong_count,
                     "first_wrong_at": record.first_wrong_at.strftime("%Y-%m-%d %H:%M") if record.first_wrong_at else "",
@@ -1841,7 +1987,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         source_filename = _normalize_source_filename(payload.get("source_filename"))
 
         difficulty = (payload.get("difficulty") or "").strip()
-        explanation = (payload.get("explanation") or "").strip()
+        explanation = _normalize_multiline_text(payload.get("explanation"), "")
         last_selected_answer = (payload.get("selected_answer") or "").strip()
         options = payload.get("options")
         if not isinstance(options, list):

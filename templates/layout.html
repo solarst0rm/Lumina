@@ -760,6 +760,7 @@
             tutorialDemoChallenge: {{ (url_for('tutorial_demo_challenge') if current_user.is_authenticated else '') | tojson }}
         };
     </script>
+    <script src="{{ url_for('static', filename='js/speech-config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/accessibility.js') }}"></script>
     <script src="{{ url_for('static', filename='js/local-community.js') }}"></script>
     <script src="{{ url_for('static', filename='js/community-upload.js') }}"></script>

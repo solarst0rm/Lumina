@@ -408,8 +408,12 @@ function speakProcessingStart() {
     };
 
     const utterance = new SpeechSynthesisUtterance(PROCESSING_SPEECH);
-    utterance.lang = 'zh-CN';
-    utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+    if (typeof window.configureSpeechUtterance === 'function') {
+        window.configureSpeechUtterance(utterance);
+    } else {
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+    }
     utterance.onend = startAudioOnce;
     utterance.onerror = startAudioOnce;
 
@@ -825,8 +829,17 @@ uploadForm.addEventListener('submit', function(e) {
                 startedAt: Date.now(),
             })
         );
+        window.sessionStorage.setItem(
+            PROCESSING_AUDIO_STATE_KEY,
+            JSON.stringify({
+                active: true,
+                currentTime: 0,
+                volume: 0.28,
+            })
+        );
     }
 
+    startProcessingAudio();
     speakProcessingStart();
     processingSubmitTimer = window.setTimeout(function() {
         processingSubmitTimer = null;

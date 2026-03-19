@@ -7,7 +7,9 @@ window._TUTORIAL_SAMPLE_EXERCISE = '## 绗?棰橈紙鍩虹锛塡n\n### 棰樺
 window._tutorialActive = false;
 window._tutorialStep = 0;
 window._tutorialSpeaking = false;
-window._rate = 1.0;
+window._rate = typeof window.getSpeechDisplayRate === 'function'
+  ? window.getSpeechDisplayRate()
+  : (typeof window._rate === 'number' ? window._rate : 1.0);
 
 window._tutorialSteps = [
   {
@@ -831,12 +833,21 @@ document.addEventListener('keydown', function(e) {
   }
 
   function persistRate(rateValue) {
+    if (typeof window.setSpeechDisplayRate === 'function') {
+      window.setSpeechDisplayRate(rateValue, { source: 'accessibility-persist', forceEvent: true });
+      return;
+    }
     try {
       localStorage.setItem('global-speech-rate', String(rateValue));
     } catch (error) {}
   }
 
   function restoreRate() {
+    if (typeof window.getSpeechDisplayRate === 'function') {
+      window._rate = window.getSpeechDisplayRate();
+      syncRateUi(window._rate);
+      return;
+    }
     try {
       var saved = parseFloat(localStorage.getItem('global-speech-rate') || '');
       if (!isNaN(saved)) {
@@ -862,8 +873,16 @@ document.addEventListener('keydown', function(e) {
     );
     var remainingText = hasManagedSpeech ? window._currentUtteranceText.substring(window._currentPosition || 0) : '';
 
+    if (typeof window.setSpeechDisplayRate === 'function') {
+      targetRate = window.setSpeechDisplayRate(targetRate, {
+        source: opts.source || 'accessibility-rate',
+        forceEvent: true
+      });
+    } else {
+      window._rate = targetRate;
+      persistRate(window._rate);
+    }
     window._rate = targetRate;
-    persistRate(window._rate);
     syncRateUi(window._rate);
 
     var handledByPage = false;
@@ -929,6 +948,16 @@ document.addEventListener('keydown', function(e) {
     return window.applyNewRate((window._rate || 1) - 0.1);
   };
 
+  window._handleSpeechRateHotkey = function(delta) {
+    if (delta > 0) {
+      return window.increaseRate();
+    }
+    if (delta < 0) {
+      return window.decreaseRate();
+    }
+    return window._rate;
+  };
+
   function bindRatePanel() {
     restoreRate();
     if (window.speechSynthesis && !window._speechRateInterceptorBound) {
@@ -937,7 +966,9 @@ document.addEventListener('keydown', function(e) {
         var originalSpeak = typeof synth.speak === 'function' ? synth.speak.bind(synth) : null;
         if (originalSpeak) {
           synth.speak = function(utterance) {
-            if (utterance && typeof window._rate === 'number') {
+            if (utterance && typeof window.configureSpeechUtterance === 'function') {
+              window.configureSpeechUtterance(utterance);
+            } else if (utterance && typeof window._rate === 'number') {
               utterance.rate = clampRate(window._rate);
             }
             return originalSpeak(utterance);
@@ -949,6 +980,16 @@ document.addEventListener('keydown', function(e) {
     var slider = document.getElementById('global-rate-slider');
     if (!slider || slider.dataset.bound === '1') return;
     slider.dataset.bound = '1';
+    if (window.SPEECH_RATE_CHANGE_EVENT) {
+      window.addEventListener(window.SPEECH_RATE_CHANGE_EVENT, function(event) {
+        var detail = event && event.detail ? event.detail : null;
+        if (!detail || typeof detail.displayRate !== 'number') {
+          return;
+        }
+        window._rate = detail.displayRate;
+        syncRateUi(window._rate);
+      });
+    }
     slider.addEventListener('input', function() {
       window.applyNewRate(parseFloat(slider.value), { announce: false });
     });
