@@ -284,7 +284,7 @@
     }
 
     var config = options || {};
-    if (window._tutorialActive && !isTutorialSpeechAllowed(config)) {
+    if (window._tutorialActive && window._tutorialManagedByNewEngine && !isTutorialSpeechAllowed(config)) {
       return null;
     }
     var message = String(text);
