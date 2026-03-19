@@ -10,6 +10,15 @@ import markdown
 from jinja2 import Environment, FileSystemLoader
 
 
+def _preview_url_for(endpoint: str, **values: str) -> str:
+    """Provide the subset of Flask's url_for used by standalone preview rendering."""
+    if endpoint != "static":
+        raise ValueError(f"Unsupported preview endpoint: {endpoint}")
+
+    filename = str(values.get("filename", "")).lstrip("/")
+    return f"/static/{filename}"
+
+
 def clean_markdown_content(md_text: str, is_exercise: bool = False) -> str:
     """Normalize Markdown before rendering."""
     text = (md_text or "").replace("\r\n", "\n").replace("\r", "\n")
@@ -51,6 +60,7 @@ def build_html_template(content_html: str, toc_html: str, is_exercise: bool = Fa
     title = "练习题预览" if is_exercise else "总结预览"
     template_dir = Path(__file__).resolve().parent.parent / "templates"
     env = Environment(loader=FileSystemLoader(str(template_dir)))
+    env.globals["url_for"] = _preview_url_for
     template = env.get_template("preview.html")
     return template.render(title=title, content_html=content_html, toc_html=toc_html)
 
