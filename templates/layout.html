@@ -750,6 +750,7 @@
         window._aiAssistantPageEnabled = !!window._aiAssistantPageEnabled;
         window._aiAssistantPageName = window._aiAssistantPageName || '';
         window._helpOverlayOpen = false;
+        window.__useStandaloneBlindSpotlight = true;
         window._currentUsername = {{ (current_user.username if current_user.is_authenticated else '') | tojson }};
         window._learningCommunityUrl = {{ url_for('learning_community') | tojson }};
         window._appUrls = {
@@ -784,6 +785,7 @@
     <button id="blind-spotlight-toggle" title="视障体验模式" aria-label="视障体验模式" aria-pressed="false">
         <i class="fas fa-eye"></i>
     </button>
+    <script src="{{ url_for('static', filename='js/spotlight.js') }}"></script>
 
     {% set global_ai_assistant_enabled = show_global_ai_assistant is not defined or show_global_ai_assistant %}
     {% if global_ai_assistant_enabled %}

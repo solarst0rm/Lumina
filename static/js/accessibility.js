@@ -573,6 +573,9 @@ document.addEventListener('keydown', function(e) {
 
 // ============== 鐩蹭汉瑙嗚鑱氬厜鐏?==============
 (function() {
+  if (window.__useStandaloneBlindSpotlight) {
+    return;
+  }
   var overlay, toggleBtn, toggleIcon;
   var active = false;
   var rafPending = false;
