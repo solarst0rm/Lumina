@@ -776,7 +776,7 @@ a:focus {
 <div class="section-indicator" id="section-indicator" aria-live="polite"></div>
 <div id="global-rate-panel" style="position:fixed;right:18px;bottom:18px;z-index:2200;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,0.96);box-shadow:0 12px 28px rgba(15,23,42,0.16);border:1px solid rgba(52,120,246,0.18);backdrop-filter:blur(10px);">
     <label for="global-rate-slider" style="font-weight:600;color:#1f2937;">语速</label>
-    <input id="global-rate-slider" type="range" min="0.5" max="2" step="0.1" value="1" oninput="updateRate(this.value)" style="width:140px;">
+    <input id="global-rate-slider" type="range" min="0.5" max="10" step="0.1" value="1" oninput="updateRate(this.value)" style="width:140px;">
     <span id="global-rate-value" style="min-width:48px;text-align:right;color:#475569;">1.0x</span>
 </div>
 
@@ -784,10 +784,13 @@ a:focus {
 <script>
 function clampGlobalRate(value) {
     const numeric = typeof value === 'number' ? value : parseFloat(value);
+    const minRate = typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5;
+    const maxRate = typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10;
+    const step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
     if (Number.isNaN(numeric)) {
         return 1;
     }
-    return Math.max(0.5, Math.min(2, Math.round(numeric * 10) / 10));
+    return Math.round(Math.max(minRate, Math.min(maxRate, numeric)) / step) * step;
 }
 
 function readStoredRate() {
@@ -812,6 +815,9 @@ function syncGlobalRatePanel(nextRate) {
     const slider = document.getElementById('global-rate-slider');
     const value = document.getElementById('global-rate-value');
     if (slider) {
+        slider.min = String(typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5);
+        slider.max = String(typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10);
+        slider.step = String(typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1);
         slider.value = String(currentRate);
     }
     if (value) {
@@ -1526,6 +1532,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         const name = stripPreviewExtension((titleNode && titleNode.textContent) || document.title);
         const message = '\u5f53\u524d\u662f\u6587\u6863\u9884\u89c8\u9875\u9762\uff0c\u300a' + name + '\u300b\u3002\u6309\u5de6\u952e\u548c\u53f3\u952e\u5207\u6362\u4e0a\u4e00\u4e2a\u6216\u4e0b\u4e00\u4e2a\u6807\u9898\uff0c\u7a7a\u683c\u5f00\u59cb\u6216\u6682\u505c\u6717\u8bfb\uff0cEsc \u505c\u6b62\u6717\u8bfb\uff0c\u6309 Ctrl \u52a0\u4e0a\u952e\u548c Ctrl \u52a0\u4e0b\u952e\u8c03\u6574\u8bed\u901f\u3002\u5206\u9875\u6a21\u5f0f\u4e0b\u8bf7\u7528 PageUp \u548c PageDown \u7ffb\u9875\u3002';
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(message, { force: true });
+            return;
+        }
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.lang = 'zh-CN';
         utterance.rate = currentRate;

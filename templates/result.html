@@ -460,6 +460,11 @@ function speakProcessingComplete() {
         return;
     }
 
+    if (typeof window.speakWithGlobalConfig === 'function') {
+        window.speakWithGlobalConfig('文档总结和例题生成完成！', { force: true });
+        return;
+    }
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance('文档总结和例题生成完成！');
     utterance.lang = 'zh-CN';
@@ -1135,7 +1140,10 @@ if (event.code === 'KeyS') {
 
     function adjustRate(delta) {
         const currentRate = typeof window._rate === 'number' ? window._rate : 1;
-        const nextRate = Math.max(0.5, Math.min(2.0, Math.round((currentRate + delta) * 10) / 10));
+        const minRate = typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5;
+        const maxRate = typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10;
+        const step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
+        const nextRate = Math.round(Math.max(minRate, Math.min(maxRate, currentRate + delta)) / step) * step;
         if (nextRate === currentRate) {
             return false;
         }
@@ -1270,6 +1278,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ? '当前是历史笔记结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 进入练习闯关。'
         : '当前是文档总结结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 前往例题，按 R 上传新文档。';
     setTimeout(function() {
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(pageSpeech, { force: true });
+            return;
+        }
         const utterance = new SpeechSynthesisUtterance(pageSpeech);
         utterance.lang = 'zh-CN';
         utterance.rate = typeof window._rate === 'number' ? window._rate : 1;

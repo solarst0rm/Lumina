@@ -423,10 +423,14 @@ window.applyNewRate = function() {
 };
 
 window.increaseRate = function() {
-  if(window._rate < 2.0) { window._rate = Math.round((window._rate + 0.1) * 10) / 10; window.applyNewRate(); }
+  var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
+  var maxRate = typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10;
+  if(window._rate < maxRate) { window._rate = Math.round((window._rate + step) * 10) / 10; window.applyNewRate(); }
 };
 window.decreaseRate = function() {
-  if(window._rate > 0.5) { window._rate = Math.round((window._rate - 0.1) * 10) / 10; window.applyNewRate(); }
+  var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
+  var minRate = typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5;
+  if(window._rate > minRate) { window._rate = Math.round((window._rate - step) * 10) / 10; window.applyNewRate(); }
 };
 
 document.addEventListener('keydown', function(e) {
@@ -816,9 +820,13 @@ document.addEventListener('keydown', function(e) {
 
 (function() {
   function clampRate(value) {
+    var minRate = typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5;
+    var maxRate = typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10;
+    var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
     var numeric = typeof value === 'number' ? value : parseFloat(value);
     if (isNaN(numeric)) numeric = 1;
-    return Math.max(0.5, Math.min(2.0, Math.round(numeric * 10) / 10));
+    numeric = Math.max(minRate, Math.min(maxRate, numeric));
+    return Math.round(numeric / step) * step;
   }
 
   function syncRateUi(rateValue) {
@@ -826,9 +834,17 @@ document.addEventListener('keydown', function(e) {
     var panelLabel = document.querySelector('label[for="global-rate-slider"]');
     var slider = document.getElementById('global-rate-slider');
     var label = document.getElementById('global-rate-value');
+    var minRate = typeof window.SPEECH_RATE_MIN === 'number' ? window.SPEECH_RATE_MIN : 0.5;
+    var maxRate = typeof window.SPEECH_RATE_MAX === 'number' ? window.SPEECH_RATE_MAX : 10;
+    var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
     if (panel) panel.setAttribute('aria-label', '语速调节');
     if (panelLabel) panelLabel.textContent = '语速';
-    if (slider) slider.value = String(rateValue);
+    if (slider) {
+      slider.min = String(minRate);
+      slider.max = String(maxRate);
+      slider.step = String(step);
+      slider.value = String(rateValue);
+    }
     if (label) label.textContent = Number(rateValue).toFixed(1) + 'x';
   }
 
@@ -950,11 +966,13 @@ document.addEventListener('keydown', function(e) {
   };
 
   window.increaseRate = function() {
-    return window.applyNewRate((window._rate || 1) + 0.1);
+    var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
+    return window.applyNewRate((window._rate || 1) + step);
   };
 
   window.decreaseRate = function() {
-    return window.applyNewRate((window._rate || 1) - 0.1);
+    var step = typeof window.SPEECH_RATE_STEP === 'number' ? window.SPEECH_RATE_STEP : 0.1;
+    return window.applyNewRate((window._rate || 1) - step);
   };
 
   window._handleSpeechRateHotkey = function(delta, event, details) {

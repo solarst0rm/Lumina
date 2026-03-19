@@ -124,6 +124,10 @@
         if (!window.speechSynthesis || !text) {
             return;
         }
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(text, { force: true });
+            return;
+        }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'zh-CN';

@@ -107,7 +107,7 @@ function questions(){return ((QUIZ_DATA&&QUIZ_DATA.difficulties)||{})[state.curr
 function question(){return questions()[state.questionIndex]||null;}
 function nextDifficulty(){const list=orders();const idx=list.indexOf(state.currentDifficulty);return idx>=0&&idx<list.length-1?list[idx+1]:null;}
 function stopSpeech(){if(window.speechSynthesis)window.speechSynthesis.cancel();}
-function speak(text,cb){liveRegion.textContent=text||'';if(!window.speechSynthesis||!text){if(cb)cb();return;}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='zh-CN';u.rate=typeof window._rate==='number'?window._rate:1;if(cb)u.onend=cb;window.speechSynthesis.speak(u);}
+function speak(text,cb){liveRegion.textContent=text||'';if(!window.speechSynthesis||!text){if(cb)cb();return;}if(typeof window.speakWithGlobalConfig==='function'){window.speakWithGlobalConfig(text,{force:true,onend:cb});return;}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='zh-CN';u.rate=typeof window._rate==='number'?window._rate:1;if(cb)u.onend=cb;window.speechSynthesis.speak(u);}
 function announce(text){speak(text);}
 function difficultySpeech(){return '请选择练习难度。按 1 选择简单，按 2 选择中等，按 3 选择困难，按 4 结束返回。';}
 function questionSpeech(q){const opts=(q.options||[]).map(o=>o.key+'，'+o.text).join('；');return '第 '+(state.questionIndex+1)+' 题。'+(q.question||'')+'。'+(opts?'选项：'+opts+'。':'');}

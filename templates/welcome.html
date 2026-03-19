@@ -1059,6 +1059,13 @@
                 return;
             }
 
+            if (typeof window.speakWithGlobalConfig === 'function') {
+                window.speakWithGlobalConfig(text, {
+                    force: config.force === true
+                });
+                return;
+            }
+
             try {
                 window.speechSynthesis.cancel();
             } catch (error) {}

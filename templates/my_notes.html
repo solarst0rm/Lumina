@@ -533,4 +533,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 350);
 });
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.speechSynthesis || window._tutorialActive) {
+        return;
+    }
+    setTimeout(function() {
+        const announcement = '\u5f53\u524d\u662f\u6211\u7684\u7b14\u8bb0\u9875\u9762\u3002\u6309 Tab \u5728\u6587\u4ef6\u5939\u548c\u7b14\u8bb0\u4e4b\u95f4\u5207\u6362\uff0c\u6309 Enter \u6253\u5f00\u5f53\u524d\u9879\u76ee\uff0c\u6309 F2 \u91cd\u547d\u540d\u6587\u4ef6\u5939\uff0c\u6309 M \u79fb\u52a8\u5f53\u524d\u9879\u76ee\uff0c\u6309 Delete \u5220\u9664\u5f53\u524d\u9879\u76ee\uff0c\u6309\u52a0\u53f7\u65b0\u5efa\u6587\u4ef6\u5939\u3002';
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(announcement, { force: true });
+            return;
+        }
+        const utterance = new SpeechSynthesisUtterance(announcement);
+        utterance.lang = 'zh-CN';
+        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+    }, 420);
+});
+</script>
 {% endblock %}

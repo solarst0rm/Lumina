@@ -407,18 +407,25 @@ function speakProcessingStart() {
         startProcessingAudio();
     };
 
-    const utterance = new SpeechSynthesisUtterance(PROCESSING_SPEECH);
-    if (typeof window.configureSpeechUtterance === 'function') {
-        window.configureSpeechUtterance(utterance);
+    if (typeof window.speakWithGlobalConfig === 'function') {
+        window.speakWithGlobalConfig(PROCESSING_SPEECH, {
+            force: true,
+            onend: startAudioOnce,
+            onerror: startAudioOnce
+        });
     } else {
-        utterance.lang = 'zh-CN';
-        utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        const utterance = new SpeechSynthesisUtterance(PROCESSING_SPEECH);
+        if (typeof window.configureSpeechUtterance === 'function') {
+            window.configureSpeechUtterance(utterance);
+        } else {
+            utterance.lang = 'zh-CN';
+            utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        }
+        utterance.onend = startAudioOnce;
+        utterance.onerror = startAudioOnce;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
     }
-    utterance.onend = startAudioOnce;
-    utterance.onerror = startAudioOnce;
-
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
     processingAudioStartTimer = window.setTimeout(function() {
         processingAudioStartTimer = null;
         startAudioOnce();

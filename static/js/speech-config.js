@@ -11,6 +11,8 @@
   var PLAYBACK_MAX = 10;
   var STORAGE_KEY = 'blind-notes-speech-display-rate-v2';
   var RATE_EVENT = 'blindnotes:speech-rate-change';
+  var SPEAK_DEBOUNCE_MS = 180;
+  var INTERRUPT_SETTLE_MS = 60;
 
   function roundRate(value) {
     return Math.round(value * 10) / 10;
@@ -250,6 +252,79 @@
     return utterance;
   }
 
+  function speakWithGlobalConfig(text, options) {
+    if (
+      !text ||
+      !window.speechSynthesis ||
+      typeof window.speechSynthesis.speak !== 'function' ||
+      typeof window.SpeechSynthesisUtterance !== 'function'
+    ) {
+      return null;
+    }
+
+    var config = options || {};
+    var message = String(text);
+    var now = Date.now();
+    var debounceWindow = typeof config.debounceMs === 'number' ? config.debounceMs : SPEAK_DEBOUNCE_MS;
+
+    if (
+      !config.force &&
+      window._lastGlobalSpeechText === message &&
+      typeof window._lastGlobalSpeechAt === 'number' &&
+      (now - window._lastGlobalSpeechAt) < debounceWindow
+    ) {
+      return null;
+    }
+
+    if (config.interrupt !== false) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (error) {
+        // Ignore cancellation errors from restricted engines.
+      }
+    }
+
+    if (window._globalSpeechTimer) {
+      window.clearTimeout(window._globalSpeechTimer);
+      window._globalSpeechTimer = null;
+    }
+
+    var utterance = new SpeechSynthesisUtterance(message);
+    configureUtterance(utterance, config);
+    if (typeof config.onstart === 'function') {
+      utterance.onstart = config.onstart;
+    }
+    if (typeof config.onend === 'function') {
+      utterance.onend = config.onend;
+    }
+    if (typeof config.onerror === 'function') {
+      utterance.onerror = config.onerror;
+    }
+
+    window._lastGlobalSpeechText = message;
+    window._lastGlobalSpeechAt = now;
+
+    var speakTask = function() {
+      window.speechSynthesis.speak(utterance);
+    };
+
+    var delayMs = typeof config.delayMs === 'number' ? config.delayMs : 0;
+    if (config.interrupt !== false) {
+      delayMs = Math.max(delayMs, INTERRUPT_SETTLE_MS);
+    }
+
+    if (delayMs > 0) {
+      window._globalSpeechTimer = window.setTimeout(function() {
+        window._globalSpeechTimer = null;
+        speakTask();
+      }, delayMs);
+    } else {
+      speakTask();
+    }
+
+    return utterance;
+  }
+
   function handleRateHotkey(event) {
     if (!event || event.defaultPrevented || event.isComposing) {
       return;
@@ -320,6 +395,7 @@
   window.adjustSpeechDisplayRate = adjustDisplayRate;
   window.getPreferredSpeechVoice = getPreferredVoice;
   window.configureSpeechUtterance = configureUtterance;
+  window.speakWithGlobalConfig = speakWithGlobalConfig;
   window.isSpeechRateIncreaseHotkey = isIncreaseHotkey;
   window.isSpeechRateDecreaseHotkey = isDecreaseHotkey;
 

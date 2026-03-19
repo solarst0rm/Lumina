@@ -10,7 +10,7 @@ function interactive(t){if(!t)return false;var n=t.tagName;return n==='BUTTON'||
 function focusInside(){return !!(assistantWindow&&document.activeElement&&assistantWindow.contains(document.activeElement))}
 function focusInput(){if(!textInput)return;setTimeout(function(){if(!state.isOpen)return;try{textInput.focus({preventScroll:true})}catch(e){textInput.focus()}},0)}
 function blurAssistant(){var active=document.activeElement;if(active&&active!==document.body&&assistantWindow&&assistantWindow.contains(active)&&typeof active.blur==='function')active.blur()}
-function speak(text){if(!window.speechSynthesis||!text||state.isRecording)return;window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang='zh-CN';u.rate=typeof window._rate==='number'?window._rate:1;window.speechSynthesis.speak(u)}
+function speak(text){if(!window.speechSynthesis||!text||state.isRecording)return;if(typeof window.speakWithGlobalConfig==='function'){window.speakWithGlobalConfig(text,{force:true});return}window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang='zh-CN';u.rate=typeof window._rate==='number'?window._rate:1;window.speechSynthesis.speak(u)}
 function resetMessages(){if(messagesEl)messagesEl.innerHTML=welcomeHtml}
 function setSending(on){state.isSending=on;if(sendBtn)sendBtn.disabled=on}
 function resetSpace(){if(state.spaceTimer){clearTimeout(state.spaceTimer);state.spaceTimer=null}state.spacePressed=false;state.spaceLongPressTriggered=false}

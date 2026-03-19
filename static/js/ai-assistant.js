@@ -108,6 +108,13 @@
       return;
     }
 
+    if (typeof window.speakWithGlobalConfig === 'function') {
+      window.speakWithGlobalConfig(text, {
+        force: true
+      });
+      return;
+    }
+
     stopSpeechPlayback();
     var utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
