@@ -57,12 +57,12 @@ window._tutorialSteps = [
   },
   {
     prompt: '绗節姝ワ紝鎸変笂绠ご閿姞蹇閫熴€?,
-    expectedKey: 'arrowup',
+    expectedKey: 'ctrl+arrowup',
     action: function() { window.increaseRate(); }
   },
   {
     prompt: '绗崄姝ワ紝鎸変笅绠ご閿噺鎱㈣閫熴€?,
-    expectedKey: 'arrowdown',
+    expectedKey: 'ctrl+arrowdown',
     action: function() { window.decreaseRate(); }
   },
   {
@@ -128,7 +128,7 @@ window.showTutorialPopup = function() {
   var totalSteps = window._tutorialSteps.length;
   var step = window._tutorialSteps[window._tutorialStep];
   var desc = window._tutorialDescriptions[window._tutorialStep] || '鏁欑▼杩涜涓?;
-  var keyMap = {enter:'鍥炶溅',' ':'绌烘牸',arrowright:'鈫?,arrowleft:'鈫?,arrowup:'鈫?,arrowdown:'鈫?,any:'浠绘剰閿?};
+  var keyMap = {enter:'鍥炶溅',' ':'绌烘牸',arrowright:'鈫?,arrowleft:'鈫?,arrowup:'鈫?,arrowdown:'鈫?, 'ctrl+arrowup':'Ctrl + 鈫?, 'ctrl+arrowdown':'Ctrl + 鈫?,any:'浠绘剰閿?'};
   var keyHint = step ? '鎸?' + (keyMap[step.expectedKey] || step.expectedKey.toUpperCase()) + ' 閿户缁? : '';
   popup.innerHTML = '<div style="font-weight:bold;margin-bottom:8px;font-size:14px;">馃摎 鏂版墜鏁欑▼</div>' +
     '<div style="font-size:28px;font-weight:bold;margin-bottom:6px;">绗?' + stepNum + ' / ' + totalSteps + ' 姝?/div>' +
@@ -441,7 +441,8 @@ document.addEventListener('keydown', function(e) {
     var step = window._tutorialSteps[window._tutorialStep];
     if(step) {
       var expected = step.expectedKey;
-      if(expected === 'any' || k === expected || e.key === expected) window.advanceTutorial();
+      var tutorialKey = (e.ctrlKey && (k === 'arrowup' || k === 'arrowdown')) ? ('ctrl+' + k) : k;
+      if(expected === 'any' || tutorialKey === expected || e.key === expected) window.advanceTutorial();
     }
     e.preventDefault(); return;
   }
@@ -503,7 +504,7 @@ document.addEventListener('keydown', function(e) {
     } else if (isUploadPage) {
       overlayHelpText = '【上传页快捷键】\nU - 上传文档\nEnter - 开始处理\nR - 重置\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     } else {
-      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← - 上一段  → - 下一段\n\n【语速调整】\n↑ - 加速  ↓ - 减速\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
+      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← - 上一段  → - 下一段\n\n【语速调整】\nCtrl + ↑ - 加速  Ctrl + ↓ - 减速\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
     }
     box.textContent = overlayHelpText;
     overlay.appendChild(box);
@@ -519,12 +520,12 @@ document.addEventListener('keydown', function(e) {
       helpText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 键或 Backspace 键删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
     } else if (isResultPage) {
       helpText = isSavedNotePage
-        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。上键和下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
-        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。上键和下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文件。';
+        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。按 Ctrl 加上键或 Ctrl 加下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
+        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。按 Ctrl 加上键或 Ctrl 加下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文件。';
     } else if (isUploadPage) {
       helpText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
     } else {
-      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左键进入上一段。右键进入下一段。上键加速。下键减速。点击侧边栏新手教程按钮可重新开始教程。';
+      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左键进入上一段。右键进入下一段。按 Ctrl 加上键加速，按 Ctrl 加下键减速。点击侧边栏新手教程按钮可重新开始教程。';
     }
     window.speechSynthesis.cancel();
     var msg = new SpeechSynthesisUtterance(helpText);
@@ -967,6 +968,17 @@ document.addEventListener('keydown', function(e) {
 
   document.addEventListener('keydown', function(e) {
     if (shouldIgnoreRateHotkey(e.target)) return;
+    var rateHotkey = !e.altKey && !e.metaKey && e.ctrlKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown');
+    if (rateHotkey) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'ArrowUp') {
+        window.increaseRate();
+      } else {
+        window.decreaseRate();
+      }
+      return;
+    }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (window._tutorialActive || window._helpOverlayOpen) return;
 
@@ -978,18 +990,6 @@ document.addEventListener('keydown', function(e) {
       return;
     }
 
-    if (e.code === 'ArrowUp') {
-      e.preventDefault();
-      e.stopPropagation();
-      window.increaseRate();
-      return;
-    }
-
-    if (e.code === 'ArrowDown') {
-      e.preventDefault();
-      e.stopPropagation();
-      window.decreaseRate();
-    }
   }, true);
 
   if (document.readyState === 'loading') {

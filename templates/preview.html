@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
@@ -750,7 +750,7 @@ a:focus {
             <div class="shortcuts">
                 <kbd>空格</kbd> 播放/暂停 &nbsp;
                 <kbd>←</kbd><kbd>→</kbd> 切换章节<br>
-                <kbd>↑</kbd><kbd>↓</kbd> 调节语速 &nbsp;
+                <kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd> 调节语速 &nbsp;
                 <kbd>Esc</kbd> 停止
             </div>
         </div>
@@ -1480,13 +1480,13 @@ initReadableElements = function() {
 
 document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.code === 'ArrowUp') {
+    if (e.ctrlKey && e.code === 'ArrowUp') {
         e.preventDefault();
         e.stopPropagation();
         applyRateChange(currentRate + 0.1);
         return;
     }
-    if (e.code === 'ArrowDown') {
+    if (e.ctrlKey && e.code === 'ArrowDown') {
         e.preventDefault();
         e.stopPropagation();
         applyRateChange(currentRate - 0.1);
@@ -1507,7 +1507,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setTimeout(function() {
         const name = stripPreviewExtension((titleNode && titleNode.textContent) || document.title);
-        const message = '\u5f53\u524d\u662f\u6587\u6863\u9884\u89c8\u9875\u9762\uff0c\u300a' + name + '\u300b\u3002\u6309\u5de6\u952e\u548c\u53f3\u952e\u5207\u6362\u4e0a\u4e00\u4e2a\u6216\u4e0b\u4e00\u4e2a\u6807\u9898\uff0c\u7a7a\u683c\u5f00\u59cb\u6216\u6682\u505c\u6717\u8bfb\uff0cEsc \u505c\u6b62\u6717\u8bfb\uff0c\u4e0a\u952e\u548c\u4e0b\u952e\u8c03\u6574\u8bed\u901f\u3002\u5206\u9875\u6a21\u5f0f\u4e0b\u8bf7\u7528 PageUp \u548c PageDown \u7ffb\u9875\u3002';
+        const message = '\u5f53\u524d\u662f\u6587\u6863\u9884\u89c8\u9875\u9762\uff0c\u300a' + name + '\u300b\u3002\u6309\u5de6\u952e\u548c\u53f3\u952e\u5207\u6362\u4e0a\u4e00\u4e2a\u6216\u4e0b\u4e00\u4e2a\u6807\u9898\uff0c\u7a7a\u683c\u5f00\u59cb\u6216\u6682\u505c\u6717\u8bfb\uff0cEsc \u505c\u6b62\u6717\u8bfb\uff0c\u6309 Ctrl \u52a0\u4e0a\u952e\u548c Ctrl \u52a0\u4e0b\u952e\u8c03\u6574\u8bed\u901f\u3002\u5206\u9875\u6a21\u5f0f\u4e0b\u8bf7\u7528 PageUp \u548c PageDown \u7ffb\u9875\u3002';
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.lang = 'zh-CN';
         utterance.rate = currentRate;
@@ -1518,3 +1518,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+

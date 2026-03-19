@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     'use strict';
 
     const STORAGE_KEY = 'blind-notes-tutorial-v2';
@@ -109,10 +109,10 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: 'ArrowUp',
-            matches: ['arrowup'],
+            keyLabel: 'Ctrl + ↑',
+            matches: ['ctrl+arrowup'],
             title: '调快语速',
-            description: '按上方向键提高语速。熟悉内容后，可以更快浏览总结。',
+            description: '按 Ctrl 加上方向键提高语速。这样不会和页面滚动冲突。',
             target: function () {
                 return document.getElementById('global-rate-slider');
             },
@@ -124,10 +124,10 @@
         },
         {
             page: 'tutorial-result',
-            keyLabel: 'ArrowDown',
-            matches: ['arrowdown'],
+            keyLabel: 'Ctrl + ↓',
+            matches: ['ctrl+arrowdown'],
             title: '调慢语速',
-            description: '按下方向键放慢语速。遇到定义、公式或难点时更适合精听。',
+            description: '按 Ctrl 加下方向键放慢语速。遇到难点时更适合精听。',
             target: function () {
                 return document.getElementById('global-rate-slider');
             },
@@ -435,6 +435,9 @@
     function normalizeKey(event) {
         if (!event || typeof event.key !== 'string') {
             return '';
+        }
+        if (event.ctrlKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+            return `ctrl+${event.key.toLowerCase()}`;
         }
         if (event.key === ' ') {
             return 'space';

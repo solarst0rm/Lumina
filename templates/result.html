@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 
 {% block page_title %}{{ page_heading or '处理结果' }}{% endblock %}
 
@@ -356,7 +356,7 @@
             {% endif %}
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按加号和减号调整语速。
+            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按 Ctrl + 上下键调整语速。
         </p>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
             快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题。
@@ -1228,8 +1228,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const pageSpeech = window._resultPageMode === 'note'
-        ? '当前是历史笔记结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按上键和下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 进入练习闯关。'
-        : '当前是文档总结结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按上键和下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 前往例题，按 R 上传新文档。';
+        ? '当前是历史笔记结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 进入练习闯关。'
+        : '当前是文档总结结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 前往例题，按 R 上传新文档。';
     setTimeout(function() {
         const utterance = new SpeechSynthesisUtterance(pageSpeech);
         utterance.lang = 'zh-CN';
