@@ -269,10 +269,6 @@
     return utterance;
   }
 
-  function isTutorialSpeechAllowed(config) {
-    return !!(config && config.allowDuringTutorial);
-  }
-
   function speakWithGlobalConfig(text, options) {
     if (
       !text ||
@@ -284,9 +280,6 @@
     }
 
     var config = options || {};
-    if (window._tutorialActive && window._tutorialManagedByNewEngine && !isTutorialSpeechAllowed(config)) {
-      return null;
-    }
     var message = String(text);
     var now = Date.now();
     var debounceWindow = typeof config.debounceMs === 'number' ? config.debounceMs : SPEAK_DEBOUNCE_MS;
