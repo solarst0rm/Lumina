@@ -766,7 +766,8 @@
             myNotes: {{ (url_for('my_notes') if current_user.is_authenticated else '') | tojson }},
             community: {{ (url_for('learning_community') if current_user.is_authenticated else '') | tojson }},
             tutorialDemoResult: {{ (url_for('tutorial_demo_result') if current_user.is_authenticated else '') | tojson }},
-            tutorialDemoChallenge: {{ (url_for('tutorial_demo_challenge') if current_user.is_authenticated else '') | tojson }}
+            tutorialDemoChallenge: {{ (url_for('tutorial_demo_challenge') if current_user.is_authenticated else '') | tojson }},
+            tutorialDemoActions: {{ (url_for('tutorial_demo_actions') if current_user.is_authenticated else '') | tojson }}
         };
     </script>
     <script src="{{ url_for('static', filename='js/speech-config.js') }}"></script>

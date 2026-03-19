@@ -1081,12 +1081,6 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @app.route("/tutorial/demo/challenge")
     @login_required
     def tutorial_demo_challenge():
-        exercise_markdown = (
-            f"## 错题重做\n\n"
-            f"当前正在重做《{source_name}》里的错题，共 {len(group_records)} 道。"
-            f"系统会从第 {initial_question_index + 1} 题开始。"
-        )
-
         return render_template(
             "exercise_quiz.html",
             page_heading="教程示例题目",
@@ -1095,7 +1089,28 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             summary_text=TUTORIAL_SAMPLE_SUMMARY,
             uploaded_filename=TUTORIAL_SAMPLE_FILENAME,
             back_url=url_for("tutorial_demo_result"),
-            finish_url=url_for("tutorial_demo_result"),
+            return_url=url_for("tutorial_demo_actions"),
+            tutorial_demo=True,
+        )
+
+    @app.route("/tutorial/demo/actions")
+    @login_required
+    def tutorial_demo_actions():
+        folders = _load_user_folders()
+        suggested_note_title = extract_title_from_summary(
+            TUTORIAL_SAMPLE_SUMMARY,
+            TUTORIAL_SAMPLE_FILENAME,
+        )
+        return render_template(
+            "exercise_actions.html",
+            page_heading="教程示例完成页",
+            quiz_title=TUTORIAL_SAMPLE_QUIZ.get("title", "教程示例题目"),
+            exercise_markdown=TUTORIAL_SAMPLE_EXERCISE,
+            exercise_filename=DEFAULT_EXERCISE_FILENAME,
+            summary_text=TUTORIAL_SAMPLE_SUMMARY,
+            uploaded_filename=TUTORIAL_SAMPLE_FILENAME,
+            folder_options=_build_folder_option_items(folders),
+            suggested_note_title=suggested_note_title,
             tutorial_demo=True,
         )
 

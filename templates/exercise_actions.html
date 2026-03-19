@@ -185,11 +185,13 @@
 <div id="exercise-live-region" class="sr-only" aria-live="polite"></div>
 
 <script>
+window._tutorialPageKey = {{ ('tutorial-actions' if tutorial_demo else 'exercise-actions') | tojson }};
 window._disableGlobalAIAssistantHotkeys = true;
 window._sumText = {{ summary_text | default('') | tojson }};
 window._exText = {{ exercise_markdown | default('') | tojson }};
 window._uploadedFileName = {{ uploaded_filename | default('') | tojson }};
 window._communityUploadMode = 'study-pack';
+const TUTORIAL_DEMO = {{ tutorial_demo | default(false) | tojson }};
 
 const exerciseDownloadLink = document.getElementById('exercise-download-link');
 const exerciseBrailleForm = document.getElementById('exercise-braille-form');
@@ -299,6 +301,17 @@ function saveCurrentNote() {
     showSaveNoteMask('系统正在整理当前总结、目录和练习题，请稍候。');
     speakExerciseAction('正在添加到我的笔记。');
 
+    if (TUTORIAL_DEMO) {
+        savingCurrentNote = false;
+        hideSaveNoteMask();
+        saveCurrentNoteButton.disabled = true;
+        saveCurrentNoteButton.innerHTML = '<i class="fas fa-check"></i> 教程示例已保存';
+        saveNoteResult.textContent = '教程示例已保存到我的笔记。';
+        saveNoteResult.style.display = 'block';
+        speakExerciseAction('教程示例已保存到我的笔记。');
+        return;
+    }
+
     fetch("{{ url_for('api_save_current_note') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -383,6 +396,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.preventDefault();
                 event.stopPropagation();
                 regenerateExerciseSet();
+                return;
+            case 'KeyM':
+                event.preventDefault();
+                event.stopPropagation();
+                saveCurrentNote();
                 return;
             default:
                 return;
