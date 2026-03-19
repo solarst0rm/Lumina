@@ -349,9 +349,23 @@
     var handled = false;
 
     if (typeof window._handleSpeechRateHotkey === 'function') {
-      handled = window._handleSpeechRateHotkey(delta, event, hookPayload) !== false;
+      try {
+        handled = window._handleSpeechRateHotkey(delta, event, hookPayload) !== false;
+      } catch (error) {
+        handled = false;
+      }
     } else if (typeof window.onGlobalRateChange === 'function') {
-      handled = window.onGlobalRateChange(currentRate, hookPayload) === true;
+      try {
+        handled = window.onGlobalRateChange(currentRate, hookPayload) === true;
+      } catch (error) {
+        handled = false;
+      }
+    }
+
+    syncRatePanel(currentRate);
+
+    if (!handled) {
+      announceRateChange(currentRate);
     }
 
     event.preventDefault();
@@ -385,6 +399,60 @@
     }
   }
 
+  function syncRatePanel(displayRate) {
+    var slider = document.getElementById('global-rate-slider');
+    var valueNode = document.getElementById('global-rate-value');
+    var normalizedRate = clampRate(typeof displayRate === 'number' ? displayRate : getDisplayRate());
+
+    if (slider) {
+      slider.min = String(DISPLAY_MIN);
+      slider.max = String(DISPLAY_MAX);
+      slider.step = String(DISPLAY_STEP);
+      slider.value = normalizedRate.toFixed(1);
+    }
+
+    if (valueNode) {
+      valueNode.textContent = normalizedRate.toFixed(1) + 'x';
+    }
+  }
+
+  function announceRateChange(displayRate) {
+    var rateText = clampRate(typeof displayRate === 'number' ? displayRate : getDisplayRate()).toFixed(1);
+    speakWithGlobalConfig('\u5f53\u524d\u8bed\u901f ' + rateText + ' \u500d', {
+      force: true,
+      interrupt: true
+    });
+  }
+
+  function bindRatePanel() {
+    var slider = document.getElementById('global-rate-slider');
+    if (!slider || slider.dataset.boundBySpeechConfig === '1') {
+      syncRatePanel(getDisplayRate());
+      return;
+    }
+
+    window._speechRatePanelBoundBySpeechConfig = true;
+    slider.dataset.boundBySpeechConfig = '1';
+    syncRatePanel(getDisplayRate());
+
+    slider.addEventListener('input', function() {
+      var nextRate = setDisplayRate(parseFloat(slider.value), {
+        source: 'panel-input',
+        forceEvent: true
+      });
+      syncRatePanel(nextRate);
+    });
+
+    slider.addEventListener('change', function() {
+      var nextRate = setDisplayRate(parseFloat(slider.value), {
+        source: 'panel-change',
+        forceEvent: true
+      });
+      syncRatePanel(nextRate);
+      announceRateChange(nextRate);
+    });
+  }
+
   window.SPEECH_RATE_MIN = DISPLAY_MIN;
   window.SPEECH_RATE_MAX = DISPLAY_MAX;
   window.SPEECH_RATE_STEP = DISPLAY_STEP;
@@ -411,4 +479,14 @@
 
   window.addEventListener('keydown', handleRateHotkey, true);
   document.addEventListener('keydown', handleRateHotkey, true);
+  window.addEventListener(RATE_EVENT, function(event) {
+    var detail = event && event.detail ? event.detail : null;
+    syncRatePanel(detail && typeof detail.displayRate === 'number' ? detail.displayRate : getDisplayRate());
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindRatePanel);
+  } else {
+    bindRatePanel();
+  }
 })();

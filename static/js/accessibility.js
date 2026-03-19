@@ -987,6 +987,9 @@ document.addEventListener('keydown', function(e) {
 
   function bindRatePanel() {
     restoreRate();
+    if (window._speechRatePanelBoundBySpeechConfig) {
+      return;
+    }
     if (window.speechSynthesis && !window._speechRateInterceptorBound) {
       try {
         var synth = window.speechSynthesis;
