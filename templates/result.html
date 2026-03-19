@@ -982,21 +982,44 @@ if (event.code === 'KeyS') {
         }
     }
 
-    function speakSection(index) {
+    function getCurrentSectionOffset() {
+        if (!controller.sections.length || controller.currentIndex < 0 || controller.currentIndex >= controller.sections.length) {
+            return 0;
+        }
+        const sectionText = controller.sections[controller.currentIndex].text || '';
+        const currentOffset = typeof window._currentPosition === 'number' ? window._currentPosition : 0;
+        return Math.max(0, Math.min(sectionText.length, currentOffset));
+    }
+
+    function speakSection(index, options) {
         if (!synth || !controller.sections.length || index < 0 || index >= controller.sections.length) {
             resetPlaybackState('\u65e0\u53ef\u6717\u8bfb\u5185\u5bb9');
             return false;
         }
 
+        const opts = options || {};
         const section = controller.sections[index];
+        const fullText = section.text || '';
+        const startOffset = Math.max(0, Math.min(fullText.length, Math.floor(opts.startOffset || 0)));
+        const utteranceText = fullText.slice(startOffset);
+
+        if (!utteranceText.trim()) {
+            if (index < controller.sections.length - 1) {
+                return speakSection(index + 1);
+            }
+            resetPlaybackState('\u6717\u8bfb\u5b8c\u6210');
+            return false;
+        }
+
         controller.currentIndex = index;
         controller.sessionId += 1;
         controller.isPaused = false;
         window._speechOwner = 'result-summary';
         hydrateLegacyState();
-        syncSectionFocus(section);
+        if (opts.syncFocus !== false) {
+            syncSectionFocus(section);
+        }
 
-        const utteranceText = section.text;
         const sessionId = controller.sessionId;
         const utterance = new SpeechSynthesisUtterance(utteranceText);
 
@@ -1007,7 +1030,7 @@ if (event.code === 'KeyS') {
         };
         utterance.onboundary = function(event) {
             if (typeof event.charIndex === 'number') {
-                window._currentPosition = event.charIndex;
+                window._currentPosition = startOffset + event.charIndex;
             }
         };
         utterance.onpause = function() {
@@ -1041,8 +1064,8 @@ if (event.code === 'KeyS') {
             resetPlaybackState('\u6717\u8bfb\u5931\u8d25');
         };
 
-        window._currentUtteranceText = utteranceText;
-        window._currentPosition = 0;
+        window._currentUtteranceText = fullText;
+        window._currentPosition = startOffset;
         synth.cancel();
         window.setTimeout(function() {
             if (sessionId !== controller.sessionId) {
@@ -1129,7 +1152,10 @@ if (event.code === 'KeyS') {
             return true;
         }
 
-        return speakSection(controller.currentIndex);
+        return speakSection(controller.currentIndex, {
+            startOffset: getCurrentSectionOffset(),
+            syncFocus: false,
+        });
     }
 
     window._rate = typeof window._rate === 'number'
@@ -1144,7 +1170,10 @@ if (event.code === 'KeyS') {
             window._rate = nextRate;
             syncRateDisplay(nextRate);
             if (ownsCurrentSpeech() && !controller.isPaused) {
-                speakSection(controller.currentIndex);
+                speakSection(controller.currentIndex, {
+                    startOffset: getCurrentSectionOffset(),
+                    syncFocus: false,
+                });
             } else {
                 updateSpeechUi('\u8bed\u901f\u5df2\u8c03\u6574\u4e3a' + nextRate.toFixed(1) + 'x');
             }
@@ -1207,7 +1236,10 @@ if (event.code === 'KeyS') {
     window.onGlobalRateChange = function(nextRate) {
         syncRateDisplay(nextRate);
         if (ownsCurrentSpeech() && !controller.isPaused) {
-            speakSection(controller.currentIndex);
+            speakSection(controller.currentIndex, {
+                startOffset: getCurrentSectionOffset(),
+                syncFocus: false,
+            });
             return true;
         }
         if (window._speechOwner === 'result-summary') {
