@@ -10,6 +10,7 @@
         flow: null,
         stepIndex: 0,
         stepMeta: null,
+        introAnnouncement: '',
         verifying: false,
         verifierTimer: null,
         currentTarget: null,
@@ -373,6 +374,7 @@
         state.flow = null;
         state.stepIndex = 0;
         state.stepMeta = null;
+        state.introAnnouncement = '';
         state.currentTarget = null;
         window._tutorialActive = false;
         window._tutorialManagedByNewEngine = false;
@@ -506,6 +508,7 @@
         bodyNode.textContent = step.description;
         hintNode.textContent = step.hint || '完成这一步后教程会自动继续。按 Esc 退出教程。';
 
+        hintNode.textContent = step.hint || '按要求完成当前步骤后，教程会自动继续。';
         if (target && typeof target.scrollIntoView === 'function') {
             target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
         }
@@ -518,6 +521,13 @@
                 panel.focus();
             }
         });
+
+        if (announce !== false) {
+            const intro = state.introAnnouncement ? `${state.introAnnouncement}。` : '';
+            state.introAnnouncement = '';
+            speak(`${intro}第${state.stepIndex + 1}步。${step.title}。${step.description}`);
+            return;
+        }
 
         if (announce !== false) {
             speak(`${progressText}。${step.title}。${step.description}。按 Esc 退出教程。`);
@@ -1162,6 +1172,7 @@
         state.flow = flow;
         state.stepIndex = 0;
         state.stepMeta = null;
+        state.introAnnouncement = '新手教程开始，按 Esc 随时退出';
         state.currentTarget = null;
         state.lastReminderAt = 0;
         window._tutorialActive = true;
@@ -1201,6 +1212,7 @@
         state.flow = flow;
         state.stepIndex = saved.stepIndex;
         state.stepMeta = null;
+        state.introAnnouncement = '';
         state.currentTarget = null;
         state.lastReminderAt = 0;
         window._tutorialActive = true;
