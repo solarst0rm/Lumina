@@ -656,7 +656,6 @@
                     <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
                     {% endif %}
                     <li><a href="#" onclick="showHelp()"><i class="fas fa-question-circle"></i> 使用帮助</a></li>
-                    <li><a href="#" onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"><i class="fas fa-graduation-cap"></i> 新手教程</a></li>
                 </ul>
             </nav>
         </aside>
@@ -666,6 +665,15 @@
             <header class="content-header">
                 <h1>{% block page_title %}视障学习助手{% endblock %}</h1>
                 <div class="user-info">
+                    <button
+                        id="page-tutorial-trigger"
+                        type="button"
+                        class="btn btn-secondary"
+                        title="当前页面新手教程（F）"
+                        onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"
+                    >
+                        <i class="fas fa-graduation-cap"></i> 新手教程 [F]
+                    </button>
                     {% if current_user.is_authenticated %}
                         <span>欢迎, {{ current_user.username }}</span>
                         <a href="{{ url_for('logout') }}">登出</a>
@@ -775,7 +783,7 @@
                 // 触发 H 键帮助
                 document.dispatchEvent(new KeyboardEvent('keydown', {key:'h', bubbles:true}));
             } else {
-                alert('使用帮助：\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← → 上/下一段\nCtrl + ↑ / Ctrl + ↓ 调整语速\n点击侧边栏"新手教程"按钮开始教程\nH - 帮助');
+                alert('使用帮助：\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← → 上/下一段\nCtrl + ↑ / Ctrl + ↓ 调整语速\n点击顶部“新手教程”或按 F 开始教程\nH - 帮助');
             }
         }
     </script>

@@ -441,6 +441,10 @@ document.addEventListener('keydown', function(e) {
   }
   var k = e.key.toLowerCase();
 
+  if(window._tutorialActive && window._tutorialManagedByNewEngine) {
+    return;
+  }
+
   // 鏁欑▼妯″紡鎷︽埅
   if(window._tutorialActive) {
     if(k === 'f') { window.skipTutorial(); e.preventDefault(); return; }

@@ -1,250 +1,15 @@
-﻿(function () {
+(function () {
     'use strict';
 
-    const STORAGE_KEY = 'blind-notes-tutorial-v2';
-    const STATE_VERSION = 2;
-
-    const steps = [
-        {
-            page: 'index',
-            keyLabel: 'U',
-            matches: ['u'],
-            title: '选择示例文档',
-            description: '按 U 选择教程自带的示例文档。这里会直接使用“示例文档.docx”继续，不需要真的上传文件。',
-            target: function () {
-                return document.getElementById('file') || document.getElementById('submitBtn');
-            },
-            action: function () {
-                showDemoSelection();
-            },
-        },
-        {
-            page: 'index',
-            keyLabel: 'Enter',
-            matches: ['enter'],
-            title: '开始处理',
-            description: '按 Enter 开始处理示例文档。教程会直接进入示例结果页，模拟文档已经上传完成。',
-            target: function () {
-                return document.getElementById('submitBtn');
-            },
-            onEnter: function () {
-                showDemoSelection();
-            },
-            action: function () {
-                showDemoSelection();
-                if (typeof window.setProcessingUi === 'function') {
-                    window.setProcessingUi(true);
-                }
-                return {
-                    navigateTo: getAppUrl('tutorialDemoResult'),
-                    delay: 420,
-                };
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'S',
-            matches: ['s'],
-            title: '朗读总结',
-            description: '按 S 朗读示例文档总结。这是结果页最常用的快捷键。',
-            target: function () {
-                return document.getElementById('summary-speech-start');
-            },
-            action: function () {
-                if (typeof window.playSummarySpeech === 'function') {
-                    window.playSummarySpeech();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'Space',
-            matches: ['space'],
-            title: '暂停朗读',
-            description: '按空格暂停当前朗读。想停下来思考时，用这一键最快。',
-            target: function () {
-                return document.getElementById('summary-speech-toggle');
-            },
-            onEnter: function () {
-                ensureSummaryPlayback();
-            },
-            action: function () {
-                if (typeof window.toggleCurrentSpeechPause === 'function') {
-                    window.toggleCurrentSpeechPause();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'Space',
-            matches: ['space'],
-            title: '继续朗读',
-            description: '再按一次空格继续刚才的朗读。暂停和继续都用同一个键。',
-            target: function () {
-                return document.getElementById('summary-speech-toggle');
-            },
-            action: function () {
-                if (typeof window.toggleCurrentSpeechPause === 'function') {
-                    window.toggleCurrentSpeechPause();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'X',
-            matches: ['x'],
-            title: '停止朗读',
-            description: '按 X 立即停止朗读。切换去做题或上传新文档前，经常会用到。',
-            target: function () {
-                return document.getElementById('summary-speech-stop');
-            },
-            onEnter: function () {
-                ensureSummaryPlayback();
-            },
-            action: function () {
-                if (typeof window.stopCurrentSpeech === 'function') {
-                    window.stopCurrentSpeech();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'Ctrl + ↑',
-            matches: ['ctrl+arrowup'],
-            title: '调快语速',
-            description: '按 Ctrl 加上方向键提高语速。这样不会和页面滚动冲突。',
-            target: function () {
-                return document.getElementById('global-rate-slider');
-            },
-            action: function () {
-                if (typeof window.increaseRate === 'function') {
-                    window.increaseRate();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'Ctrl + ↓',
-            matches: ['ctrl+arrowdown'],
-            title: '调慢语速',
-            description: '按 Ctrl 加下方向键放慢语速。遇到难点时更适合精听。',
-            target: function () {
-                return document.getElementById('global-rate-slider');
-            },
-            action: function () {
-                if (typeof window.decreaseRate === 'function') {
-                    window.decreaseRate();
-                }
-            },
-        },
-        {
-            page: 'tutorial-result',
-            keyLabel: 'E',
-            matches: ['e'],
-            title: '进入题目闯关',
-            description: '按 E 进入示例题目闯关。文档处理完成后，这个快捷键能最快开始练习。',
-            target: function () {
-                return document.getElementById('btn-gen-exercise');
-            },
-            action: function () {
-                return {
-                    navigateTo: getAppUrl('tutorialDemoChallenge') || getElementHref(document.getElementById('btn-gen-exercise')),
-                    delay: 160,
-                };
-            },
-        },
-        {
-            page: 'tutorial-challenge',
-            keyLabel: '1',
-            matches: ['1'],
-            title: '选择难度',
-            description: '按 1 选择简单模式。题目页支持 1 到 4 在键盘上直接切换难度。',
-            target: function () {
-                return document.querySelector('[data-difficulty="Easy"], [data-difficulty="简单"]');
-            },
-            action: function () {
-                const button = document.querySelector('[data-difficulty="Easy"], [data-difficulty="简单"]');
-                if (button) {
-                    button.click();
-                }
-            },
-        },
-        {
-            page: 'tutorial-challenge',
-            keyLabel: 'A',
-            matches: ['a'],
-            title: '键盘作答',
-            description: '按 A 选择 A 选项。进入题目后，可以直接用 A 到 D 作答，不需要鼠标。',
-            target: function () {
-                return document.querySelector('#options-box .quiz-option-btn');
-            },
-            action: function () {
-                const button = document.querySelector('#options-box .quiz-option-btn');
-                if (button) {
-                    button.click();
-                }
-            },
-        },
-        {
-            page: 'tutorial-challenge',
-            keyLabel: 'M',
-            matches: ['m'],
-            title: '我的笔记',
-            description: '按 M 打开“我的笔记”。完成答题并保存后的文档会在这里归档；平时可以用 Tab 在文件夹和笔记卡片之间移动，再按 Enter 打开。',
-            target: function () {
-                return findLinkByUrl(getAppUrl('myNotes'));
-            },
-            action: function () {
-                return {
-                    navigateTo: getAppUrl('myNotes'),
-                    delay: 140,
-                };
-            },
-        },
-        {
-            page: 'my-notes',
-            keyLabel: 'C',
-            matches: ['c'],
-            title: '文件夹与归档',
-            description: '这里可以先新建文件夹，再把完成闯关的文档保存进来。现在按 C 去学习社区看看。',
-            target: function () {
-                return document.getElementById('folder-name') || findLinkByUrl(getAppUrl('myNotes'));
-            },
-            action: function () {
-                return {
-                    navigateTo: getAppUrl('community'),
-                    delay: 140,
-                };
-            },
-        },
-        {
-            page: 'community',
-            keyLabel: '/',
-            matches: ['/'],
-            title: '搜索社区帖子',
-            description: '在学习社区里按 / 聚焦搜索框，然后输入关键词就能筛选帖子。结果页的“上传到学习社区”会把当前总结发到这里。',
-            target: function () {
-                return document.getElementById('community-search-input');
-            },
-            action: function () {
-                focusCommunitySearch();
-            },
-        },
-        {
-            page: 'community',
-            keyLabel: 'Enter',
-            matches: ['enter'],
-            title: '完成教程',
-            description: '按 Enter 结束教程。之后你可以随时从侧边栏重新打开新手教程。',
-            target: function () {
-                return document.getElementById('community-search-input');
-            },
-            action: function () {
-                finishTutorial();
-                return { skipAdvance: true };
-            },
-        },
-    ];
+    const state = {
+        active: false,
+        pageKey: '',
+        pageTitle: '',
+        steps: [],
+        index: 0,
+        cleanup: null,
+        currentTarget: null,
+    };
 
     let overlay = null;
     let spotlight = null;
@@ -252,16 +17,15 @@
     let progressNode = null;
     let titleNode = null;
     let bodyNode = null;
-    let keyNode = null;
     let hintNode = null;
 
     function injectStyles() {
-        if (document.getElementById('tutorial-overlay-style')) {
+        if (document.getElementById('page-tutorial-style')) {
             return;
         }
 
         const style = document.createElement('style');
-        style.id = 'tutorial-overlay-style';
+        style.id = 'page-tutorial-style';
         style.textContent = `
             body.tutorial-overlay-open {
                 overflow: hidden;
@@ -271,11 +35,12 @@
                 position: fixed;
                 inset: 0;
                 z-index: 10080;
-                pointer-events: none;
+                pointer-events: auto;
+                display: none;
             }
 
-            #tutorial-overlay-root.is-hidden {
-                display: none;
+            #tutorial-overlay-root.is-active {
+                display: block;
             }
 
             #tutorial-spotlight {
@@ -283,11 +48,10 @@
                 border-radius: 20px;
                 background: rgba(255, 248, 240, 0.06);
                 box-shadow:
-                    0 0 0 9999px rgba(6, 3, 0, 0.94),
-                    0 0 0 1px rgba(255, 210, 63, 0.72),
-                    0 0 26px 8px rgba(247, 147, 30, 0.28),
-                    0 0 58px 18px rgba(255, 107, 53, 0.26),
-                    inset 0 0 20px rgba(255, 255, 255, 0.16);
+                    0 0 0 9999px rgba(0, 0, 0, 0.94),
+                    0 0 0 1px rgba(255, 210, 63, 0.7),
+                    0 0 26px 8px rgba(247, 147, 30, 0.26),
+                    inset 0 0 18px rgba(255, 255, 255, 0.16);
                 transition: top 0.24s ease, left 0.24s ease, width 0.24s ease, height 0.24s ease;
             }
 
@@ -302,7 +66,6 @@
                 color: var(--text-primary);
                 pointer-events: auto;
                 transition: top 0.24s ease, left 0.24s ease;
-                outline: none;
             }
 
             #tutorial-panel::before {
@@ -311,7 +74,7 @@
                 inset: 0;
                 border-radius: inherit;
                 padding: 1px;
-                background: linear-gradient(135deg, rgba(255, 107, 53, 0.45), rgba(255, 210, 63, 0.38));
+                background: linear-gradient(135deg, rgba(255, 107, 53, 0.44), rgba(255, 210, 63, 0.38));
                 -webkit-mask:
                     linear-gradient(#fff 0 0) content-box,
                     linear-gradient(#fff 0 0);
@@ -347,22 +110,8 @@
                 white-space: pre-wrap;
             }
 
-            .tutorial-key {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 74px;
-                padding: 8px 14px;
-                margin-top: 16px;
-                border-radius: 999px;
-                background: linear-gradient(135deg, rgba(255, 107, 53, 0.16), rgba(255, 210, 63, 0.26));
-                color: var(--primary-color);
-                font-weight: 800;
-                letter-spacing: 0.06em;
-            }
-
             .tutorial-hint {
-                margin-top: 12px;
+                margin-top: 14px;
                 font-size: 12px;
                 color: var(--text-secondary);
             }
@@ -388,7 +137,10 @@
 
         overlay = document.createElement('div');
         overlay.id = 'tutorial-overlay-root';
-        overlay.className = 'is-hidden';
+        overlay.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        });
 
         spotlight = document.createElement('div');
         spotlight.id = 'tutorial-spotlight';
@@ -409,17 +161,12 @@
         bodyNode = document.createElement('p');
         bodyNode.className = 'tutorial-body';
 
-        keyNode = document.createElement('div');
-        keyNode.className = 'tutorial-key';
-
         hintNode = document.createElement('div');
         hintNode.className = 'tutorial-hint';
-        hintNode.textContent = '按 Esc 跳过教程';
 
         panel.appendChild(progressNode);
         panel.appendChild(titleNode);
         panel.appendChild(bodyNode);
-        panel.appendChild(keyNode);
         panel.appendChild(hintNode);
 
         overlay.appendChild(spotlight);
@@ -427,22 +174,42 @@
         document.body.appendChild(overlay);
     }
 
-    function getAppUrl(name) {
-        const urls = window._appUrls || {};
-        return typeof urls[name] === 'string' ? urls[name] : '';
+    function getSpeechRate() {
+        if (typeof window.getSpeechDisplayRate === 'function') {
+            return window.getSpeechDisplayRate();
+        }
+        return typeof window._rate === 'number' ? window._rate : 1;
     }
 
-    function normalizeKey(event) {
-        if (!event || typeof event.key !== 'string') {
-            return '';
+    function speak(text) {
+        if (!text) {
+            return;
         }
-        if (event.ctrlKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-            return `ctrl+${event.key.toLowerCase()}`;
+
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(text, { force: true });
+            return;
         }
-        if (event.key === ' ') {
-            return 'space';
+
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+            return;
         }
-        return event.key.toLowerCase();
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (typeof window.configureSpeechUtterance === 'function') {
+            window.configureSpeechUtterance(utterance);
+        } else {
+            utterance.lang = 'zh-CN';
+            utterance.rate = getSpeechRate();
+        }
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function stopSpeech() {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
     }
 
     function isEditableTarget(target) {
@@ -453,107 +220,50 @@
         return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || !!target.isContentEditable;
     }
 
-    function getCurrentPage() {
+    function normalizeKey(event) {
+        if (!event || typeof event.key !== 'string') {
+            return '';
+        }
+        if (event.key === ' ') {
+            return 'space';
+        }
+        return event.key.toLowerCase();
+    }
+
+    function getPageKey() {
         if (typeof window._tutorialPageKey === 'string' && window._tutorialPageKey) {
             return window._tutorialPageKey;
         }
         if (document.getElementById('uploadForm')) {
             return 'index';
         }
-        if (document.getElementById('community-search-input')) {
-            return 'community';
-        }
-        if (document.getElementById('folder-name')) {
+        if (document.getElementById('notes-tree')) {
             return 'my-notes';
         }
-        if (document.getElementById('difficulty-card')) {
-            return 'exercise-challenge';
+        if (document.getElementById('mistake-shortcut-text')) {
+            return 'mistake-notebook';
         }
-        if (document.getElementById('summary-rendered')) {
-            return 'result';
+        if (document.getElementById('community-search-input')) {
+            return 'community';
         }
         return '';
     }
 
-    function loadState() {
-        if (!window.sessionStorage) {
-            return null;
-        }
-        const raw = window.sessionStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            return null;
-        }
-        try {
-            const parsed = JSON.parse(raw);
-            if (!parsed || parsed.version !== STATE_VERSION) {
-                return null;
-            }
-            return parsed;
-        } catch (error) {
-            return null;
-        }
+    function getPageTitle(pageKey) {
+        const titles = {
+            index: '上传文档',
+            'my-notes': '我的笔记',
+            'mistake-notebook': '错题本',
+            community: '学习社区',
+        };
+        return titles[pageKey] || '当前页面';
     }
 
-    function saveState(state) {
-        if (!window.sessionStorage) {
-            return;
+    function removeDemoSelection() {
+        const badge = document.getElementById('tutorial-demo-selection');
+        if (badge) {
+            badge.remove();
         }
-        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-
-    function clearState() {
-        if (!window.sessionStorage) {
-            return;
-        }
-        window.sessionStorage.removeItem(STORAGE_KEY);
-    }
-
-    function getCurrentStep() {
-        const state = loadState();
-        if (!state || !state.active) {
-            return null;
-        }
-        return steps[state.stepIndex] || null;
-    }
-
-    function getStateOrDefault() {
-        return (
-            loadState() || {
-                version: STATE_VERSION,
-                active: false,
-                stepIndex: 0,
-                originUrl: '',
-            }
-        );
-    }
-
-    function findLinkByUrl(url) {
-        if (!url) {
-            return null;
-        }
-        let targetPath = '';
-        try {
-            targetPath = new URL(url, window.location.origin).pathname;
-        } catch (error) {
-            targetPath = url;
-        }
-        const links = Array.from(document.querySelectorAll('a[href]'));
-        return (
-            links.find(function (link) {
-                try {
-                    return new URL(link.href, window.location.origin).pathname === targetPath;
-                } catch (error) {
-                    return false;
-                }
-            }) || null
-        );
-    }
-
-    function getElementHref(node) {
-        if (!node || !node.href) {
-            return '';
-        }
-        return node.href;
     }
 
     function showDemoSelection() {
@@ -564,48 +274,200 @@
         const badge = document.createElement('div');
         badge.id = 'tutorial-demo-selection';
         badge.className = 'tutorial-demo-selection';
-        badge.textContent = '教程已选择：示例文档.docx';
+        badge.textContent = '教程示例：这里以“示例文档.docx”演示上传流程。';
         fileInput.insertAdjacentElement('afterend', badge);
     }
 
-    function removeDemoSelection() {
-        const badge = document.getElementById('tutorial-demo-selection');
-        if (badge) {
-            badge.remove();
+    function getCommunityPostNode() {
+        return (
+            document.querySelector('#community-post-list .community-post.is-selected') ||
+            document.querySelector('#community-post-list .community-post') ||
+            document.getElementById('community-post-list')
+        );
+    }
+
+    function getCommunityActionNode() {
+        return (
+            document.querySelector('#community-post-list .community-post.is-selected .community-post-actions') ||
+            document.querySelector('#community-post-list .community-post .community-post-actions') ||
+            getCommunityPostNode()
+        );
+    }
+
+    function getNotesCollectionNode() {
+        return (
+            document.querySelector('.note-row') ||
+            document.querySelector('.folder-card') ||
+            document.querySelector('.empty-browser') ||
+            document.getElementById('folder-name')
+        );
+    }
+
+    function getMistakeDocumentNode() {
+        return document.getElementById('mistake-document-view') || document.getElementById('mistake-shortcut-text');
+    }
+
+    function getMistakeQuestionNode() {
+        return document.getElementById('mistake-question-view') || document.getElementById('mistake-document-view');
+    }
+
+    function ensureMistakeQuestionView() {
+        if (typeof window.openCurrentDocument === 'function') {
+            window.openCurrentDocument(false);
         }
     }
 
-    function ensureSummaryPlayback() {
-        if (!window.speechSynthesis || typeof window.playSummarySpeech !== 'function') {
-            return;
-        }
-        if (window.speechSynthesis.speaking || window.speechSynthesis.paused) {
-            return;
-        }
-        window.playSummarySpeech();
-    }
-
-    function focusCommunitySearch() {
-        const input = document.getElementById('community-search-input');
-        if (!input) {
-            return;
-        }
-        input.focus();
-        if (typeof input.select === 'function') {
-            input.select();
+    function cleanupMistakeView() {
+        if (typeof window.backToDocuments === 'function') {
+            window.backToDocuments(false);
         }
     }
 
-    function hideHelpOverlayIfNeeded() {
-        const help = document.getElementById('help-overlay');
-        if (help) {
-            help.remove();
+    function buildTutorialConfig(pageKey) {
+        if (pageKey === 'index') {
+            return {
+                title: '上传文档',
+                cleanup: removeDemoSelection,
+                steps: [
+                    {
+                        title: '选择文档',
+                        description: '这里是上传入口。你真实使用时就在这里选择 PDF、Word、PPT 或图片。\n教程用示例文档说明流程，不会真的替你提交。',
+                        target: '#file',
+                        onShow: showDemoSelection,
+                    },
+                    {
+                        title: '补充处理要求',
+                        description: '如果你想指定总结方式，可以在这里输入要求；留空时系统会自动做文档总结和后续例题。',
+                        target: '#prompt',
+                    },
+                    {
+                        title: '开始处理',
+                        description: '确认文档和要求后，点击这里开始处理。之后会进入处理中页面，等待总结和例题生成完成。',
+                        target: '#submitBtn',
+                    },
+                    {
+                        title: '上传页快捷键',
+                        description: '上传页常用操作是：U 选择文档，Enter 开始处理，R 重置，长按 V 录入处理要求。',
+                        target: '#uploadForm',
+                    },
+                ],
+            };
         }
-        window._helpOverlayOpen = false;
+
+        if (pageKey === 'my-notes') {
+            return {
+                title: '我的笔记',
+                steps: [
+                    {
+                        title: '文件夹树',
+                        description: '左侧是你的笔记树。可以先选中文件夹，再查看这个文件夹下的笔记和子文件夹。',
+                        target: '#notes-tree',
+                    },
+                    {
+                        title: '新建文件夹',
+                        description: '这里可以新建文件夹，用来按课程、章节或年级整理你的学习笔记。',
+                        target: '#open-create-folder',
+                    },
+                    {
+                        title: '当前路径',
+                        description: '这里会显示你当前所在的文件夹和路径，便于判断自己正在查看哪一组笔记。',
+                        target: '#folder-name',
+                    },
+                    {
+                        title: '笔记内容区',
+                        description: '右侧会展示当前路径下的笔记和子文件夹。进入详情后，你可以继续阅读、做题或回看总结。',
+                        target: getNotesCollectionNode,
+                    },
+                ],
+            };
+        }
+
+        if (pageKey === 'mistake-notebook') {
+            const hasMistakes = !!document.getElementById('mistake-shortcut-text');
+            if (!hasMistakes) {
+                return {
+                    title: '错题本',
+                    steps: [
+                        {
+                            title: '错题本入口',
+                            description: '这里会按原始上传文档整理你做错的题。等你先完成几次练习后，新的错题会自动收进这里。',
+                            target: '.card',
+                        },
+                    ],
+                };
+            }
+
+            return {
+                title: '错题本',
+                cleanup: cleanupMistakeView,
+                steps: [
+                    {
+                        title: '错题本快捷键',
+                        description: '进入错题本后，先左右切换文档，再按回车打开某个文档下的错题。这里会先播报这一页支持的快捷键。',
+                        target: '#mistake-shortcut-text',
+                    },
+                    {
+                        title: '按文档分组',
+                        description: '这里展示当前选中的上传文档。左右键可以切换文档，回车会进入这个文档对应的错题列表。',
+                        target: getMistakeDocumentNode,
+                    },
+                    {
+                        title: '查看某一道错题',
+                        description: '打开文档后，这里会展示某一道错题的题目、选项、正确答案和解析。左右键可以切换同一文档里的其他错题。',
+                        target: getMistakeQuestionNode,
+                        onShow: ensureMistakeQuestionView,
+                    },
+                    {
+                        title: '重做当前文档错题',
+                        description: '这里可以直接重做当前文档的整组错题；如果你只是想回到文档列表，可以使用下面的返回按钮。',
+                        target: '#mistake-redo-link',
+                        onShow: ensureMistakeQuestionView,
+                    },
+                ],
+            };
+        }
+
+        if (pageKey === 'community') {
+            return {
+                title: '学习社区',
+                steps: [
+                    {
+                        title: '搜索帖子',
+                        description: '这里可以按标题、内容或发布者搜索社区帖子。学习社区快捷键里，斜杠 / 会直接聚焦到这个搜索框。',
+                        target: '#community-search-input',
+                    },
+                    {
+                        title: '浏览帖子',
+                        description: '这里是帖子列表。你可以用上下键切换帖子，用 Enter 展开或收起，用 L 朗读当前帖子。',
+                        target: getCommunityPostNode,
+                    },
+                    {
+                        title: '保存和删除',
+                        description: '帖子展开后，可以把内容保存到“我的笔记”；如果是你自己发布的帖子，也可以直接删除。',
+                        target: getCommunityActionNode,
+                    },
+                ],
+            };
+        }
+
+        return null;
+    }
+
+    function resolveTarget(target) {
+        if (!target) {
+            return null;
+        }
+        if (typeof target === 'function') {
+            return resolveTarget(target());
+        }
+        if (typeof target === 'string') {
+            return document.querySelector(target);
+        }
+        return target;
     }
 
     function positionOverlay(target) {
-        if (!overlay || !spotlight || !panel || !target) {
+        if (!target) {
             return;
         }
 
@@ -622,6 +484,7 @@
         spotlight.style.height = `${Math.max(height, 42)}px`;
 
         const panelWidth = Math.min(360, window.innerWidth - 32);
+        const panelHeight = panel.offsetHeight || 220;
         const gap = 26;
         let panelLeft = rect.right + gap;
         let panelTop = rect.top - 6;
@@ -633,8 +496,6 @@
             panelLeft = Math.max(16, Math.min(rect.left, window.innerWidth - panelWidth - 16));
             panelTop = rect.bottom + gap;
         }
-
-        const panelHeight = panel.offsetHeight || 220;
         if (panelTop + panelHeight > window.innerHeight - 16) {
             panelTop = Math.max(16, window.innerHeight - panelHeight - 16);
         }
@@ -646,243 +507,178 @@
         panel.style.top = `${panelTop}px`;
     }
 
-    function renderCurrentStep() {
-        const state = loadState();
-        const step = getCurrentStep();
-        if (!state || !state.active || !step) {
-            hideOverlay();
-            window._tutorialActive = false;
-            window._tutorialStep = 0;
+    function renderCurrentStep(shouldSpeak) {
+        if (!state.active) {
             return;
         }
 
-        if (getCurrentPage() !== step.page) {
+        const step = state.steps[state.index];
+        if (!step) {
+            finishTutorial('complete');
             return;
         }
 
-        ensureOverlay();
-        overlay.classList.remove('is-hidden');
+        if (typeof step.onShow === 'function') {
+            step.onShow();
+        }
+
+        const target = resolveTarget(step.target) || document.querySelector('main') || document.body;
+        state.currentTarget = target;
+
+        overlay.classList.add('is-active');
         document.body.classList.add('tutorial-overlay-open');
-        window._tutorialActive = true;
-        window._tutorialStep = state.stepIndex;
-
-        if (typeof step.onEnter === 'function') {
-            step.onEnter();
-        }
-
-        const target = typeof step.target === 'function' ? step.target() : null;
-        if (!target) {
-            window.setTimeout(renderCurrentStep, 120);
-            return;
-        }
 
         if (typeof target.scrollIntoView === 'function') {
             target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
         }
 
-        progressNode.textContent = `新手教程 ${state.stepIndex + 1} / ${steps.length}`;
+        progressNode.textContent = `${state.pageTitle}教程 ${state.index + 1} / ${state.steps.length}`;
         titleNode.textContent = step.title;
         bodyNode.textContent = step.description;
-        keyNode.textContent = `按 ${step.keyLabel}`;
+        hintNode.textContent = '按 Enter 继续，按 Esc 退出教程。';
 
         window.requestAnimationFrame(function () {
             positionOverlay(target);
             panel.focus({ preventScroll: true });
         });
+
+        if (shouldSpeak) {
+            speak(`${state.pageTitle}教程。${step.title}。${step.description}。按回车继续，按 Esc 退出。`);
+        }
     }
 
-    function hideOverlay() {
-        if (!overlay) {
-            return;
-        }
-        overlay.classList.add('is-hidden');
-        document.body.classList.remove('tutorial-overlay-open');
-    }
-
-    function getReturnUrl(state) {
-        const fallback = getAppUrl('index') || '/';
-        if (!state || !state.originUrl) {
-            return fallback;
-        }
-        const originUrl = state.originUrl;
-        if (originUrl.indexOf('/tutorial/demo/') !== -1) {
-            return fallback;
-        }
-        return originUrl;
-    }
-
-    function finishTutorial(keepCurrentPage) {
-        const state = getStateOrDefault();
-        clearState();
-        hideOverlay();
-        removeDemoSelection();
+    function resetTutorialState() {
+        state.active = false;
+        state.pageKey = '';
+        state.pageTitle = '';
+        state.steps = [];
+        state.index = 0;
+        state.cleanup = null;
+        state.currentTarget = null;
         window._tutorialActive = false;
-        window._tutorialStep = 0;
-
-        if (keepCurrentPage === false && window.location.pathname.indexOf('/tutorial/demo/') === 0) {
-            window.location.href = getReturnUrl(state);
-        }
+        window._tutorialManagedByNewEngine = false;
     }
 
-    function skipTutorial() {
-        finishTutorial(false);
-    }
-
-    function advanceTutorial() {
-        const state = loadState();
-        const step = getCurrentStep();
-        if (!state || !step) {
-            return;
+    function finishTutorial(reason) {
+        if (typeof state.cleanup === 'function') {
+            state.cleanup();
         }
 
-        const command = typeof step.action === 'function' ? step.action() || {} : {};
-        if (command.skipAdvance) {
-            return;
+        removeDemoSelection();
+        stopSpeech();
+
+        if (overlay) {
+            overlay.classList.remove('is-active');
         }
+        document.body.classList.remove('tutorial-overlay-open');
 
-        const nextState = {
-            ...state,
-            stepIndex: state.stepIndex + 1,
-        };
-        saveState(nextState);
-        window._tutorialStep = nextState.stepIndex;
+        const completed = reason === 'complete';
+        resetTutorialState();
 
-        if (nextState.stepIndex >= steps.length) {
-            finishTutorial(true);
-            return;
+        if (completed) {
+            speak('当前页面的新手教程已经完成。');
+        } else if (reason === 'cancelled') {
+            speak('已退出当前页面的新手教程。');
         }
-
-        if (command.navigateTo) {
-            window.setTimeout(function () {
-                window.location.href = command.navigateTo;
-            }, typeof command.delay === 'number' ? command.delay : 0);
-            return;
-        }
-
-        window.setTimeout(renderCurrentStep, typeof command.delay === 'number' ? command.delay : 120);
     }
 
     function startTutorial() {
-        if (!window._currentUsername) {
+        const pageKey = getPageKey();
+        const config = buildTutorialConfig(pageKey);
+
+        if (!config || !Array.isArray(config.steps) || !config.steps.length) {
+            speak('当前页面暂时还没有可用的新手教程。');
             return;
         }
 
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
         if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {
             window.closeAIAssistant();
         }
-        hideHelpOverlayIfNeeded();
 
-        saveState({
-            version: STATE_VERSION,
-            active: true,
-            stepIndex: 0,
-            originUrl: window.location.href,
-        });
+        ensureOverlay();
+        removeDemoSelection();
+        stopSpeech();
+
+        state.active = true;
+        state.pageKey = pageKey;
+        state.pageTitle = config.title || getPageTitle(pageKey);
+        state.steps = config.steps;
+        state.index = 0;
+        state.cleanup = typeof config.cleanup === 'function' ? config.cleanup : null;
+        state.currentTarget = null;
 
         window._tutorialActive = true;
-        window._tutorialStep = 0;
+        window._tutorialManagedByNewEngine = true;
 
-        if (getCurrentPage() !== 'index') {
-            const indexUrl = getAppUrl('index');
-            if (indexUrl) {
-                window.location.href = indexUrl;
-            }
+        renderCurrentStep(true);
+    }
+
+    function advanceTutorial() {
+        if (!state.active) {
             return;
         }
 
-        renderCurrentStep();
-    }
-
-    function matchesStep(step, key) {
-        return Array.isArray(step.matches) && step.matches.indexOf(key) !== -1;
-    }
-
-    function handleTutorialHotkeys(event) {
-        const state = loadState();
-        if (!state || !state.active) {
+        state.index += 1;
+        if (state.index >= state.steps.length) {
+            finishTutorial('complete');
             return;
         }
 
+        renderCurrentStep(true);
+    }
+
+    function handleKeydown(event) {
         const key = normalizeKey(event);
-        if (key === 'escape') {
+
+        if (state.active) {
+            if (key === 'escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                finishTutorial('cancelled');
+                return;
+            }
+
+            if (key === 'enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                advanceTutorial();
+                return;
+            }
+
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
-            skipTutorial();
             return;
         }
 
-        const step = getCurrentStep();
-        if (!step || step.page !== getCurrentPage()) {
+        if (key !== 'f' || event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) {
             return;
         }
 
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
-
-        if (!matchesStep(step, key)) {
-            return;
-        }
-
-        advanceTutorial();
+        startTutorial();
     }
 
-    function handleGlobalNavigationHotkeys(event) {
-        if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {
+    function bindTrigger() {
+        const button = document.getElementById('page-tutorial-trigger');
+        if (!button) {
             return;
         }
-        if (event.altKey || event.ctrlKey || event.metaKey) {
-            return;
-        }
-        if (isEditableTarget(event.target)) {
-            return;
-        }
-
-        const key = normalizeKey(event);
-        const page = getCurrentPage();
-
-        if (key === 'm' && page !== 'my-notes') {
-            const myNotesUrl = getAppUrl('myNotes');
-            if (!myNotesUrl) {
-                return;
-            }
+        button.addEventListener('click', function (event) {
             event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            window.location.href = myNotesUrl;
-            return;
-        }
-
-        if (key === 'c' && page !== 'tutorial-challenge' && page !== 'exercise-challenge' && page !== 'community') {
-            const communityUrl = getAppUrl('community');
-            if (!communityUrl) {
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            window.location.href = communityUrl;
-            return;
-        }
-
-        if (key === '/' && page === 'community') {
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            focusCommunitySearch();
-        }
+            startTutorial();
+        });
     }
 
-    function resumeTutorialIfNeeded() {
-        const state = loadState();
-        if (!state || !state.active) {
+    function handleViewportChange() {
+        if (!state.active || !state.currentTarget) {
             return;
         }
-        renderCurrentStep();
+        positionOverlay(state.currentTarget);
     }
 
     function autoStartIfNeeded() {
@@ -890,38 +686,21 @@
             return;
         }
         window._autoStartTutorial = false;
-        if (loadState() && loadState().active) {
-            resumeTutorialIfNeeded();
-            return;
-        }
-        window.setTimeout(startTutorial, 280);
+        window.setTimeout(startTutorial, 320);
     }
 
     function init() {
-        ensureOverlay();
         window.startTutorial = startTutorial;
-        window.skipTutorial = skipTutorial;
-        window._tutorialActive = !!(loadState() && loadState().active);
-        const triggerLink = document.querySelector('a[onclick*="startTutorial"]');
-        if (triggerLink) {
-            triggerLink.addEventListener('click', function (event) {
-                event.preventDefault();
-                startTutorial();
-            });
-        }
-        window.addEventListener('resize', function () {
-            if (window._tutorialActive) {
-                renderCurrentStep();
-            }
-        });
-        document.addEventListener('scroll', function () {
-            if (window._tutorialActive) {
-                renderCurrentStep();
-            }
-        }, true);
-        document.addEventListener('keydown', handleTutorialHotkeys, true);
-        document.addEventListener('keydown', handleGlobalNavigationHotkeys, true);
-        resumeTutorialIfNeeded();
+        window.skipTutorial = function () {
+            finishTutorial('cancelled');
+        };
+        window._tutorialManagedByNewEngine = false;
+
+        ensureOverlay();
+        bindTrigger();
+        document.addEventListener('keydown', handleKeydown, true);
+        window.addEventListener('resize', handleViewportChange);
+        document.addEventListener('scroll', handleViewportChange, true);
         autoStartIfNeeded();
     }
 
