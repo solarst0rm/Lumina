@@ -318,6 +318,10 @@
         return value.slice(0, Math.max(0, maxLen - 1)) + '…';
     }
 
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     function makeId() {
         if (window.crypto && typeof window.crypto.randomUUID === 'function') {
             return window.crypto.randomUUID();
@@ -642,9 +646,131 @@
         const hintNode = document.getElementById('community-storage-hint');
         const fileToggle = document.getElementById('community-file-toggle');
         let currentPostsById = new Map();
+        let currentPostIds = [];
+        let selectedPostId = '';
+        let keyboardAnnouncementPlayed = false;
 
         if (fileToggle && isFilePersistenceSupported()) {
             fileToggle.style.display = '';
+        }
+
+        function isBlockedHotkeyTarget(target) {
+            return !!(target && (
+                ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') && target !== searchInput) ||
+                (target.isContentEditable && target !== searchInput)
+            ));
+        }
+
+        function getCurrentPost() {
+            if (selectedPostId && currentPostsById.has(selectedPostId)) {
+                return currentPostsById.get(selectedPostId);
+            }
+            if (currentPostIds.length) {
+                return currentPostsById.get(currentPostIds[0]) || null;
+            }
+            return null;
+        }
+
+        function isPostExpanded(postId) {
+            const node = document.getElementById(`post-content-${postId}`);
+            return !!(node && node.getAttribute('data-full') === '1');
+        }
+
+        function buildPostSpeech(post) {
+            if (!post) {
+                return '当前没有可朗读的帖子。';
+            }
+            const isExpanded = isPostExpanded(post.id);
+            const body = isExpanded ? stripMarkdown(post.content || '') : getSnippetText(post);
+            return [
+                `当前帖子《${post.title}》`,
+                post.author ? `发布者 ${post.author}` : '',
+                body || '暂无内容',
+                isExpanded ? '已展开全文。' : '按回车可展开全文。'
+            ].filter(Boolean).join('。');
+        }
+
+        function scrollSelectedPostIntoView() {
+            if (!selectedPostId) {
+                return;
+            }
+            const node = document.getElementById(`post-${selectedPostId}`);
+            if (node && typeof node.scrollIntoView === 'function') {
+                node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+
+        function updateSelectedPostUI() {
+            const nodes = listNode.querySelectorAll('.community-post');
+            nodes.forEach(function (node) {
+                node.classList.toggle('is-selected', node.id === `post-${selectedPostId}`);
+            });
+        }
+
+        function setSelectedPost(postId, options) {
+            const config = options || {};
+            if (!postId || !currentPostsById.has(postId)) {
+                return;
+            }
+            selectedPostId = postId;
+            updateSelectedPostUI();
+            if (config.scroll !== false) {
+                scrollSelectedPostIntoView();
+            }
+            if (config.announce) {
+                const post = currentPostsById.get(postId);
+                speakFeedback(buildPostSpeech(post));
+            }
+        }
+
+        function moveSelection(delta) {
+            if (!currentPostIds.length) {
+                speakFeedback('当前没有帖子。');
+                return;
+            }
+            const currentIndex = Math.max(0, currentPostIds.indexOf(selectedPostId));
+            const nextIndex = clamp(currentIndex + delta, 0, currentPostIds.length - 1);
+            if (nextIndex === currentIndex) {
+                speakFeedback(delta > 0 ? '已经是最后一篇帖子。' : '已经是第一篇帖子。');
+                return;
+            }
+            setSelectedPost(currentPostIds[nextIndex], { announce: true });
+        }
+
+        function toggleSelectedPost(options) {
+            const config = options || {};
+            const post = getCurrentPost();
+            if (!post) {
+                speakFeedback('当前没有可展开的帖子。');
+                return;
+            }
+            const toggleButton = listNode.querySelector(`button[data-toggle-post-id="${post.id}"]`);
+            if (!toggleButton) {
+                return;
+            }
+            toggleButton.click();
+            setSelectedPost(post.id, {
+                announce: false,
+                scroll: false,
+            });
+            if (config.announce === true) {
+                speakFeedback(buildPostSpeech(post));
+            }
+        }
+
+        function focusSearchInput() {
+            searchInput.focus();
+            if (typeof searchInput.select === 'function') {
+                searchInput.select();
+            }
+        }
+
+        function announcePageShortcuts() {
+            if (keyboardAnnouncementPlayed) {
+                return;
+            }
+            keyboardAnnouncementPlayed = true;
+            speakFeedback('当前是学习社区页面。按斜杠聚焦搜索。按上下方向键切换帖子。按回车展开或收起当前帖子。按 L 朗读当前帖子。按 Esc 返回搜索框。');
         }
 
         function setHint(text) {
@@ -670,9 +796,13 @@
             posts.forEach(function (post) {
                 currentPostsById.set(post.id, post);
             });
+            currentPostIds = posts.map(function (post) {
+                return post.id;
+            });
 
             if (!posts.length) {
                 listNode.innerHTML = '<div class="card community-empty">暂无匹配的帖子</div>';
+                selectedPostId = '';
                 return;
             }
 
@@ -680,15 +810,35 @@
                 return renderPostItem(post, highlightId);
             }).join('');
 
+            if (highlightId && currentPostsById.has(highlightId)) {
+                selectedPostId = highlightId;
+            } else if (!selectedPostId || !currentPostsById.has(selectedPostId)) {
+                selectedPostId = currentPostIds[0];
+            }
+
+            updateSelectedPostUI();
+
             if (highlightId) {
                 const highlightNode = document.getElementById(`post-${highlightId}`);
                 if (highlightNode && typeof highlightNode.scrollIntoView === 'function') {
                     highlightNode.scrollIntoView({ block: 'start', behavior: 'smooth' });
                 }
+            } else {
+                scrollSelectedPostIntoView();
             }
         }
 
         listNode.addEventListener('click', async function (event) {
+            const postCard = event.target && event.target.closest
+                ? event.target.closest('.community-post')
+                : null;
+            if (postCard) {
+                const postIdFromCard = postCard.id.replace(/^post-/, '');
+                if (postIdFromCard) {
+                    setSelectedPost(postIdFromCard, { scroll: false });
+                }
+            }
+
             const toggleButton = event.target && event.target.closest
                 ? event.target.closest('button[data-toggle-post-id]')
                 : null;
@@ -760,6 +910,66 @@
             refresh();
         });
 
+        searchInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                focusSearchInput();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (!root || !document.body.contains(root)) {
+                return;
+            }
+            if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {
+                return;
+            }
+            if (event.altKey || event.ctrlKey || event.metaKey) {
+                return;
+            }
+            if (isBlockedHotkeyTarget(event.target)) {
+                return;
+            }
+
+            const key = String(event.key || '').toLowerCase();
+
+            if (key === '/') {
+                event.preventDefault();
+                focusSearchInput();
+                return;
+            }
+
+            if (key === 'escape') {
+                event.preventDefault();
+                focusSearchInput();
+                return;
+            }
+
+            if (key === 'arrowup') {
+                event.preventDefault();
+                moveSelection(-1);
+                return;
+            }
+
+            if (key === 'arrowdown') {
+                event.preventDefault();
+                moveSelection(1);
+                return;
+            }
+
+            if (key === 'enter') {
+                event.preventDefault();
+                toggleSelectedPost({ announce: true });
+                return;
+            }
+
+            if (key === 'l') {
+                event.preventDefault();
+                speakFeedback(buildPostSpeech(getCurrentPost()));
+            }
+        }, true);
+
         if (fileToggle) {
             fileToggle.addEventListener('click', async function () {
                 if (!isFilePersistenceSupported()) {
@@ -790,6 +1000,7 @@
 
         await updateHint();
         await refresh();
+        setTimeout(announcePageShortcuts, 420);
     }
 
     window.LocalCommunity = {
