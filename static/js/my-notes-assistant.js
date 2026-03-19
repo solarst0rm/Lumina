@@ -4,7 +4,7 @@ var LONG_PRESS_MS=350,FETCH_TIMEOUT_MS=20000;
 var state={history:[],isOpen:false,isSending:false,isRecording:false,recordingMode:'',recordingShouldSend:false,holdSendPending:false,recognition:null,requestController:null,spacePressed:false,spaceLongPressTriggered:false,spaceTimer:null};
 var overlay,assistantWindow,messagesEl,textInput,micBtn,sendBtn,closeBtn,spriteBtn;
 var welcomeHtml='<div class="ai-welcome"><p>你好，我是你的AI语音助手。</p><p>你可以说：打开第一篇笔记、进入一年级、返回上一级、新建文件夹三年级，或把一年级改名为一年级上册。</p><p style="font-size:0.8rem;margin-top:8px;color:var(--text-secondary);</p></div>';
-function canUse(){return !!window._aiAssistantPageEnabled&&!window._tutorialActive&&!window._helpOverlayOpen}
+function canUse(allowTutorial){return !!window._aiAssistantPageEnabled&&!window._helpOverlayOpen&&(!window._tutorialActive||!!allowTutorial||!!window._tutorialAllowAIAssistant)}
 function editable(t){return !!(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable))}
 function interactive(t){if(!t)return false;var n=t.tagName;return n==='BUTTON'||n==='A'||n==='SUMMARY'||t.getAttribute('role')==='button'}
 function focusInside(){return !!(assistantWindow&&document.activeElement&&assistantWindow.contains(document.activeElement))}

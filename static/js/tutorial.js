@@ -105,7 +105,7 @@
         }
 
         if (typeof window.speakWithGlobalConfig === 'function') {
-            window.speakWithGlobalConfig(text, { force: true });
+            window.speakWithGlobalConfig(text, { force: true, allowDuringTutorial: true });
             return;
         }
 
@@ -392,6 +392,12 @@
         const flow = state.flow;
         if (flow && typeof flow.onFinish === 'function') {
             flow.onFinish(reason);
+        }
+
+        if (typeof window.stopCurrentSpeech === 'function') {
+            window.stopCurrentSpeech();
+        } else if (window.speechSynthesis && typeof window.speechSynthesis.cancel === 'function') {
+            window.speechSynthesis.cancel();
         }
 
         clearSessionState();
@@ -949,7 +955,13 @@
                     keys: ['ctrl+space'],
                     run: function (api) {
                         if (typeof window.openAIAssistant === 'function') {
-                            window.openAIAssistant({ focusInput: true, speakPrompt: false });
+                            const wasTutorialActive = window._tutorialActive;
+                            window._tutorialActive = false;
+                            try {
+                                window.openAIAssistant({ focusInput: true, speakPrompt: false });
+                            } finally {
+                                window._tutorialActive = wasTutorialActive;
+                            }
                         }
                         api.waitFor(function () {
                             return !!window._aiWindowOpen;
@@ -976,6 +988,25 @@
     }
 
     function buildMistakeFlow() {
+        if (!document.getElementById('mistake-document-view')) {
+            return {
+                key: 'mistake-notebook',
+                title: '错题本新手教程',
+                steps: [
+                    {
+                        pageKey: 'mistake-notebook',
+                        title: '当前暂无错题',
+                        description: '当前还没有可演示的错题内容。按 Esc 结束教程，之后做错的题目会自动加入错题本。',
+                        target: '.card',
+                        keys: ['escape'],
+                        run: function (api) {
+                            api.next({ announce: false, silentFinish: true });
+                        },
+                    },
+                ],
+            };
+        }
+
         const steps = [];
         const hasMultipleDocuments = getMistakeDocumentCount() > 1;
 
