@@ -396,18 +396,181 @@
             .replace(/'/g, '&#39;');
     }
 
-    function canDeletePost(post) {
-        return !!(
-            post &&
-            post.source !== 'seed' &&
-            String(post.author || '').trim() === getUsername()
+    function stripMarkdown(text) {
+        return (text || '')
+            .toString()
+            .replace(/\r\n?/g, '\n')
+            .replace(/^#{1,6}\s+/gm, '')
+            .replace(/^[-*+]\s+/gm, '')
+            .replace(/^\d+\.\s+/gm, '')
+            .replace(/^>\s?/gm, '')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/__([^_]+)__/g, '$1')
+            .replace(/\*([^*\n]+)\*/g, '$1')
+            .replace(/_([^_\n]+)_/g, '$1')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function renderInlineMarkdown(text) {
+        let html = escapeHtml((text || '').toString());
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+        html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+        html = html.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+        html = html.replace(
+            /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+            function (_, label, url) {
+                return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+            }
         );
+        return html;
+    }
+
+    function renderMarkdownHtml(markdownText) {
+        const normalized = (markdownText || '').toString().replace(/\r\n?/g, '\n').trim();
+        if (!normalized) {
+            return '<p>暂无内容</p>';
+        }
+
+        const lines = normalized.split('\n');
+        const html = [];
+        let listType = '';
+
+        function closeList() {
+            if (listType) {
+                html.push('</' + listType + '>');
+                listType = '';
+            }
+        }
+
+        for (let i = 0; i < lines.length; i += 1) {
+            const rawLine = lines[i] || '';
+            const line = rawLine.replace(/\t/g, '    ');
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                closeList();
+                continue;
+            }
+
+            if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+                closeList();
+                html.push('<hr>');
+                continue;
+            }
+
+            const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+            if (heading) {
+                closeList();
+                const level = Math.min(heading[1].length, 6);
+                html.push('<h' + level + '>' + renderInlineMarkdown(heading[2]) + '</h' + level + '>');
+                continue;
+            }
+
+            const bullet = trimmed.match(/^[-*+]\s+(.+)$/);
+            if (bullet) {
+                if (listType !== 'ul') {
+                    closeList();
+                    html.push('<ul>');
+                    listType = 'ul';
+                }
+                html.push('<li>' + renderInlineMarkdown(bullet[1]) + '</li>');
+                continue;
+            }
+
+            const numbered = trimmed.match(/^\d+\.\s+(.+)$/);
+            if (numbered) {
+                if (listType !== 'ol') {
+                    closeList();
+                    html.push('<ol>');
+                    listType = 'ol';
+                }
+                html.push('<li>' + renderInlineMarkdown(numbered[1]) + '</li>');
+                continue;
+            }
+
+            const quote = trimmed.match(/^>\s?(.*)$/);
+            if (quote) {
+                closeList();
+                html.push('<blockquote>' + renderInlineMarkdown(quote[1]) + '</blockquote>');
+                continue;
+            }
+
+            closeList();
+            html.push('<p>' + renderInlineMarkdown(trimmed) + '</p>');
+        }
+
+        closeList();
+        return html.join('');
+    }
+
+    function getSnippetText(post) {
+        return clip(stripMarkdown(post && post.content), 180);
+    }
+
+    function canDeletePost(post) {
+        return !!(post && post.source !== 'seed');
+    }
+
+    async function savePostToNotes(post, button) {
+        if (!post) {
+            return;
+        }
+
+        if (button) {
+            button.disabled = true;
+        }
+
+        try {
+            const response = await fetch('/api/community/save-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    title: post.title || '',
+                    content: post.content || '',
+                    source_filename: post.title || '',
+                }),
+            });
+
+            const payload = await response.json().catch(function () {
+                return {};
+            });
+
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || '保存失败，请稍后重试。');
+            }
+
+            if (button) {
+                button.dataset.saved = '1';
+                button.innerHTML = '<i class="fas fa-check"></i> 已保存到我的笔记';
+            }
+
+            speakFeedback(payload.message || '已保存到我的笔记。');
+        } catch (error) {
+            if (button) {
+                button.disabled = false;
+            }
+            speakFeedback(error && error.message ? error.message : '保存到我的笔记失败。');
+        }
     }
 
     function renderPostItem(post, highlightId) {
         const contentId = `post-content-${post.id}`;
         const isHighlight = highlightId && highlightId === post.id;
         const borderStyle = isHighlight ? 'border-left: 4px solid var(--success-color);' : '';
+        const saveButton = `
+                <button type="button" class="btn btn-success" data-save-post-id="${escapeHtml(post.id)}">
+                    <i class="fas fa-bookmark"></i> 保存到我的笔记
+                </button>
+            `;
         const deleteButton = canDeletePost(post)
             ? `
                 <button type="button" class="btn btn-danger" data-delete-post-id="${escapeHtml(post.id)}">
@@ -423,11 +586,12 @@
                     <span class="community-meta">发布者：${escapeHtml(post.author)}</span>
                     <span class="community-meta">时间：${escapeHtml(formatDate(post.createdAt))}</span>
                 </div>
-                <div class="community-post-snippet" id="${contentId}" data-full="0">${escapeHtml(clip(post.content, 180))}</div>
+                <div class="community-post-snippet" id="${contentId}" data-full="0">${escapeHtml(getSnippetText(post))}</div>
                 <div class="community-post-actions">
                     <button type="button" class="btn btn-secondary" data-toggle-post-id="${escapeHtml(post.id)}">
                         <i class="fas fa-eye"></i> 查看全文
                     </button>
+                    ${saveButton}
                     ${deleteButton}
                     <span class="community-meta">来源：${escapeHtml(sourceLabel(post.source))}</span>
                 </div>
@@ -538,14 +702,26 @@
 
                 const isFull = contentNode.getAttribute('data-full') === '1';
                 if (isFull) {
-                    contentNode.textContent = clip(post.content, 180);
+                    contentNode.innerHTML = escapeHtml(getSnippetText(post));
                     contentNode.setAttribute('data-full', '0');
+                    contentNode.classList.remove('is-rendered');
                     toggleButton.innerHTML = '<i class="fas fa-eye"></i> 查看全文';
                 } else {
-                    contentNode.textContent = post.content || '';
+                    contentNode.innerHTML = renderMarkdownHtml(post.content || '');
                     contentNode.setAttribute('data-full', '1');
+                    contentNode.classList.add('is-rendered');
                     toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i> 收起内容';
                 }
+                return;
+            }
+
+            const saveButton = event.target && event.target.closest
+                ? event.target.closest('button[data-save-post-id]')
+                : null;
+            if (saveButton) {
+                const postId = saveButton.getAttribute('data-save-post-id');
+                const post = currentPostsById.get(postId);
+                await savePostToNotes(post, saveButton);
                 return;
             }
 

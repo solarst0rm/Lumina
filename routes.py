@@ -549,6 +549,66 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         db.session.commit()
         return note
 
+    def _create_named_note_record(
+        title,
+        summary_text,
+        exercise_markdown,
+        quiz_payload,
+        source_filename,
+        document_text,
+        folder,
+    ):
+        base_title = (title or "").strip()
+        if not base_title:
+            base_title = extract_title_from_summary(summary_text, source_filename or "")
+        existing_titles = [
+            value
+            for (value,) in db.session.query(Note.title)
+            .filter(Note.user_id == current_user.id)
+            .all()
+        ]
+        note = Note(
+            title=build_unique_title(base_title, existing_titles),
+            content=summary_text or "",
+            exercise_content=exercise_markdown or "",
+            exercise_payload=json.dumps(quiz_payload, ensure_ascii=False, indent=2) if quiz_payload else "",
+            source_filename=source_filename or "",
+            document_text=document_text or "",
+            folder_id=folder.id if folder else None,
+            author=current_user,
+        )
+        db.session.add(note)
+        db.session.commit()
+        return note
+
+    def _split_community_post_content(title: str, raw_content: str) -> tuple[str, str]:
+        content = (raw_content or "").replace("\r\n", "\n").strip()
+        if not content:
+            return "", ""
+
+        markers = [
+            "\n## 练习题",
+            "\n## 练习",
+            "\n## 例题",
+            "\n### 练习题",
+            "\n### 练习",
+            "\n### 例题",
+        ]
+        split_index = -1
+        for marker in markers:
+            candidate = content.find(marker)
+            if candidate != -1 and (split_index == -1 or candidate < split_index):
+                split_index = candidate
+
+        if split_index == -1:
+            return content, ""
+
+        summary_text = content[:split_index].strip()
+        exercise_markdown = content[split_index:].strip()
+        if not summary_text:
+            summary_text = f"# {title}\n\n{content}".strip()
+        return summary_text, exercise_markdown
+
     def _get_user_note_or_404(note_id: int):
         note = Note.query.filter_by(id=note_id, user_id=current_user.id).first()
         if note is None:
@@ -1315,6 +1375,47 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
                 "title": note.title,
                 "detail_url": url_for("note_detail", note_id=note.id),
                 "message": "已添加到我的笔记",
+            }
+        )
+
+    @app.route("/api/community/save-note", methods=["POST"])
+    @login_required
+    def api_save_community_note():
+        data = request.get_json(silent=True) or request.form
+        folder_id = _parse_folder_id(data.get("folder_id"))
+        title = (data.get("title") or "").strip()
+        raw_content = (data.get("content") or "").strip()
+        source_filename = (data.get("source_filename") or title).strip()
+
+        if not raw_content:
+            return jsonify({"success": False, "error": "当前帖子没有可保存的内容"})
+
+        folder = None
+        if folder_id is not None:
+            folder = NoteFolder.query.filter_by(id=folder_id, user_id=current_user.id).first()
+            if folder is None:
+                return jsonify({"success": False, "error": "选择的文件夹不存在"})
+
+        summary_text, exercise_markdown = _split_community_post_content(title, raw_content)
+        if not summary_text and not exercise_markdown:
+            return jsonify({"success": False, "error": "当前帖子没有可保存的正文"})
+
+        note = _create_named_note_record(
+            title=title,
+            summary_text=summary_text,
+            exercise_markdown=exercise_markdown,
+            quiz_payload=None,
+            source_filename=source_filename,
+            document_text=normalize_summary_for_exercises(summary_text or raw_content),
+            folder=folder,
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "title": note.title,
+                "detail_url": url_for("note_detail", note_id=note.id),
+                "message": "已保存到我的笔记",
             }
         )
 

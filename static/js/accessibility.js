@@ -576,6 +576,8 @@ document.addEventListener('keydown', function(e) {
   var overlay, toggleBtn, toggleIcon;
   var active = false;
   var rafPending = false;
+  var cursorX = Math.round((window.innerWidth || 0) / 2);
+  var cursorY = Math.round((window.innerHeight || 0) / 2);
 
   function isEditableTarget(target) {
     return !!(target && (
@@ -584,6 +586,32 @@ document.addEventListener('keydown', function(e) {
       target.tagName === 'SELECT' ||
       target.isContentEditable
     ));
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function renderSpotlight() {
+    if (!overlay || !active) return;
+    overlay.style.background =
+      'radial-gradient(circle 115px at ' + cursorX + 'px ' + cursorY + 'px, ' +
+      'rgba(0,0,0,0) 0%, rgba(0,0,0,0) 54%, rgba(0,0,0,0.72) 72%, rgba(0,0,0,0.98) 100%)';
+  }
+
+  function scheduleRender() {
+    if (!active || !overlay || rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(function() {
+      rafPending = false;
+      renderSpotlight();
+    });
+  }
+
+  function updatePointer(x, y) {
+    cursorX = clamp(Number(x) || 0, 0, window.innerWidth || 0);
+    cursorY = clamp(Number(y) || 0, 0, window.innerHeight || 0);
+    scheduleRender();
   }
 
   function setActive(on) {
@@ -598,6 +626,7 @@ document.addEventListener('keydown', function(e) {
       toggleBtn.classList.add('active');
       toggleBtn.setAttribute('aria-pressed', 'true');
       if (toggleIcon) toggleIcon.className = 'fas fa-eye-slash';
+      renderSpotlight();
     } else {
       overlay.style.display = 'none';
       toggleBtn.classList.remove('active');
@@ -642,14 +671,19 @@ document.addEventListener('keydown', function(e) {
     }, true);
 
     document.addEventListener('mousemove', function(e) {
-      if (!active || rafPending) return;
-      rafPending = true;
-      requestAnimationFrame(function() {
-        overlay.style.background =
-          'radial-gradient(circle 100px at ' + e.clientX + 'px ' + e.clientY + 'px, ' +
-          'transparent 0%, transparent 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.97) 100%)';
-        rafPending = false;
-      });
+      if (!active) return;
+      updatePointer(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!active || !e.touches || !e.touches[0]) return;
+      updatePointer(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    window.addEventListener('resize', function() {
+      cursorX = clamp(cursorX || Math.round((window.innerWidth || 0) / 2), 0, window.innerWidth || 0);
+      cursorY = clamp(cursorY || Math.round((window.innerHeight || 0) / 2), 0, window.innerHeight || 0);
+      scheduleRender();
     });
   }
 
