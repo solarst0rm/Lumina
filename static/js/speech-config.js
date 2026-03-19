@@ -5,14 +5,10 @@
   var DISPLAY_MAX = 10.0;
   var DISPLAY_STEP = 0.1;
   var DISPLAY_DEFAULT = 1.0;
-  var PLAYBACK_MULTIPLIER = 2;
-  var LEGACY_DISPLAY_MAX = 2.0;
-  var LEGACY_PLAYBACK_MAX = LEGACY_DISPLAY_MAX * PLAYBACK_MULTIPLIER;
-  var PLAYBACK_MAX = 10;
   var STORAGE_KEY = 'blind-notes-speech-display-rate-v2';
   var RATE_EVENT = 'blindnotes:speech-rate-change';
   var SPEAK_DEBOUNCE_MS = 180;
-  var INTERRUPT_SETTLE_MS = 60;
+  var INTERRUPT_SETTLE_MS = 80;
 
   function roundRate(value) {
     return Math.round(value * 10) / 10;
@@ -44,7 +40,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, String(value));
     } catch (error) {
-      // Ignore storage errors in restricted contexts.
+      // Ignore storage failures.
     }
   }
 
@@ -58,15 +54,22 @@
   }
 
   function getPlaybackRate(displayRate) {
-    var normalizedRate = clampRate(displayRate);
-    if (normalizedRate <= LEGACY_DISPLAY_MAX) {
-      return Math.max(0.1, Math.min(PLAYBACK_MAX, normalizedRate * PLAYBACK_MULTIPLIER));
-    }
+    return clampRate(displayRate);
+  }
 
-    // Preserve the existing feel at lower rates and extend smoothly up to 10x.
-    var progress = (normalizedRate - LEGACY_DISPLAY_MAX) / (DISPLAY_MAX - LEGACY_DISPLAY_MAX);
-    var playbackRate = LEGACY_PLAYBACK_MAX + (progress * (PLAYBACK_MAX - LEGACY_PLAYBACK_MAX));
-    return Math.max(0.1, Math.min(PLAYBACK_MAX, roundRate(playbackRate)));
+  function getSpeechState() {
+    if (!window.__speechConfigState) {
+      window.__speechConfigState = {
+        activeToken: 0,
+        text: '',
+        position: 0,
+        baseOffset: 0,
+        speaking: false,
+        paused: false,
+        restarting: false
+      };
+    }
+    return window.__speechConfigState;
   }
 
   function dispatchRateChange(source) {
@@ -137,90 +140,103 @@
     return hasRateModifier(event) && matchesArrowHotkey(event, 'down');
   }
 
-  function normalize(value) {
-    return String(value || '').toLowerCase();
-  }
-
-  function isChineseVoice(voice) {
-    var lang = normalize(voice && voice.lang);
-    var name = normalize(voice && voice.name);
-    var uri = normalize(voice && voice.voiceURI);
-    return (
-      lang.indexOf('zh') === 0 ||
-      name.indexOf('chinese') >= 0 ||
-      name.indexOf('mandarin') >= 0 ||
-      uri.indexOf('zh') >= 0
-    );
-  }
-
-  function scoreVoice(voice) {
-    if (!voice || !isChineseVoice(voice)) {
-      return -Infinity;
-    }
-
-    var lang = normalize(voice.lang);
-    var name = normalize(voice.name);
-    var uri = normalize(voice.voiceURI);
-    var score = 0;
-
-    if (lang.indexOf('zh-cn') === 0 || lang.indexOf('cmn-hans-cn') === 0) {
-      score += 120;
-    } else if (lang.indexOf('zh-hans') === 0 || lang.indexOf('zh-sg') === 0) {
-      score += 90;
-    } else if (lang.indexOf('zh') === 0) {
-      score += 60;
-    }
-
-    if (/xiaoxiao|xiaoyi|xiaomo|xiaorui|xiaoxuan|xiaoyou|tingting|meijia|sin-ji|huihui/.test(name)) {
-      score += 140;
-    }
-    if (/female|woman|girl|f[0-9]|fema/.test(name) || name.indexOf('female') >= 0) {
-      score += 60;
-    }
-    if (/natural|neural|online/.test(name) || /natural|neural|online/.test(uri)) {
-      score += 35;
-    }
-    if (/yunyang|yunjian|kangkang|male|man|boy/.test(name)) {
-      score -= 120;
-    }
-
-    return score;
-  }
-
   function getPreferredVoice() {
-    if (!window.speechSynthesis || typeof window.speechSynthesis.getVoices !== 'function') {
-      return null;
+    return null;
+  }
+
+  function attachTracking(utterance, options) {
+    if (!utterance || utterance.__speechConfigTracked) {
+      return utterance;
     }
 
-    var voices = window.speechSynthesis.getVoices() || [];
-    var bestVoice = null;
-    var bestScore = -Infinity;
+    var config = options || {};
+    var state = getSpeechState();
+    var token = Date.now() + Math.random();
+    var originalText = typeof config.fullText === 'string'
+      ? config.fullText
+      : String(utterance.text || '');
+    var baseOffset = typeof config.startOffset === 'number'
+      ? Math.max(0, config.startOffset)
+      : 0;
 
-    for (var index = 0; index < voices.length; index += 1) {
-      var voice = voices[index];
-      var score = scoreVoice(voice);
-      if (score > bestScore) {
-        bestScore = score;
-        bestVoice = voice;
+    var originalOnStart = utterance.onstart;
+    var originalOnBoundary = utterance.onboundary;
+    var originalOnPause = utterance.onpause;
+    var originalOnResume = utterance.onresume;
+    var originalOnEnd = utterance.onend;
+    var originalOnError = utterance.onerror;
+
+    utterance.__speechConfigTracked = true;
+    utterance.__speechConfigToken = token;
+
+    utterance.onstart = function(event) {
+      state.activeToken = token;
+      state.text = originalText;
+      state.baseOffset = baseOffset;
+      state.position = baseOffset;
+      state.speaking = true;
+      state.paused = false;
+      window._currentUtteranceText = originalText;
+      window._currentPosition = baseOffset;
+      if (typeof originalOnStart === 'function') {
+        originalOnStart.call(this, event);
+      }
+    };
+
+    utterance.onboundary = function(event) {
+      if (state.activeToken === token && typeof event.charIndex === 'number') {
+        var absoluteIndex = Math.max(baseOffset, baseOffset + event.charIndex);
+        state.position = absoluteIndex;
+        window._currentUtteranceText = originalText;
+        window._currentPosition = absoluteIndex;
+      }
+      if (typeof originalOnBoundary === 'function') {
+        originalOnBoundary.call(this, event);
+      }
+    };
+
+    utterance.onpause = function(event) {
+      if (state.activeToken === token) {
+        state.paused = true;
+      }
+      if (typeof originalOnPause === 'function') {
+        originalOnPause.call(this, event);
+      }
+    };
+
+    utterance.onresume = function(event) {
+      if (state.activeToken === token) {
+        state.paused = false;
+      }
+      if (typeof originalOnResume === 'function') {
+        originalOnResume.call(this, event);
+      }
+    };
+
+    function finish(handler, event) {
+      if (state.activeToken === token && !state.restarting) {
+        state.speaking = false;
+        state.paused = false;
+        state.text = '';
+        state.position = 0;
+        state.baseOffset = 0;
+        window._currentUtteranceText = '';
+        window._currentPosition = 0;
+      }
+      if (typeof handler === 'function') {
+        handler.call(utterance, event);
       }
     }
 
-    if (!bestVoice || bestScore <= 0) {
-      for (var fallbackIndex = 0; fallbackIndex < voices.length; fallbackIndex += 1) {
-        var fallbackVoice = voices[fallbackIndex];
-        var lang = normalize(fallbackVoice.lang);
-        if (lang.indexOf('zh') === 0) {
-          bestVoice = fallbackVoice;
-          break;
-        }
-      }
-    }
+    utterance.onend = function(event) {
+      finish(originalOnEnd, event);
+    };
 
-    if (!bestVoice && voices.length > 0) {
-      bestVoice = voices[0];
-    }
+    utterance.onerror = function(event) {
+      finish(originalOnError, event);
+    };
 
-    return bestVoice;
+    return utterance;
   }
 
   function configureUtterance(utterance, options) {
@@ -230,25 +246,26 @@
 
     var config = options || {};
     var displayRate = typeof config.displayRate === 'number' ? config.displayRate : getDisplayRate();
-    var preferredVoice = config.voice || getPreferredVoice();
+    var explicitVoice = config.voice || null;
 
     utterance.rate = getPlaybackRate(displayRate);
-    utterance.pitch = typeof config.pitch === 'number' ? config.pitch : 1.04;
+    utterance.pitch = typeof config.pitch === 'number' ? config.pitch : 1;
     if (typeof config.volume === 'number') {
       utterance.volume = Math.max(0, Math.min(1, config.volume));
     }
+    utterance.lang = config.lang || utterance.lang || 'zh-CN';
 
-    if (preferredVoice) {
+    if (explicitVoice) {
       try {
-        utterance.voice = preferredVoice;
+        utterance.voice = explicitVoice;
       } catch (error) {
-        // Some browsers reject voice assignment before voices are ready.
+        // Ignore voice assignment failures.
       }
-      utterance.lang = preferredVoice.lang || config.lang || utterance.lang || 'zh-CN';
-      return utterance;
     }
 
-    utterance.lang = config.lang || utterance.lang || 'zh-CN';
+    if (config.track !== false) {
+      attachTracking(utterance, config);
+    }
     return utterance;
   }
 
@@ -280,7 +297,7 @@
       try {
         window.speechSynthesis.cancel();
       } catch (error) {
-        // Ignore cancellation errors from restricted engines.
+        // Ignore cancellation errors.
       }
     }
 
@@ -291,27 +308,18 @@
 
     var utterance = new SpeechSynthesisUtterance(message);
     configureUtterance(utterance, config);
-    if (typeof config.onstart === 'function') {
-      utterance.onstart = config.onstart;
-    }
-    if (typeof config.onend === 'function') {
-      utterance.onend = config.onend;
-    }
-    if (typeof config.onerror === 'function') {
-      utterance.onerror = config.onerror;
-    }
 
     window._lastGlobalSpeechText = message;
     window._lastGlobalSpeechAt = now;
-
-    var speakTask = function() {
-      window.speechSynthesis.speak(utterance);
-    };
 
     var delayMs = typeof config.delayMs === 'number' ? config.delayMs : 0;
     if (config.interrupt !== false) {
       delayMs = Math.max(delayMs, INTERRUPT_SETTLE_MS);
     }
+
+    var speakTask = function() {
+      window.speechSynthesis.speak(utterance);
+    };
 
     if (delayMs > 0) {
       window._globalSpeechTimer = window.setTimeout(function() {
@@ -323,6 +331,73 @@
     }
 
     return utterance;
+  }
+
+  function hasTrackedSpeech() {
+    var state = getSpeechState();
+    var currentText = window._currentUtteranceText || state.text;
+    return !!(
+      window.speechSynthesis &&
+      currentText &&
+      (window.speechSynthesis.speaking || window.speechSynthesis.paused || state.speaking || state.paused)
+    );
+  }
+
+  function restartTrackedSpeechWithGlobalRate(options) {
+    if (
+      !window.speechSynthesis ||
+      typeof window.speechSynthesis.speak !== 'function' ||
+      typeof window.SpeechSynthesisUtterance !== 'function'
+    ) {
+      return false;
+    }
+
+    var config = options || {};
+    var state = getSpeechState();
+    var fullText = window._currentUtteranceText || state.text;
+    var startOffset = typeof window._currentPosition === 'number'
+      ? window._currentPosition
+      : state.position;
+
+    if (!fullText || !fullText.trim()) {
+      return false;
+    }
+
+    startOffset = Math.max(0, Math.min(fullText.length, startOffset || 0));
+    var remainingText = fullText.slice(startOffset);
+    if (!remainingText.trim()) {
+      return false;
+    }
+
+    state.restarting = true;
+    try {
+      window.speechSynthesis.cancel();
+    } catch (error) {
+      state.restarting = false;
+      return false;
+    }
+
+    if (window._globalSpeechTimer) {
+      window.clearTimeout(window._globalSpeechTimer);
+      window._globalSpeechTimer = null;
+    }
+
+    var utterance = new SpeechSynthesisUtterance(remainingText);
+    configureUtterance(utterance, {
+      displayRate: getDisplayRate(),
+      lang: config.lang || 'zh-CN',
+      startOffset: startOffset,
+      fullText: fullText
+    });
+
+    var delayMs = typeof config.delayMs === 'number' ? config.delayMs : INTERRUPT_SETTLE_MS;
+    window._globalSpeechTimer = window.setTimeout(function() {
+      window._globalSpeechTimer = null;
+      state.restarting = false;
+      window.speechSynthesis.speak(utterance);
+    }, Math.max(20, delayMs));
+
+    return true;
   }
 
   function handleRateHotkey(event) {
@@ -418,9 +493,10 @@
 
   function announceRateChange(displayRate) {
     var rateText = clampRate(typeof displayRate === 'number' ? displayRate : getDisplayRate()).toFixed(1);
-    speakWithGlobalConfig('\u5f53\u524d\u8bed\u901f ' + rateText + ' \u500d', {
+    speakWithGlobalConfig('当前语速 ' + rateText + ' 倍', {
       force: true,
-      interrupt: true
+      interrupt: true,
+      track: false
     });
   }
 
@@ -466,6 +542,8 @@
   window.speakWithGlobalConfig = speakWithGlobalConfig;
   window.isSpeechRateIncreaseHotkey = isIncreaseHotkey;
   window.isSpeechRateDecreaseHotkey = isDecreaseHotkey;
+  window.hasTrackedSpeech = hasTrackedSpeech;
+  window.restartTrackedSpeechWithGlobalRate = restartTrackedSpeechWithGlobalRate;
 
   setDisplayRate(readStoredRate(), { source: 'init', forceEvent: true });
   installSpeakInterceptor();

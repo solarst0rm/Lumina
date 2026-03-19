@@ -882,12 +882,6 @@ document.addEventListener('keydown', function(e) {
     var opts = options || {};
     var targetRate = clampRate(typeof nextRate === 'number' ? nextRate : window._rate);
     var shouldAnnounce = opts.announce === true;
-    var hasManagedSpeech = !!(
-      window.speechSynthesis &&
-      (window.speechSynthesis.speaking || window.speechSynthesis.paused) &&
-      window._currentUtteranceText
-    );
-    var remainingText = hasManagedSpeech ? window._currentUtteranceText.substring(window._currentPosition || 0) : '';
 
     if (typeof window.setSpeechDisplayRate === 'function') {
       targetRate = window.setSpeechDisplayRate(targetRate, {
@@ -912,53 +906,32 @@ document.addEventListener('keydown', function(e) {
       return window._rate;
     }
 
-    if (!hasManagedSpeech) {
-      if (shouldAnnounce && window.speechSynthesis) {
-        var tipOnly = new SpeechSynthesisUtterance('当前语速 ' + window._rate.toFixed(1) + ' 倍');
-        tipOnly.lang = 'zh-CN';
-        tipOnly.rate = window._rate;
-        window.speechSynthesis.cancel();
-        setTimeout(function() {
-          window.speechSynthesis.speak(tipOnly);
-        }, 30);
+    if (typeof window.hasTrackedSpeech === 'function' && window.hasTrackedSpeech()) {
+      if (typeof window.restartTrackedSpeechWithGlobalRate === 'function') {
+        window.restartTrackedSpeechWithGlobalRate({
+          delayMs: 30
+        });
+        return window._rate;
       }
-      return window._rate;
-    }
-
-    window._applyingNewRate = true;
-    window.speechSynthesis.cancel();
-
-    function resumeSpeech() {
-      if (hasManagedSpeech && remainingText.trim()) {
-        window._currentUtteranceText = remainingText;
-        window._currentPosition = 0;
-        var utterance = new SpeechSynthesisUtterance(remainingText);
-        utterance.lang = 'zh-CN';
-        utterance.rate = window._rate;
-        utterance.onboundary = function(e) {
-          if (e.name === 'word') window._currentPosition = e.charIndex;
-        };
-        utterance.onend = function() {
-          window._applyingNewRate = false;
-          window._currentPosition = 0;
-          window._currentUtteranceText = '';
-          if (typeof window.autoAdvanceSection === 'function') window.autoAdvanceSection();
-        };
-        window.speechSynthesis.speak(utterance);
-        return;
-      }
-      window._applyingNewRate = false;
     }
 
     if (!shouldAnnounce) {
-      resumeSpeech();
+      return window._rate;
+    }
+
+    if (typeof window.speakWithGlobalConfig === 'function') {
+      window.speakWithGlobalConfig('当前语速 ' + window._rate.toFixed(1) + ' 倍', {
+        force: true,
+        interrupt: true,
+        track: false
+      });
       return window._rate;
     }
 
     var tip = new SpeechSynthesisUtterance('当前语速 ' + window._rate.toFixed(1) + ' 倍');
     tip.lang = 'zh-CN';
     tip.rate = window._rate;
-    tip.onend = resumeSpeech;
+    window.speechSynthesis.cancel();
     setTimeout(function() {
       window.speechSynthesis.speak(tip);
     }, 30);

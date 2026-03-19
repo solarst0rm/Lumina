@@ -4,14 +4,18 @@
 
 {% block content %}
 <div class="card" style="text-align: center;">
-    <h2>正在处理文档</h2>
+    <h2>文件已接收，正在后台处理</h2>
     <p style="color: var(--text-secondary); margin: 12px 0 20px;">
-        已收到文件{% if uploaded_filename %}：{{ uploaded_filename }}{% endif %}，系统正在后台继续处理，请稍候。
+        {% if uploaded_filename %}
+        已收到文件：{{ uploaded_filename }}，系统正在后台继续处理，请稍候。
+        {% else %}
+        系统正在后台继续处理，请稍候。
+        {% endif %}
     </p>
 
     <div class="loading" style="display: block;">
         <div class="spinner"></div>
-        <p id="jobStatusText">正在解析内容并生成总结与练习题，请耐心等待。</p>
+        <p id="jobStatusText">正在生成文档总结和例题，请耐心等待。</p>
     </div>
 
     <p id="jobErrorText" style="display: none; color: #c53030; margin-top: 16px;"></p>
@@ -31,6 +35,7 @@ const WAITING_AUDIO_URL = {{ url_for('static', filename='audio/waiting.mp3') | t
 
 let processingAudio = null;
 let processingAudioSyncTimer = null;
+let failureSpeechSpoken = false;
 
 function readSessionJson(key) {
     if (!window.sessionStorage) {
@@ -61,7 +66,7 @@ function saveProcessingSessionState() {
             JSON.stringify({
                 active: true,
                 currentTime: processingAudio.currentTime || 0,
-                volume: processingAudio.volume || 0.28,
+                volume: processingAudio.volume || 0.28
             })
         );
     } else {
@@ -103,7 +108,7 @@ function restoreProcessingAudio() {
     }
 
     const audioState = readSessionJson(PROCESSING_AUDIO_STATE_KEY);
-    const isActive = !audioState || audioState.active !== false;
+    const shouldResume = !audioState || audioState.active !== false;
 
     processingAudio = new Audio(WAITING_AUDIO_URL);
     processingAudio.loop = true;
@@ -116,7 +121,7 @@ function restoreProcessingAudio() {
         processingAudio.currentTime = 0;
     }
 
-    if (!isActive) {
+    if (!shouldResume) {
         processingAudio.currentTime = 0;
     }
 
@@ -125,10 +130,36 @@ function restoreProcessingAudio() {
         playPromise.catch(function() {});
     }
 
-    if (processingAudioSyncTimer) {
-        window.clearInterval(processingAudioSyncTimer);
-    }
     processingAudioSyncTimer = window.setInterval(saveProcessingSessionState, 500);
+}
+
+function speakFailure(message) {
+    if (failureSpeechSpoken) {
+        return;
+    }
+    failureSpeechSpoken = true;
+
+    const speechText = `处理失败。${message || '请返回上传页重试。'}`;
+    if (typeof window.speakWithGlobalConfig === 'function') {
+        window.speakWithGlobalConfig(speechText, {
+            force: true,
+            interrupt: true,
+            track: false
+        });
+        return;
+    }
+
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+        return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    utterance.lang = 'zh-CN';
+    utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+    window.speechSynthesis.cancel();
+    window.setTimeout(function() {
+        window.speechSynthesis.speak(utterance);
+    }, 30);
 }
 
 function pollJobStatus() {
@@ -140,7 +171,7 @@ function pollJobStatus() {
         })
         .then(function(data) {
             if (!data.success) {
-                throw new Error(data.error || '获取任务状态失败');
+                throw new Error(data.error || '获取处理状态失败，请稍后重试。');
             }
 
             if (data.status === 'completed') {
@@ -153,17 +184,19 @@ function pollJobStatus() {
                 stopProcessingAudio(true);
                 statusText.textContent = '处理失败';
                 errorText.style.display = 'block';
-                errorText.textContent = data.error || '文档处理失败，请返回上传页后重试。';
+                errorText.textContent = data.error || '系统处理失败，请返回上传页后重新尝试。';
+                speakFailure(errorText.textContent);
                 return;
             }
 
-            statusText.textContent = '系统仍在处理中，正在准备总结与练习题……';
+            statusText.textContent = '系统仍在后台处理，请继续等待。';
             window.setTimeout(pollJobStatus, 3000);
         })
         .catch(function(error) {
-            statusText.textContent = '获取任务状态失败，正在自动重试……';
+            statusText.textContent = '获取处理状态失败，系统会自动重试。';
             errorText.style.display = 'block';
-            errorText.textContent = error.message || '连接状态检查失败，请稍后再试。';
+            errorText.textContent = error.message || '状态查询异常，请稍后再试。';
+            speakFailure(errorText.textContent);
             window.setTimeout(pollJobStatus, 5000);
         });
 }
