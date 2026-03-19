@@ -765,12 +765,50 @@
             }
         }
 
+        async function saveSelectedPost() {
+            const post = getCurrentPost();
+            if (!post) {
+                speakFeedback('当前没有可保存的帖子。');
+                return;
+            }
+            const button = listNode.querySelector(`button[data-save-post-id="${post.id}"]`);
+            await savePostToNotes(post, button);
+        }
+
+        async function deleteSelectedPost() {
+            const post = getCurrentPost();
+            if (!post) {
+                speakFeedback('当前没有可删除的帖子。');
+                return;
+            }
+            if (!canDeletePost(post)) {
+                speakFeedback('只能删除自己发布的帖子。');
+                return;
+            }
+            if (!window.confirm(`确认删除《${post.title}》吗？`)) {
+                return;
+            }
+
+            const state = await loadState();
+            state.posts = (state.posts || []).filter(function (item) {
+                return item.id !== post.id;
+            });
+            await saveState(state);
+            const removedIndex = Math.max(0, currentPostIds.indexOf(post.id));
+            await refresh();
+            if (currentPostIds.length) {
+                const nextIndex = clamp(removedIndex, 0, currentPostIds.length - 1);
+                setSelectedPost(currentPostIds[nextIndex], { announce: false });
+            }
+            speakFeedback('帖子已删除。');
+        }
+
         function announcePageShortcuts() {
             if (keyboardAnnouncementPlayed) {
                 return;
             }
             keyboardAnnouncementPlayed = true;
-            speakFeedback('当前是学习社区页面。按斜杠聚焦搜索。按上下方向键切换帖子。按回车展开或收起当前帖子。按 L 朗读当前帖子。按 Esc 返回搜索框。');
+            speakFeedback('当前是学习社区页面。按斜杠聚焦搜索。按上下方向键切换帖子。按回车展开或收起当前帖子。按 L 朗读当前帖子。按 U 保存当前帖子到我的笔记。按 Delete 删除当前帖子。按 Esc 返回搜索框。');
         }
 
         function setHint(text) {
@@ -882,28 +920,7 @@
                 return;
             }
 
-            const postId = deleteButton.getAttribute('data-delete-post-id');
-            const post = currentPostsById.get(postId);
-            if (!post) {
-                return;
-            }
-
-            if (!canDeletePost(post)) {
-                speakFeedback('只能删除自己发布的帖子。');
-                return;
-            }
-
-            if (!window.confirm(`确认删除《${post.title}》吗？`)) {
-                return;
-            }
-
-            const state = await loadState();
-            state.posts = (state.posts || []).filter(function (item) {
-                return item.id !== postId;
-            });
-            await saveState(state);
-            await refresh();
-            speakFeedback('帖子已删除。');
+            await deleteSelectedPost();
         });
 
         searchInput.addEventListener('input', function () {
@@ -967,6 +984,18 @@
             if (key === 'l') {
                 event.preventDefault();
                 speakFeedback(buildPostSpeech(getCurrentPost()));
+                return;
+            }
+
+            if (key === 'u') {
+                event.preventDefault();
+                saveSelectedPost();
+                return;
+            }
+
+            if (key === 'delete') {
+                event.preventDefault();
+                deleteSelectedPost();
             }
         }, true);
 
