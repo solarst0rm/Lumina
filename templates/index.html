@@ -205,6 +205,7 @@ window._tutorialPageKey = 'index';
 {% if show_tutorial %}
 window._autoStartTutorial = true;
 {% endif %}
+window._indexWelcomeAnnouncement = {{ welcome_announcement | default('', true) | tojson }};
 
 const PROCESSING_AUDIO_STATE_KEY = 'blind-notes-processing-audio';
 const PROCESSING_STATUS_KEY = 'blind-notes-processing-status';
@@ -812,6 +813,28 @@ setVoiceStatus(DEFAULT_VOICE_STATUS, 'idle');
 document.addEventListener('keydown', handleVoiceHotkeyKeydown, true);
 document.addEventListener('keyup', handleVoiceHotkeyKeyup, true);
 document.addEventListener('keydown', handleUploadPageHotkeys, true);
+
+if (window._indexWelcomeAnnouncement) {
+    window.setTimeout(function() {
+        if (typeof window.speakWithGlobalConfig === 'function') {
+            window.speakWithGlobalConfig(window._indexWelcomeAnnouncement, {
+                force: true,
+                interrupt: true,
+                track: false,
+                delayMs: 80
+            });
+            return;
+        }
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+            return;
+        }
+        window.speechSynthesis.cancel();
+        const welcomeUtterance = new SpeechSynthesisUtterance(window._indexWelcomeAnnouncement);
+        welcomeUtterance.lang = 'zh-CN';
+        welcomeUtterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+        window.speechSynthesis.speak(welcomeUtterance);
+    }, 260);
+}
 
 uploadForm.addEventListener('submit', function(e) {
     if (uploadForm.dataset.processingSubmit === 'true') {

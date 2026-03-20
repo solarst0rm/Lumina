@@ -1056,7 +1056,12 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             )
 
         show_tutorial = bool(session.pop("show_tutorial_once", False))
-        return render_template("index.html", show_tutorial=show_tutorial)
+        welcome_announcement = session.pop("index_welcome_announcement", "")
+        return render_template(
+            "index.html",
+            show_tutorial=show_tutorial,
+            welcome_announcement=welcome_announcement,
+        )
 
     @app.route("/tutorial/demo/result")
     @login_required
@@ -1621,6 +1626,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             user = User.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
                 login_user(user)
+                session["index_welcome_announcement"] = "欢迎来到聆光一闪，按 F 打开新手教程，按 H 打开使用帮助，按 U 开始上传文档。"
                 pending_username = session.pop("pending_tutorial_username", None)
                 if pending_username == user.username and not user.has_seen_tutorial:
                     user.has_seen_tutorial = True

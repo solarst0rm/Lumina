@@ -647,15 +647,14 @@
             </div>
             <nav>
                 <ul class="sidebar-nav">
-                    <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}"><i class="fas fa-upload"></i> 上传资料</a></li>
+                    <li><a id="sidebar-link-index" href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}"><i class="fas fa-upload"></i> 上传资料</a></li>
                     {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('my_notes') }}" class="{% if request.path.startswith(url_for('my_notes')) %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
+                    <li><a id="sidebar-link-my-notes" href="{{ url_for('my_notes') }}" class="{% if request.path.startswith(url_for('my_notes')) %}active{% endif %}"><i class="fas fa-book"></i> 我的笔记</a></li>
                     {% endif %}
-                    <li><a href="{{ url_for('mistake_notebook') }}" class="{% if request.path.startswith(url_for('mistake_notebook')) %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
+                    <li><a id="sidebar-link-mistakes" href="{{ url_for('mistake_notebook') }}" class="{% if request.path.startswith(url_for('mistake_notebook')) %}active{% endif %}"><i class="fas fa-clipboard-list"></i> 错题本</a></li>
                     {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
+                    <li><a id="sidebar-link-community" href="{{ url_for('learning_community') }}" class="{% if request.endpoint == 'learning_community' %}active{% endif %}"><i class="fas fa-users"></i> 学习社区</a></li>
                     {% endif %}
-                    <li><a href="#" onclick="showHelp()"><i class="fas fa-question-circle"></i> 使用帮助</a></li>
                 </ul>
             </nav>
         </aside>
@@ -673,6 +672,15 @@
                         onclick="if(typeof startTutorial==='function'){startTutorial();}else if(typeof window.startTutorial==='function'){window.startTutorial();}"
                     >
                         <i class="fas fa-graduation-cap"></i> 新手教程 [F]
+                    </button>
+                    <button
+                        id="page-help-trigger"
+                        type="button"
+                        class="btn btn-secondary"
+                        title="当前页面使用帮助（H）"
+                        onclick="if(typeof showHelp==='function'){showHelp();}"
+                    >
+                        <i class="fas fa-question-circle"></i> 使用帮助 [H]
                     </button>
                     {% if current_user.is_authenticated %}
                         <span>欢迎, {{ current_user.username }}</span>
@@ -764,6 +772,7 @@
         window._appUrls = {
             index: {{ url_for('index') | tojson }},
             myNotes: {{ (url_for('my_notes') if current_user.is_authenticated else '') | tojson }},
+            mistakes: {{ url_for('mistake_notebook') | tojson }},
             community: {{ (url_for('learning_community') if current_user.is_authenticated else '') | tojson }},
             tutorialDemoResult: {{ (url_for('tutorial_demo_result') if current_user.is_authenticated else '') | tojson }},
             tutorialDemoChallenge: {{ (url_for('tutorial_demo_challenge') if current_user.is_authenticated else '') | tojson }},
@@ -780,12 +789,11 @@
             if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {
                 window.closeAIAssistant();
             }
-            if(window.speechSynthesis) {
-                // 触发 H 键帮助
-                document.dispatchEvent(new KeyboardEvent('keydown', {key:'h', bubbles:true}));
-            } else {
-                alert('使用帮助：\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← → 上/下一段\nCtrl + ↑ / Ctrl + ↓ 调整语速\n点击顶部“新手教程”或按 F 开始教程\nH - 帮助');
+            if (typeof window.openKeyboardHelpOverlay === 'function') {
+                window.openKeyboardHelpOverlay();
+                return;
             }
+            alert('使用帮助暂时不可用，请稍后重试。');
         }
     </script>
 

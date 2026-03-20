@@ -484,69 +484,10 @@ document.addEventListener('keydown', function(e) {
 
   if(k === 'h') {
     e.preventDefault();
-    var existingHelp = document.getElementById('help-overlay');
-    if(existingHelp) {
-      existingHelp.remove();
-      window._helpOverlayOpen = false;
-      window.speechSynthesis.cancel();
-      notifyAIAssistantAvailability();
-      return;
+    if (typeof window.showHelp === 'function') {
+      window.showHelp();
     }
-    closeAIAssistantIfOpen();
-    window._helpOverlayOpen = true;
-    notifyAIAssistantAvailability();
-    var overlay = document.createElement('div');
-    overlay.id = 'help-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    var box = document.createElement('div');
-    box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:500px;font-size:15px;line-height:1.8;white-space:pre-wrap;';
-    var isResultPage = !!document.getElementById('btn-download-summary');
-    var isSavedNotePage = window._resultPageMode === 'note';
-    var isUploadPage = !!document.getElementById('uploadForm');
-    var isMyNotesPage = !!window._myNotesPageActive;
-    var overlayHelpText = '';
-    if (isMyNotesPage) {
-      overlayHelpText = '【我的笔记页快捷键】\nTab - 在文件夹、笔记卡片和按钮之间切换\nEnter - 打开当前笔记或文件夹\nF2 - 重命名当前聚焦的文件夹\nM - 移动当前聚焦的笔记或文件夹\nDelete / Backspace - 删除当前聚焦的笔记或文件夹\n+ - 新建文件夹\nCtrl+Space - 唤醒语音助手并聚焦输入框\n长按空格 - 直接语音输入，松开发送\nEsc - 退出输入框、关闭弹窗或关闭语音助手\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
-    } else if (isResultPage) {
-      overlayHelpText = isSavedNotePage
-        ? '【历史笔记页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← / → - 上一段或下一段\nB - 生成总结盲文  D - 下载总结文档\nE - 进入练习闯关\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助'
-        : '【结果页快捷键】\nS - 朗读总结  空格 - 暂停/继续  X - 停止\n← / → - 上一段或下一段\nB - 生成总结盲文  D - 下载总结文档\nE - 前往例题  R - 上传新文件\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
-    } else if (isUploadPage) {
-      overlayHelpText = '【上传页快捷键】\nU - 上传文档\nEnter - 开始处理\nR - 重置\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
-    } else {
-      overlayHelpText = '【朗读控制】\nS - 朗读总结  E - 朗读例题\n空格 - 暂停/继续  X - 停止\n← - 上一段  → - 下一段\n\n【语速调整】\nCtrl + ↑ - 加速  Ctrl + ↓ - 减速\n\n【其他】\n点击侧边栏“新手教程”按钮可重新开始教程\nH - 关闭帮助';
-    }
-    box.textContent = overlayHelpText;
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    overlay.onclick = function() {
-      overlay.remove();
-      window._helpOverlayOpen = false;
-      window.speechSynthesis.cancel();
-      notifyAIAssistantAvailability();
-    };
-    var helpText = '';
-    if (isMyNotesPage) {
-      helpText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 键或 Backspace 键删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
-    } else if (isResultPage) {
-      helpText = isSavedNotePage
-        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。按 Ctrl 加上键或 Ctrl 加下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
-        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左键和右键切换上一段和下一段。按 Ctrl 加上键或 Ctrl 加下键调整语速。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文件。';
-    } else if (isUploadPage) {
-      helpText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
-    } else {
-      helpText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左键进入上一段。右键进入下一段。按 Ctrl 加上键加速，按 Ctrl 加下键减速。点击侧边栏新手教程按钮可重新开始教程。';
-    }
-    window.speechSynthesis.cancel();
-    var msg = new SpeechSynthesisUtterance(helpText);
-    msg.lang = 'zh-CN'; msg.rate = typeof window._rate === 'number' ? window._rate : 1;
-    msg.onend = function() {
-      var el = document.getElementById('help-overlay');
-      if(el) el.remove();
-      window._helpOverlayOpen = false;
-      notifyAIAssistantAvailability();
-    };
-    window.speechSynthesis.speak(msg);
+    return;
   }
 
   var plusPressed = e.key === '+' || e.code === 'NumpadAdd' || (e.code === 'Equal' && e.shiftKey);
@@ -706,6 +647,15 @@ document.addEventListener('keydown', function(e) {
     return !!window.speechSynthesis;
   }
 
+  function isEditableTarget(target) {
+    return !!(target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    ));
+  }
+
   function closeHelpOverlay() {
     var existing = document.getElementById('help-overlay');
     if (existing) {
@@ -720,102 +670,98 @@ document.addEventListener('keydown', function(e) {
     }
   }
 
+  function getUniversalHelpLines() {
+    return [
+      'F - 打开当前页面新手教程',
+      'H - 打开或关闭使用帮助',
+      'Ctrl + 1 - 前往上传文档',
+      'Ctrl + 2 - 前往我的笔记',
+      'Ctrl + 3 - 前往错题本',
+      'Ctrl + 4 - 前往学习社区',
+      'Esc - 关闭使用帮助'
+    ];
+  }
+
   function buildHelpContent() {
-    var isResultPage = !!document.getElementById('btn-download-summary');
-    var isSavedNotePage = window._resultPageMode === 'note';
     var isUploadPage = !!document.getElementById('uploadForm');
     var isMyNotesPage = !!window._myNotesPageActive;
-    var overlayText = '';
-    var speechText = '';
+    var isMistakePage = !!document.getElementById('mistake-document-view');
+    var isCommunityPage = !!document.getElementById('community-search-input');
+    var isResultPage = !!document.getElementById('btn-download-summary');
+    var universalLines = getUniversalHelpLines();
+    var pageName = '当前页面';
+    var pageLines = [];
 
-    if (isMyNotesPage) {
-      overlayText = [
-        '【我的笔记页快捷键】',
-        'Tab - 在文件夹、笔记卡片和按钮之间切换',
+    if (isUploadPage) {
+      pageName = '上传文档';
+      pageLines = [
+        'U - 选择并上传文档',
+        'Enter - 开始处理',
+        'R - 重置上传表单',
+        '长按 V - 语音输入处理需求，松开发送'
+      ];
+    } else if (isMyNotesPage) {
+      pageName = '我的笔记';
+      pageLines = [
+        'Tab - 在文件夹、笔记和按钮之间切换',
         'Enter - 打开当前笔记或文件夹',
         'F2 - 重命名当前聚焦的文件夹',
         'M - 移动当前聚焦的笔记或文件夹',
         'Delete / Backspace - 删除当前聚焦的笔记或文件夹',
         '+ - 新建文件夹',
-        'Ctrl+Space - 唤醒语音助手并聚焦输入框',
-        '长按空格 - 直接语音输入，松开发送',
-        'Esc - 退出输入框、关闭弹窗或关闭语音助手',
-        '',
-        '【其他】',
-        '点击侧边栏“新手教程”按钮可重新开始教程',
-        'H - 关闭帮助'
-      ].join('\n');
-      speechText = '按 H 键可关闭。快捷键说明。Tab 键在文件夹、笔记和按钮之间切换。回车键打开当前笔记或文件夹。F2 键重命名当前聚焦的文件夹。M 键移动当前聚焦的笔记或文件夹。Delete 或 Backspace 删除当前聚焦的笔记或文件夹。加号键新建文件夹。Ctrl 加空格唤醒语音助手并聚焦输入框。长按空格可以直接语音输入，松开发送。Esc 键可以退出输入框、关闭弹窗，或关闭语音助手。';
-      return { overlayText: overlayText, speechText: speechText };
+        'Ctrl + Space - 打开 AI 助手',
+        '长按空格 - 直接语音输入，松开发送'
+      ];
+    } else if (isMistakePage) {
+      pageName = '错题本';
+      pageLines = [
+        '左右方向键 - 切换文档或题目',
+        'Enter - 进入当前文档或开始重做',
+        'Backspace - 返回文档列表',
+        'R - 重读当前内容'
+      ];
+    } else if (isCommunityPage) {
+      pageName = '学习社区';
+      pageLines = [
+        '/ - 聚焦搜索框',
+        '上 / 下方向键 - 切换帖子',
+        'Enter - 展开或收起当前帖子',
+        'L - 朗读当前帖子',
+        '空格 - 暂停或继续朗读',
+        'U - 保存当前帖子到我的笔记',
+        'Delete - 删除当前帖子'
+      ];
+    } else if (isResultPage) {
+      pageName = '文档总结';
+      pageLines = [
+        'S - 朗读总结',
+        '空格 - 暂停或继续',
+        'X - 停止朗读',
+        '左 / 右方向键 - 切换上一段或下一段',
+        'B - 生成总结盲文',
+        'D - 下载总结文档',
+        'E - 前往例题'
+      ];
+    } else {
+      pageLines = [
+        '按 F 打开当前页面新手教程',
+        '按 H 打开当前页面使用帮助'
+      ];
     }
 
-    if (isResultPage) {
-      overlayText = isSavedNotePage
-        ? [
-            '【历史笔记页快捷键】',
-            'S - 朗读总结',
-            '空格 - 暂停或继续',
-            'X - 停止朗读',
-            '← / → - 上一段或下一段',
-            'B - 生成总结盲文',
-            'D - 下载总结文档',
-            'E - 进入练习闯关',
-            '',
-            '【其他】',
-            '点击侧边栏“新手教程”按钮可重新开始教程',
-            'H - 关闭帮助'
-          ].join('\n')
-        : [
-            '【结果页快捷键】',
-            'S - 朗读总结',
-            '空格 - 暂停或继续',
-            'X - 停止朗读',
-            '← / → - 上一段或下一段',
-            'B - 生成总结盲文',
-            'D - 下载总结文档',
-            'E - 前往例题',
-            'R - 上传新文档',
-            '',
-            '【其他】',
-            '点击侧边栏“新手教程”按钮可重新开始教程',
-            'H - 关闭帮助'
-          ].join('\n');
-      speechText = isSavedNotePage
-        ? '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。B 键生成总结盲文。D 键下载总结文档。E 键进入练习闯关。'
-        : '按 H 键可关闭。快捷键说明。S 键朗读总结。空格键暂停或继续。X 键停止。左右箭头切换上一段和下一段。B 键生成总结盲文。D 键下载总结文档。E 键前往例题。R 键上传新文档。';
-      return { overlayText: overlayText, speechText: speechText };
-    }
+    var overlayLines = [
+      '【' + pageName + '使用帮助】',
+      ''
+    ].concat(pageLines).concat(['', '【通用快捷键】']).concat(universalLines);
 
-    if (isUploadPage) {
-      overlayText = [
-        '【上传页快捷键】',
-        'U - 上传文档',
-        'Enter - 开始处理',
-        'R - 重置',
-        '',
-        '【其他】',
-        '点击侧边栏“新手教程”按钮可重新开始教程',
-        'H - 关闭帮助'
-      ].join('\n');
-      speechText = '按 H 键可关闭。快捷键说明。U 键上传文档。回车键开始处理。R 键重置。';
-      return { overlayText: overlayText, speechText: speechText };
-    }
+    var speechText = '欢迎来到使用帮助，当前页面是' + pageName + '，按 Esc 随时关闭使用帮助。' +
+      pageLines.join('。') + '。通用快捷键有：' + universalLines.join('。') + '。';
 
-    overlayText = [
-      '【朗读控制】',
-      'S - 朗读总结',
-      'E - 朗读例题',
-      '空格 - 暂停或继续',
-      'X - 停止朗读',
-      '← - 上一段',
-      '→ - 下一段',
-      '',
-      '【其他】',
-      '点击侧边栏“新手教程”按钮可重新开始教程',
-      'H - 关闭帮助'
-    ].join('\n');
-    speechText = '按 H 键可关闭。快捷键说明。S 键朗读总结。E 键朗读例题。空格键暂停或继续。X 键停止。左箭头上一段。右箭头下一段。点击侧边栏新手教程按钮可重新开始教程。';
-    return { overlayText: overlayText, speechText: speechText };
+    return {
+      pageName: pageName,
+      overlayText: overlayLines.join('\n'),
+      speechText: speechText
+    };
   }
 
   function openHelpOverlay() {
@@ -835,26 +781,37 @@ document.addEventListener('keydown', function(e) {
     var content = buildHelpContent();
     var overlay = document.createElement('div');
     overlay.id = 'help-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
 
     var box = document.createElement('div');
-    box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:500px;font-size:15px;line-height:1.8;white-space:pre-wrap;';
+    box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:560px;width:min(560px,100%);font-size:15px;line-height:1.8;white-space:pre-wrap;box-shadow:0 20px 40px rgba(0,0,0,0.25);';
     box.textContent = content.overlayText;
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    overlay.onclick = closeHelpOverlay;
+    overlay.addEventListener('click', function(event) {
+      if (event.target === overlay) {
+        closeHelpOverlay();
+      }
+    });
 
     if (!hasSpeechSupport()) {
+      return;
+    }
+
+    if (typeof window.speakWithGlobalConfig === 'function') {
+      window.speakWithGlobalConfig(content.speechText, {
+        force: true,
+        interrupt: true,
+        track: false,
+        delayMs: 60
+      });
       return;
     }
 
     var msg = new SpeechSynthesisUtterance(content.speechText);
     msg.lang = 'zh-CN';
     msg.rate = typeof window._rate === 'number' ? window._rate : 1;
-    msg.onend = function() {
-      closeHelpOverlay();
-    };
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);
   }
@@ -863,19 +820,22 @@ document.addEventListener('keydown', function(e) {
   window.openKeyboardHelpOverlay = openHelpOverlay;
 
   document.addEventListener('keydown', function(event) {
+    var key = String(event.key || '').toLowerCase();
+
+    if (window._helpOverlayOpen && key === 'escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeHelpOverlay();
+      return;
+    }
+
     if (event.altKey || event.ctrlKey || event.metaKey) {
       return;
     }
-    var editable = event.target && (
-      event.target.tagName === 'INPUT' ||
-      event.target.tagName === 'TEXTAREA' ||
-      event.target.tagName === 'SELECT' ||
-      event.target.isContentEditable
-    );
-    if (editable) {
+    if (isEditableTarget(event.target)) {
       return;
     }
-    if ((event.key || '').toLowerCase() !== 'h') {
+    if (key !== 'h') {
       return;
     }
     event.preventDefault();
@@ -1096,5 +1056,51 @@ document.addEventListener('keydown', function(e) {
   } else {
     bindRatePanel();
   }
+})();
+
+(function() {
+  function isEditableTarget(target) {
+    return !!(target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    ));
+  }
+
+  function getNavigationUrl(key) {
+    var appUrls = window._appUrls || {};
+    if (key === '1') return appUrls.index || '';
+    if (key === '2') return appUrls.myNotes || '';
+    if (key === '3') return appUrls.mistakes || '';
+    if (key === '4') return appUrls.community || '';
+    return '';
+  }
+
+  document.addEventListener('keydown', function(event) {
+    if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    if (isEditableTarget(event.target)) {
+      return;
+    }
+    if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {
+      return;
+    }
+
+    var key = String(event.key || '');
+    if (key !== '1' && key !== '2' && key !== '3' && key !== '4') {
+      return;
+    }
+
+    var targetUrl = getNavigationUrl(key);
+    if (!targetUrl) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    window.location.href = targetUrl;
+  }, true);
 })();
 
