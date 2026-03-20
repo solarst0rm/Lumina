@@ -798,6 +798,257 @@
     </script>
 
     <!-- 盲人视角聚光灯 -->
+    <script>
+        (function () {
+            function hasSpeechSupport() {
+                return !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+            }
+
+            function isEditableTarget(target) {
+                return !!(target && (
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.tagName === 'SELECT' ||
+                    target.isContentEditable
+                ));
+            }
+
+            function getUniversalHelpLines() {
+                return [
+                    'F - 打开当前页面新手教程',
+                    'H - 打开或关闭使用帮助',
+                    'Shift + 1 - 前往上传文档',
+                    'Shift + 2 - 前往我的笔记',
+                    'Shift + 3 - 前往错题本',
+                    'Shift + 4 - 前往学习社区',
+                    'Esc - 关闭使用帮助'
+                ];
+            }
+
+            function buildPageHelpContent() {
+                var isUploadPage = !!document.getElementById('uploadForm');
+                var isMyNotesPage = !!window._myNotesPageActive;
+                var isMistakePage = !!document.getElementById('mistake-document-view');
+                var isCommunityPage = !!document.getElementById('community-search-input');
+                var isResultPage = !!document.getElementById('btn-download-summary');
+                var pageName = '当前页面';
+                var pageLines = [];
+
+                if (isUploadPage) {
+                    pageName = '上传文档';
+                    pageLines = [
+                        'U - 选择并上传文档',
+                        'Enter - 开始处理',
+                        'R - 重置上传表单',
+                        '长按 V - 语音输入处理需求，松开发送'
+                    ];
+                } else if (isMyNotesPage) {
+                    pageName = '我的笔记';
+                    pageLines = [
+                        'Tab - 在文件夹、笔记和按钮之间切换',
+                        'Enter - 打开当前笔记或文件夹',
+                        'F2 - 重命名当前聚焦的文件夹',
+                        'M - 移动当前聚焦的笔记或文件夹',
+                        'Delete / Backspace - 删除当前聚焦的笔记或文件夹',
+                        '+ - 新建文件夹',
+                        'Ctrl + Space - 打开 AI 助手',
+                        '长按空格 - 直接语音输入，松开发送'
+                    ];
+                } else if (isMistakePage) {
+                    pageName = '错题本';
+                    pageLines = [
+                        '左 / 右方向键 - 切换文档或题目',
+                        'Enter - 进入当前文档或开始重做',
+                        'Backspace - 返回文档列表',
+                        'R - 重读当前内容'
+                    ];
+                } else if (isCommunityPage) {
+                    pageName = '学习社区';
+                    pageLines = [
+                        '/ - 聚焦搜索框',
+                        '上 / 下方向键 - 切换帖子',
+                        'Enter - 展开或收起当前帖子',
+                        'L - 朗读当前帖子',
+                        '空格 - 暂停或继续朗读',
+                        'U - 保存当前帖子到我的笔记',
+                        'Delete - 删除当前帖子'
+                    ];
+                } else if (isResultPage) {
+                    pageName = '文档总结';
+                    pageLines = [
+                        'S - 朗读总结',
+                        '空格 - 暂停或继续',
+                        'X - 停止朗读',
+                        '左 / 右方向键 - 切换上一个或下一个标题',
+                        'B - 生成总结盲文',
+                        'D - 下载总结文档',
+                        'E - 前往例题'
+                    ];
+                } else {
+                    pageLines = [
+                        'F - 打开当前页面新手教程',
+                        'H - 打开当前页面使用帮助'
+                    ];
+                }
+
+                var universalLines = getUniversalHelpLines();
+                var overlayLines = [
+                    '【' + pageName + '使用帮助】',
+                    ''
+                ].concat(pageLines).concat(['', '【通用快捷键】']).concat(universalLines);
+
+                var speechText = '欢迎来到使用帮助，当前页面是' + pageName + '，按 Esc 随时关闭使用帮助。' +
+                    pageLines.join('。') + '。通用快捷键有：' + universalLines.join('。') + '。';
+
+                return {
+                    overlayText: overlayLines.join('\n'),
+                    speechText: speechText
+                };
+            }
+
+            function closePageHelpOverlay() {
+                var existing = document.getElementById('help-overlay');
+                if (existing) {
+                    existing.remove();
+                }
+                window._helpOverlayOpen = false;
+                if (hasSpeechSupport()) {
+                    window.speechSynthesis.cancel();
+                }
+                if (typeof notifyAIAssistantAvailability === 'function') {
+                    notifyAIAssistantAvailability();
+                }
+            }
+
+            function openPageHelpOverlay() {
+                var existing = document.getElementById('help-overlay');
+                if (existing) {
+                    closePageHelpOverlay();
+                    return;
+                }
+
+                if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {
+                    window.closeAIAssistant();
+                }
+
+                window._helpOverlayOpen = true;
+                if (typeof notifyAIAssistantAvailability === 'function') {
+                    notifyAIAssistantAvailability();
+                }
+
+                var content = buildPageHelpContent();
+                var overlay = document.createElement('div');
+                overlay.id = 'help-overlay';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+                var box = document.createElement('div');
+                box.style.cssText = 'background:white;padding:24px 32px;border-radius:12px;max-width:560px;width:min(560px,100%);font-size:15px;line-height:1.8;white-space:pre-wrap;box-shadow:0 20px 40px rgba(0,0,0,0.25);';
+                box.textContent = content.overlayText;
+                overlay.appendChild(box);
+                overlay.addEventListener('click', function(event) {
+                    if (event.target === overlay) {
+                        closePageHelpOverlay();
+                    }
+                });
+                document.body.appendChild(overlay);
+
+                if (!hasSpeechSupport()) {
+                    return;
+                }
+
+                if (typeof window.speakWithGlobalConfig === 'function') {
+                    window.speakWithGlobalConfig(content.speechText, {
+                        force: true,
+                        interrupt: true,
+                        track: false,
+                        delayMs: 60
+                    });
+                    return;
+                }
+
+                var utterance = new SpeechSynthesisUtterance(content.speechText);
+                utterance.lang = 'zh-CN';
+                utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utterance);
+            }
+
+            function getNavigationUrl(key) {
+                var appUrls = window._appUrls || {};
+                if (key === '1') return appUrls.index || '';
+                if (key === '2') return appUrls.myNotes || '';
+                if (key === '3') return appUrls.mistakes || '';
+                if (key === '4') return appUrls.community || '';
+                return '';
+            }
+
+            function isNavigationDigit(key) {
+                return key === '1' || key === '2' || key === '3' || key === '4';
+            }
+
+            window.showHelp = openPageHelpOverlay;
+            window.openKeyboardHelpOverlay = openPageHelpOverlay;
+
+            window.addEventListener('keydown', function(event) {
+                if (event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) {
+                    return;
+                }
+
+                var key = String(event.key || '').toLowerCase();
+                if (key === 'h') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (typeof event.stopImmediatePropagation === 'function') {
+                        event.stopImmediatePropagation();
+                    }
+                    openPageHelpOverlay();
+                    return;
+                }
+
+                if (key === 'escape' && window._helpOverlayOpen) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (typeof event.stopImmediatePropagation === 'function') {
+                        event.stopImmediatePropagation();
+                    }
+                    closePageHelpOverlay();
+                }
+            }, true);
+
+            window.addEventListener('keydown', function(event) {
+                var key = String(event.key || '');
+                if (!isNavigationDigit(key) || isEditableTarget(event.target)) {
+                    return;
+                }
+                if (event.ctrlKey && !event.altKey && !event.metaKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (typeof event.stopImmediatePropagation === 'function') {
+                        event.stopImmediatePropagation();
+                    }
+                    return;
+                }
+                if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
+                if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {
+                    return;
+                }
+
+                var targetUrl = getNavigationUrl(key);
+                if (!targetUrl) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === 'function') {
+                    event.stopImmediatePropagation();
+                }
+                window.location.href = targetUrl;
+            }, true);
+        })();
+    </script>
     <div id="blind-spotlight-overlay"></div>
     <button id="blind-spotlight-toggle" title="视障体验模式" aria-label="视障体验模式" aria-pressed="false">
         <i class="fas fa-eye"></i>
