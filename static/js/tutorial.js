@@ -5,6 +5,8 @@
     const DEMO_UPLOAD_NAME = '示例文档.docx';
     const DEMO_PROMPT = '请先生成结构清晰的文档总结，再给我一组适合入门练习的例题。';
 
+    const COMMUNITY_TUTORIAL_SAVE_KEY = 'blind-notes-community-tutorial-demo-save-v1';
+
     const state = {
         active: false,
         flow: null,
@@ -394,6 +396,8 @@
             flow.onFinish(reason);
         }
 
+        clearCommunityTutorialDemoSaved();
+
         if (typeof window.stopCurrentSpeech === 'function') {
             window.stopCurrentSpeech();
         } else if (window.speechSynthesis && typeof window.speechSynthesis.cancel === 'function') {
@@ -583,6 +587,69 @@
     function isDemoSelectionReady() {
         const fileInput = document.getElementById('file');
         return !!(fileInput && fileInput.dataset.tutorialDemoSelected === '1');
+    }
+
+    function getCommunityDemoSaveButton() {
+        return document.querySelector('#community-post-list .community-post.is-selected button[data-save-post-id]') ||
+            document.querySelector('#community-post-list button[data-save-post-id]') ||
+            null;
+    }
+
+    function setCommunityTutorialDemoSaved(saved) {
+        const storage = getStorage();
+        if (storage) {
+            try {
+                if (saved) {
+                    storage.setItem(COMMUNITY_TUTORIAL_SAVE_KEY, '1');
+                } else {
+                    storage.removeItem(COMMUNITY_TUTORIAL_SAVE_KEY);
+                }
+            } catch (error) {
+                // Ignore session storage failures.
+            }
+        }
+
+        const button = getCommunityDemoSaveButton();
+        if (!button) {
+            return;
+        }
+
+        if (saved) {
+            if (!button.dataset.tutorialOriginalHtml) {
+                button.dataset.tutorialOriginalHtml = button.innerHTML;
+            }
+            button.dataset.saved = '1';
+            button.dataset.tutorialDemoSaved = '1';
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-check"></i> 已演示保存到我的笔记';
+            return;
+        }
+
+        if (button.dataset.tutorialOriginalHtml) {
+            button.innerHTML = button.dataset.tutorialOriginalHtml;
+        }
+        delete button.dataset.saved;
+        delete button.dataset.tutorialDemoSaved;
+        delete button.dataset.tutorialOriginalHtml;
+        button.disabled = false;
+    }
+
+    function restoreCommunityTutorialDemoSaved() {
+        const storage = getStorage();
+        if (!storage) {
+            return;
+        }
+        try {
+            if (storage.getItem(COMMUNITY_TUTORIAL_SAVE_KEY) === '1') {
+                setCommunityTutorialDemoSaved(true);
+            }
+        } catch (error) {
+            // Ignore session storage failures.
+        }
+    }
+
+    function clearCommunityTutorialDemoSaved() {
+        setCommunityTutorialDemoSaved(false);
     }
 
     function getSummaryActiveHash() {
@@ -1147,10 +1214,10 @@
                     api.speak('当前帖子暂时不能保存到我的笔记。');
                     return;
                 }
-                button.click();
+                setCommunityTutorialDemoSaved(true);
                 api.waitFor(function () {
                     return button.dataset.saved === '1';
-                }, { announceNext: true, timeoutMs: 2600 });
+                }, { announceNext: true, timeoutMs: 600 });
             },
         });
 
@@ -1417,6 +1484,7 @@
         window.addEventListener('keydown', onWindowKeydown, true);
         window.addEventListener('resize', handleViewportChange);
         document.addEventListener('scroll', handleViewportChange, true);
+        restoreCommunityTutorialDemoSaved();
         resumeTutorialIfNeeded();
     }
 

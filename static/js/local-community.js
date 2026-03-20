@@ -649,6 +649,8 @@
         let currentPostIds = [];
         let selectedPostId = '';
         let keyboardAnnouncementPlayed = false;
+        let currentSpeechPostId = '';
+        let currentSpeechText = '';
 
         if (fileToggle && isFilePersistenceSupported()) {
             fileToggle.style.display = '';
@@ -688,6 +690,71 @@
                 body || '暂无内容',
                 isExpanded ? '已展开全文。' : '按回车可展开全文。'
             ].filter(Boolean).join('。');
+        }
+
+        function startPostSpeech(post) {
+            if (!post) {
+                speakFeedback('当前没有可朗读的帖子。');
+                return;
+            }
+
+            const text = buildPostSpeech(post);
+            if (!text) {
+                speakFeedback('当前帖子没有可朗读的内容。');
+                return;
+            }
+
+            currentSpeechPostId = post.id;
+            currentSpeechText = text;
+
+            if (typeof window.speakWithGlobalConfig === 'function') {
+                window.speakWithGlobalConfig(text, {
+                    force: true,
+                    interrupt: true,
+                    track: true,
+                    delayMs: 30,
+                });
+                return;
+            }
+
+            if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+                return;
+            }
+
+            try {
+                window.speechSynthesis.cancel();
+            } catch (error) {
+                // Ignore cancel failures.
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = typeof window._rate === 'number' ? window._rate : 1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function togglePostSpeechPause() {
+            if (!window.speechSynthesis) {
+                return;
+            }
+
+            if (window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+                return;
+            }
+
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.pause();
+                return;
+            }
+
+            const post = (currentSpeechPostId && currentPostsById.get(currentSpeechPostId)) || getCurrentPost();
+            if (post && currentSpeechText) {
+                startPostSpeech(post);
+                return;
+            }
+
+            speakFeedback('当前没有正在朗读的帖子。');
         }
 
         function scrollSelectedPostIntoView() {
@@ -983,7 +1050,13 @@
 
             if (key === 'l') {
                 event.preventDefault();
-                speakFeedback(buildPostSpeech(getCurrentPost()));
+                startPostSpeech(getCurrentPost());
+                return;
+            }
+
+            if (key === ' ' || key === 'spacebar') {
+                event.preventDefault();
+                togglePostSpeechPause();
                 return;
             }
 
@@ -1029,7 +1102,13 @@
 
         await updateHint();
         await refresh();
-        setTimeout(announcePageShortcuts, 420);
+        setTimeout(function () {
+            if (keyboardAnnouncementPlayed) {
+                return;
+            }
+            keyboardAnnouncementPlayed = true;
+            speakFeedback('当前是学习社区页面。按斜杠聚焦搜索。按上下方向键切换帖子。按回车展开或收起当前帖子。按 L 朗读当前帖子。按空格暂停或继续朗读。按 U 保存当前帖子到我的笔记。按 Delete 删除当前帖子。按 Esc 回到搜索框。');
+        }, 420);
     }
 
     window.LocalCommunity = {
