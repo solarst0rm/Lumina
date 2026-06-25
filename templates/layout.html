@@ -838,12 +838,11 @@
 
             function getUniversalHelpLines() {
                 return [
-                    'F - 打开当前页面新手教程',
-                    'H - 打开或关闭使用帮助',
-                    'Shift + 1 - 前往上传文档',
-                    'Shift + 2 - 前往我的笔记',
-                    'Shift + 3 - 前往错题本',
-                    'Shift + 4 - 前往学习社区',
+                    'Alt + H - 打开或关闭使用帮助',
+                    'Alt + 1 - 前往上传文档',
+                    'Alt + 2 - 前往我的笔记',
+                    'Alt + 3 - 前往错题本',
+                    'Alt + 4 - 前往学习社区',
                     'Esc - 关闭使用帮助'
                 ];
             }
@@ -860,10 +859,10 @@
                 if (isUploadPage) {
                     pageName = '上传文档';
                     pageLines = [
-                        'U - 选择并上传文档',
+                        'Alt + J - 选择并上传文档',
                         'Enter - 开始处理',
-                        'R - 重置上传表单',
-                        '长按 V - 语音输入处理需求，松开发送'
+                        'Alt + R - 重置上传表单',
+                        '长按 Alt + V - 语音输入处理需求，松开发送'
                     ];
                 } else if (isMyNotesPage) {
                     pageName = '我的笔记';
@@ -899,18 +898,17 @@
                 } else if (isResultPage) {
                     pageName = '文档总结';
                     pageLines = [
-                        'S - 朗读总结',
-                        '空格 - 暂停或继续',
-                        'X - 停止朗读',
-                        '左 / 右方向键 - 切换上一个或下一个标题',
-                        'B - 生成总结盲文',
-                        'D - 下载总结文档',
-                        'E - 前往例题'
+                        'Alt + S - 朗读总结',
+                        'Alt + P - 暂停或继续',
+                        'Alt + X - 停止朗读',
+                        'Alt + 左 / 右方向键 - 切换上一个或下一个标题',
+                        'Alt + B - 生成总结盲文',
+                        'Alt + D - 下载总结文档',
+                        'Alt + E - 前往例题'
                     ];
                 } else {
                     pageLines = [
-                        'F - 打开当前页面新手教程',
-                        'H - 打开当前页面使用帮助'
+                        'Alt + H - 打开当前页面使用帮助'
                     ];
                 }
 
@@ -1013,12 +1011,12 @@
             window.openKeyboardHelpOverlay = openPageHelpOverlay;
 
             window.addEventListener('keydown', function(event) {
-                if (event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) {
+                if (event.ctrlKey || event.metaKey || isEditableTarget(event.target) || (event.altKey && event.shiftKey)) {
                     return;
                 }
 
                 var key = String(event.key || '').toLowerCase();
-                if (key === 'h') {
+                if (event.altKey && key === 'h') {
                     event.preventDefault();
                     event.stopPropagation();
                     if (typeof event.stopImmediatePropagation === 'function') {
@@ -1051,7 +1049,7 @@
                     }
                     return;
                 }
-                if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+                if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) {
                     return;
                 }
                 if (window._tutorialActive || window._helpOverlayOpen || window._aiWindowOpen) {

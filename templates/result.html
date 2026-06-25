@@ -265,11 +265,11 @@
 <div class="card" style="padding: 15px; margin-bottom: 15px;">
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <strong style="color: var(--primary-color);">语音控制：</strong>
-        <button type="button" class="btn" id="summary-speech-start" onclick="speakSummary()" title="快捷键 S">
-            <i class="fas fa-volume-up"></i> 朗读总结 [S]
+        <button type="button" class="btn" id="summary-speech-start" onclick="speakSummary()" title="快捷键 Alt+S">
+            <i class="fas fa-volume-up"></i> 朗读总结 [Alt+S]
         </button>
         <button type="button" class="btn btn-secondary" id="summary-speech-toggle" onclick="toggleSpeechPause()">
-            <i class="fas fa-pause"></i> 暂停/继续 [空格]
+            <i class="fas fa-pause"></i> 暂停/继续 [Alt+P]
         </button>
         <button type="button" class="btn btn-danger" id="summary-speech-stop" onclick="stopSpeech()">
             <i class="fas fa-stop"></i> 停止 [X]
@@ -336,12 +336,12 @@
         <div style="margin-top: 15px; display:flex; gap:12px; flex-wrap:wrap;">
             <form id="braille-summary-form" action="{{ url_for('braille_summary') }}" method="post" style="display: inline;">
                 <textarea name="text" style="display:none;">{{ summary }}</textarea>
-                <button type="submit" class="btn btn-secondary" id="btn-braille-summary" title="快捷键 B">
-                    <i class="fas fa-braille"></i> 生成总结盲文 [B]
+                <button type="submit" class="btn btn-secondary" id="btn-braille-summary" title="快捷键 Alt+B">
+                    <i class="fas fa-braille"></i> 生成总结盲文 [Alt+B]
                 </button>
             </form>
-            <a id="btn-download-summary" class="btn" href="{{ download_summary_url or url_for('download_summary') }}" title="快捷键 D">
-                <i class="fas fa-download"></i> 下载总结文档 [D]
+            <a id="btn-download-summary" class="btn" href="{{ download_summary_url or url_for('download_summary') }}" title="快捷键 Alt+D">
+                <i class="fas fa-download"></i> 下载总结文档 [Alt+D]
             </a>
         </div>
     </div>
@@ -356,18 +356,18 @@
             {% endif %}
         </h3>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按 Ctrl + 上下键调整语速。
+            点击“生成练习题”后会进入新的答题页面。你可以直接点选，也可以按住 Alt + V 键进行语音输入；按 A、B、C、D 直接作答，按左右箭头切换题目，按 R 重读，按 Ctrl + 上下键调整语速。
         </p>
         <p style="color: var(--text-secondary); margin-bottom: 18px;">
-            快捷键：B 生成总结盲文，D 下载总结文档，左右方向键按标题跳转，E 前往例题。
+            快捷键：Alt+B 生成总结盲文，Alt+D 下载总结文档，Alt+左右方向键按标题跳转，Alt+E 前往例题。
         </p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a id="btn-gen-exercise" class="btn btn-success" href="{{ challenge_url or url_for('exercise_challenge') }}" title="快捷键 E">
+            <a id="btn-gen-exercise" class="btn btn-success" href="{{ challenge_url or url_for('exercise_challenge') }}" title="快捷键 Alt+E">
                 <i class="fas fa-pencil-alt"></i>
                 {% if page_mode == 'note' and not note_has_exercises %}
-                生成例题并闯关 [E]
+                生成例题并闯关 [Alt+E]
                 {% else %}
-                前往例题 [E]
+                前往例题 [Alt+E]
                 {% endif %}
             </a>
             {% if page_mode == 'note' %}
@@ -383,8 +383,8 @@
             </button>
             {% endif %}
             {% if show_upload_new_file %}
-            <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 R">
-                <i class="fas fa-upload"></i> 上传新文件 [R]
+            <a id="btn-upload-new-file" href="{{ url_for('index') }}" class="btn btn-secondary" title="快捷键 Alt+R">
+                <i class="fas fa-upload"></i> 上传新文件 [Alt+R]
             </a>
             {% elif back_library_url %}
             <a href="{{ back_library_url }}" class="btn btn-secondary">
@@ -799,7 +799,7 @@ if (event.code === 'KeyS') {
             return;
         }
 
-        if (event.code === 'Space' && !event.repeat) {
+        if (event.code === 'KeyP' && !event.repeat) {
             if (window.toggleCurrentSpeechPause && window._speechOwner === 'result-summary') {
                 window.toggleCurrentSpeechPause();
                 event.preventDefault();
@@ -1275,8 +1275,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const pageSpeech = window._resultPageMode === 'note'
-        ? '当前是历史笔记结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 进入练习闯关。'
-        : '当前是文档总结结果页。按 S 朗读总结，按空格暂停或继续，按 X 停止，按左键和右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 B 生成总结盲文，按 D 下载总结文档，按 E 前往例题，按 R 上传新文档。';
+        ? '当前是历史笔记结果页。按 Alt 加 S 朗读总结，按 Alt 加 P 暂停或继续，按 Alt 加 X 停止，按 Alt 加左键和 Alt 加右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 Alt 加 B 生成总结盲文，按 Alt 加 D 下载总结文档，按 Alt 加 E 进入练习闯关。'
+        : '当前是文档总结结果页。按 Alt 加 S 朗读总结，按 Alt 加 P 暂停或继续，按 Alt 加 X 停止，按 Alt 加左键和 Alt 加右键切换上一个或下一个标题，按 Ctrl 加上键和 Ctrl 加下键调整语速，按 Alt 加 B 生成总结盲文，按 Alt 加 D 下载总结文档，按 Alt 加 E 前往例题，按 Alt 加 R 上传新文档。';
     setTimeout(function() {
         if (typeof window.speakWithGlobalConfig === 'function') {
             window.speakWithGlobalConfig(pageSpeech, { force: true });

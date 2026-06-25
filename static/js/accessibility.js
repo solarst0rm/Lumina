@@ -1,4 +1,5 @@
 ﻿// ============== 鏂版墜鏁欑▼绀轰緥鏁版嵁 ==============
+/*
 window._TUTORIAL_SAMPLE_SUMMARY = '# 绗竴绔?浜哄伐鏅鸿兘姒傝堪\n\n浜哄伐鏅鸿兘鏄绠楁満绉戝鐨勪竴涓垎鏀紝鏃ㄥ湪鍒涘缓鑳藉妯℃嫙浜虹被鏅鸿兘鐨勭郴缁熴€俓n\n## 绗竴鑺?瀹氫箟涓庡彂灞昞n\n浜哄伐鏅鸿兘璇炵敓浜庝簩鍗佷笘绾簲鍗佸勾浠ｏ紝缁忓巻浜嗗涓彂灞曢樁娈点€俓n\n# 绗簩绔?鏈哄櫒瀛︿範鍩虹\n\n鏈哄櫒瀛︿範鏄汉宸ユ櫤鑳界殑鏍稿績鎶€鏈箣涓€銆俓n\n## 绗竴鑺?鐩戠潱瀛︿範\n\n鐩戠潱瀛︿範閫氳繃鏍囪鏁版嵁璁粌妯″瀷锛屽父鐢ㄤ簬鍒嗙被鍜屽洖褰掍换鍔°€?;
 
 window._TUTORIAL_SAMPLE_EXERCISE = '## 绗?棰橈紙鍩虹锛塡n\n### 棰樺共\n\n璇风畝杩颁汉宸ユ櫤鑳界殑瀹氫箟銆俓n\n### 绛旀\n\n浜哄伐鏅鸿兘鏄绠楁満绉戝鐨勪竴涓垎鏀紝鏃ㄥ湪妯℃嫙浜虹被鏅鸿兘銆俓n\n### 瑙ｆ瀽\n\n涓€銆佹牳蹇冪洰鏍囨槸妯℃嫙浜虹被鏅鸿兘琛屼负銆俓n浜屻€佸簲鐢ㄥ凡娓楅€忓埌鏃ュ父鐢熸椿銆?;
@@ -205,6 +206,37 @@ window.skipTutorial = function() {
 };
 
 // ============== AI 绐楀彛鐘舵€?==============
+*/
+window._tutorialActive = !!window._tutorialActive;
+window._tutorialStep = typeof window._tutorialStep === 'number' ? window._tutorialStep : 0;
+window._tutorialSpeaking = !!window._tutorialSpeaking;
+window._rate = typeof window.getSpeechDisplayRate === 'function'
+  ? window.getSpeechDisplayRate()
+  : (typeof window._rate === 'number' ? window._rate : 1.0);
+
+function notifyAIAssistantAvailability() {
+  if (typeof window.refreshAIAssistantAvailability === 'function') {
+    window.refreshAIAssistantAvailability();
+  }
+}
+
+function closeAIAssistantIfOpen() {
+  if (window._aiWindowOpen && typeof window.closeAIAssistant === 'function') {
+    window.closeAIAssistant();
+  }
+}
+
+if (typeof window.startTutorial !== 'function') {
+  window.startTutorial = function() {};
+}
+if (typeof window.skipTutorial !== 'function') {
+  window.skipTutorial = function() {
+    window._tutorialActive = false;
+    window._tutorialSpeaking = false;
+    notifyAIAssistantAvailability();
+  };
+}
+
 window._aiWindowOpen = false;
 window._spacebarDownTime = 0;
 window._spacebarTimer = null;
@@ -313,7 +345,7 @@ window.onAssistantShortSpacePress = function() {
 
 // 渚嬮鏈楄锛堥骞?绛旀鍒嗘锛?
 window.speakExerciseWithPause = function(text) {
-  var answerKeywords = ['绛旀', '瑙ｇ瓟', '鍙傝€冪瓟妗?, '瑙ｏ細', '瑙?'];
+  var answerKeywords = ['答案', '解答', '参考答案', '解析：', '解析'];
   var questionPart = text, answerPart = '';
   for(var i = 0; i < answerKeywords.length; i++) {
     var idx = text.indexOf(answerKeywords[i]);
@@ -440,6 +472,9 @@ document.addEventListener('keydown', function(e) {
     return;
   }
   var k = e.key.toLowerCase();
+  var plainHotkey = !e.altKey && !e.ctrlKey && !e.metaKey;
+  var nvdaSafeHotkey = e.altKey && !e.ctrlKey && !e.metaKey;
+  var globalHotkey = plainHotkey || nvdaSafeHotkey;
 
   if(window._tutorialActive && window._tutorialManagedByNewEngine) {
     return;
@@ -471,18 +506,18 @@ document.addEventListener('keydown', function(e) {
   }
 
   // Normal playback hotkeys
-  if(k === 's') {
+  if(globalHotkey && k === 's') {
     if(!window.playSummarySpeech()) { alert('请先上传文档并完成处理'); }
     e.preventDefault();
   }
-  if(k === 'e') {
+  if(globalHotkey && k === 'e') {
     if(!window.startSpeechPlayback('ex')) { alert('请先上传文档并完成处理'); }
     e.preventDefault();
   }
-  if(k === 'x') { window.stopCurrentSpeech(); e.preventDefault(); }
+  if(globalHotkey && k === 'x') { window.stopCurrentSpeech(); e.preventDefault(); }
   // F閿笉鍐嶅湪姝ｅ父妯″紡涓嬪惎鍔ㄦ暀绋嬶紝鏁欑▼浠呴€氳繃渚ц竟鏍忔寜閽垨棣栨鐧诲綍瑙﹀彂
 
-  if(k === 'h') {
+  if(globalHotkey && k === 'h') {
     e.preventDefault();
     if (typeof window.showHelp === 'function') {
       window.showHelp();
@@ -496,12 +531,12 @@ document.addEventListener('keydown', function(e) {
   if(window._myNotesPageActive) {
     return;
   }
-  if(e.key === ' ') {
+  if((plainHotkey && e.key === ' ') || (nvdaSafeHotkey && k === 'p')) {
     if(window.onAssistantShortSpacePress && window.onAssistantShortSpacePress()) {
       e.preventDefault();
     }
   }
-  if(e.key === 'ArrowLeft') {
+  if(globalHotkey && e.key === 'ArrowLeft') {
     if(typeof window.onResultArrowLeft === 'function' && window.onResultArrowLeft()) {
       e.preventDefault();
       return;
@@ -509,7 +544,7 @@ document.addEventListener('keydown', function(e) {
     window.speakPrev();
     e.preventDefault();
   }
-  if(e.key === 'ArrowRight') { window.speakNext(); e.preventDefault(); }
+  if(globalHotkey && e.key === 'ArrowRight') { window.speakNext(); e.preventDefault(); }
 });
 
 // ============== 椤甸潰鍒濆鍖?==============
@@ -672,12 +707,11 @@ document.addEventListener('keydown', function(e) {
 
   function getUniversalHelpLines() {
     return [
-      'F - 打开当前页面新手教程',
-      'H - 打开或关闭使用帮助',
-      'Ctrl + 1 - 前往上传文档',
-      'Ctrl + 2 - 前往我的笔记',
-      'Ctrl + 3 - 前往错题本',
-      'Ctrl + 4 - 前往学习社区',
+      'Alt + H - 打开或关闭使用帮助',
+      'Alt + 1 - 前往上传文档',
+      'Alt + 2 - 前往我的笔记',
+      'Alt + 3 - 前往错题本',
+      'Alt + 4 - 前往学习社区',
       'Esc - 关闭使用帮助'
     ];
   }
@@ -695,10 +729,10 @@ document.addEventListener('keydown', function(e) {
     if (isUploadPage) {
       pageName = '上传文档';
       pageLines = [
-        'U - 选择并上传文档',
+        'Alt + J - 选择并上传文档',
         'Enter - 开始处理',
-        'R - 重置上传表单',
-        '长按 V - 语音输入处理需求，松开发送'
+        'Alt + R - 重置上传表单',
+        '长按 Alt + V - 语音输入处理需求，松开发送'
       ];
     } else if (isMyNotesPage) {
       pageName = '我的笔记';
@@ -734,13 +768,13 @@ document.addEventListener('keydown', function(e) {
     } else if (isResultPage) {
       pageName = '文档总结';
       pageLines = [
-        'S - 朗读总结',
-        '空格 - 暂停或继续',
-        'X - 停止朗读',
-        '左 / 右方向键 - 切换上一段或下一段',
-        'B - 生成总结盲文',
-        'D - 下载总结文档',
-        'E - 前往例题'
+        'Alt + S - 朗读总结',
+        'Alt + P - 暂停或继续',
+        'Alt + X - 停止朗读',
+        'Alt + 左 / 右方向键 - 切换上一段或下一段',
+        'Alt + B - 生成总结盲文',
+        'Alt + D - 下载总结文档',
+        'Alt + E - 前往例题'
       ];
     } else {
       pageLines = [
@@ -829,7 +863,7 @@ document.addEventListener('keydown', function(e) {
       return;
     }
 
-    if (event.altKey || event.ctrlKey || event.metaKey) {
+    if (!(event.altKey && !event.ctrlKey && !event.metaKey) && (event.altKey || event.ctrlKey || event.metaKey)) {
       return;
     }
     if (isEditableTarget(event.target)) {
@@ -1078,7 +1112,9 @@ document.addEventListener('keydown', function(e) {
   }
 
   document.addEventListener('keydown', function(event) {
-    if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+    var navByCtrl = event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
+    var navByAlt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+    if (!navByCtrl && !navByAlt) {
       return;
     }
     if (isEditableTarget(event.target)) {
