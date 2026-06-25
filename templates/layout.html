@@ -219,6 +219,16 @@
             box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
+        .form-group label[role="button"] {
+            cursor: pointer;
+        }
+
+        .form-group label[role="button"]:focus-visible,
+        .form-group input[type="file"]:focus-visible {
+            outline: 3px solid rgba(255, 107, 53, 0.35);
+            outline-offset: 2px;
+        }
+
         /* 上传区域样式 */
         .upload-area {
             border: 2px dashed var(--border-color);
@@ -779,6 +789,19 @@
             tutorialDemoActions: {{ (url_for('tutorial_demo_actions') if current_user.is_authenticated else '') | tojson }}
         };
     </script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(','\\)'], ['$$','$$'], ['$', '$']],
+                displayMath: [['$$','$$'], ['\\[','\\]']],
+                processEscapes: true,
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            },
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="{{ url_for('static', filename='js/speech-config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/accessibility.js') }}"></script>
     <script src="{{ url_for('static', filename='js/local-community.js') }}"></script>

@@ -147,10 +147,11 @@
 
     <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data" id="uploadForm">
         <div class="form-group">
-            <label for="file">
+            <button type="button" class="btn btn-secondary" id="fileButton" title="选择文件">
                 <i class="fas fa-file-alt"></i> 选择文件
-            </label>
-            <input type="file" id="file" name="file" accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" required>
+            </button>
+            <span id="fileNameDisplay" class="upload-file-name" aria-live="polite" role="status" style="margin-left: 12px;color: var(--text-secondary);"></span>
+            <input type="file" id="file" name="file" accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">
             <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                 支持格式：PDF、Word（.docx）、PowerPoint（.pptx）、图片（JPG、PNG）
             </small>
@@ -187,7 +188,7 @@
             </button>
         </div>
         <p class="upload-hotkeys">
-            快捷键：U 上传文档，Enter 开始处理，R 重置，长按 V 语音输入需求并在松开时发送。
+            快捷键：Alt+J 选择文件，Enter 开始处理，Alt+R 重置，长按 Alt+V 语音输入需求并在松开时发送。
         </p>
     </form>
 
@@ -214,10 +215,47 @@ const uploadForm = document.getElementById('uploadForm');
 const submitBtn = document.getElementById('submitBtn');
 const resetBtn = document.getElementById('resetBtn');
 const loadingIndicator = document.getElementById('loadingIndicator');
+const fileButton = document.getElementById('fileButton');
 const fileInput = document.getElementById('file');
+const fileNameDisplay = document.getElementById('fileNameDisplay');
 const promptInput = document.getElementById('prompt');
 const voiceStatus = document.getElementById('voiceStatus');
 const PROCESSING_LABEL = '处理中...';
+
+function setSelectedFileText(filename) {
+    if (!fileNameDisplay) {
+        return;
+    }
+    fileNameDisplay.textContent = filename;
+}
+
+function updateFileDisplay() {
+    if (fileInput && fileInput.files && fileInput.files.length) {
+        setSelectedFileText(fileInput.files[0].name);
+        return;
+    }
+    setSelectedFileText('未选择文件');
+}
+
+if (fileButton) {
+    fileButton.addEventListener('click', function(event) {
+        if (fileInput) {
+            fileInput.click();
+        }
+    });
+}
+
+if (fileInput) {
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files && fileInput.files.length) {
+            setSelectedFileText(fileInput.files[0].name);
+            return;
+        }
+        updateFileDisplay();
+    });
+}
+
+updateFileDisplay();
 const START_LABEL = '开始处理';
 const PROCESSING_SPEECH = '文档已上传，正在处理';
 const DEFAULT_VOICE_STATUS = '语音输入待命：长按 V 键说出需求，松开后自动发送。';
@@ -719,7 +757,7 @@ function canUseVoiceHotkey(event) {
         return false;
     }
 
-    return !(event.altKey || event.ctrlKey || event.metaKey);
+    return event.altKey && !event.ctrlKey && !event.metaKey;
 }
 
 function handleVoiceHotkeyKeydown(event) {
@@ -766,16 +804,24 @@ function handleVoiceHotkeyKeyup(event) {
 function handleUploadPageHotkeys(event) {
     if (
         !event.repeat &&
-        event.code === 'KeyR' &&
-        uploadForm.dataset.processingSubmit === 'true' &&
+        event.key === 'Enter' &&
         !window._tutorialActive &&
         !window._helpOverlayOpen &&
         !window._aiWindowOpen &&
-        !hasHotkeyModifier(event)
+        !hasHotkeyModifier(event) &&
+        (event.target === fileInput || document.activeElement === fileInput)
     ) {
         event.preventDefault();
         event.stopPropagation();
-        resetForm();
+
+        if (!fileInput.files.length) {
+            triggerUploadAction(fileInput, event, function() {
+                fileInput.click();
+            });
+            return;
+        }
+
+        triggerProcessingSubmit(event);
         return;
     }
 
@@ -783,13 +829,16 @@ function handleUploadPageHotkeys(event) {
         shouldIgnoreUploadHotkeyTarget(event.target) ||
         window._tutorialActive ||
         window._helpOverlayOpen ||
-        window._aiWindowOpen ||
-        hasHotkeyModifier(event)
+        window._aiWindowOpen
     ) {
         return;
     }
 
-    if (!event.repeat && event.code === 'KeyU' && triggerUploadAction(fileInput, event, function() {
+    if (!event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+    }
+
+    if (!event.repeat && event.code === 'KeyJ' && triggerUploadAction(fileInput, event, function() {
         fileInput.click();
     })) {
         return;

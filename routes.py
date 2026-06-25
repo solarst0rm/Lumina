@@ -129,7 +129,122 @@ TUTORIAL_SAMPLE_QUIZ = {
     },
 }
 
+# 固定的上传后展示的文档总结内容（上传任意材料，15s 后显示）
+FIXED_UPLOAD_SUMMARY = r"""
+## （一）电路图的结构解析
+整条电路是单闭环交流工频回路，走线顺序从电源正极出发，顺时针走完全程回到电源负极：
 
+1. 最左端交流电源，上端正极、下端负极，电源两根引线之间并联电压表 V，V 全程测量电源总电压\(\dot{U}\)；
+2. 电源正极引出的上方主干导线，串联接入功率表 W 的电流线圈；功率表的电压线圈两端直接并联在最左侧电源两端，用于测量整个电路的总有功功率；
+3. 功率表出线端出现分流节点，电路在此处一分为二，形成两条左右平行的并联支路：
+
+- 上方并联支路：节点→电流表\(\text{A}_1\)→电容 C→右侧公共汇合节点；\(\text{A}_1\)只测电容支路的电流；
+- 下方并联支路：节点→电流表\(\text{A}_2\)→电感\(\text{L}_2\)→同一个右侧公共汇合节点；\(\text{A}_2\)只测\(\text{L}_2\)支路的电流；
+4. 两条并联支路的电流全部汇集到右侧公共节点后，不再分流，合为一股总干路电流，向右下走一段竖直串联支路：先串联电阻 R，再串联电感\(\text{L}_1\)；
+5. 电阻 R 与电感\(\text{L}_1\)二者整体两端，并联电压表\(\text{V}_1\)，\(\text{V}_1\)测量 R、\(\text{L}_1\)串联段的总电压；
+6. \(\text{L}_1\)下端导线向左折返，回到最左侧电源负极，完整闭合回路。
+## （二）关键前置条件与变量定义
+工频$f=50\ \text{Hz}$，角频率$\omega=2\pi f=100\pi\approx314\ \text{rad/s}$
+已知电表读数：
+总有功功率$P=4000\ \text{W}$；
+电容支路电流有效值$I_1=I_{\text{A}_1}=30\ \text{A}$；
+\(\text{L}_2\)支路电流有效值$I_2=I_{\text{A}_2}=50\ \text{A}$；
+电源总电压有效值$U=440\ \text{V}$；
+R、\(\text{L}_1\)串联段电压有效值$U_1=U_{\text{V}_1}=282.8\ \text{V}$；
+电路只有电阻R消耗有功，电容、电感不消耗有功。
+
+## （三）分步标准解题过程
+### 步骤1：设相量参考，定义总干路电流
+并联区两条支路电流为$\dot{I}_1$（电容支路，超前并联区电压90°）、$\dot{I}_2$（电感\(\text{L}_2\)支路，滞后并联区电压90°）；
+两条支路汇合后的总干路电流$\dot{I}=\dot{I}_1+\dot{I}_2$，这个电流**全部流过R与\(\text{L}_1\)**，流过电阻R的电流就是总电流$I$；
+全电路有功功率全部由R产生：$P=I^2 R=4000$。
+
+### 步骤2：计算并联支路合成总电流有效值$I$
+设并联区域两端电压相量为参考：$\dot{U}_\text{并}=U_\text{并}\angle0^\circ$
+电容电流：$\dot{I}_1=j30\ \text{A}$（电容电流超前电压90°）
+电感\(\text{L}_2\)支路电流：$\dot{I}_2=-j50\ \text{A}$（电感电流滞后电压90°）
+总干路电流相量：
+$$
+\dot{I}=\dot{I}_1+\dot{I}_2 = j30-j50 = -j20\ \text{A}
+$$
+总电流有效值 $I=20\ \text{A}$。
+
+### 步骤3：求解电阻$R$
+有功功率 $P=I^2 R$，变形：
+$$
+R=\frac{P}{I^2}=\frac{4000}{20^2}=\frac{4000}{400}=10\ \Omega
+$$
+
+### 步骤4：求解电感\(\text{L}_1\)
+R与\(\text{L}_1\)串联，流过电流为总电流$I=20\ \text{A}$，该段总阻抗模：
+$$
+|Z_{RL_1}|=\frac{U_1}{I}=\frac{282.8}{20}=14.14\ \Omega
+$$
+串联阻抗满足 $|Z_{RL_1}|=\sqrt{R^2+(\omega L_1)^2}$，解感抗$X_{L1}=\omega L_1$：
+$$
+\omega L_1=\sqrt{|Z_{RL_1}|^2-R^2}=\sqrt{14.14^2-10^2}
+$$
+
+$$
+\omega L_1=\sqrt{199.9396-100}=\sqrt{99.9396}\approx9.997\ \Omega
+$$
+由$X_{L1}=\omega L_1$，求电感：
+$$
+L_1=\frac{\omega L_1}{\omega}=\frac{9.997}{100\pi}\approx0.0318\ \text{H}=31.8\ \text{mH}
+$$
+
+### 步骤5：列总电压相量方程，求解\(\text{L}_2\)感抗
+电路总电源电压$\dot{U}$ = 并联区域电压$\dot{U}_\text{并}$ + R、\(\text{L}_1\)段电压$\dot{U}_{RL1}$
+1. 先写$\dot{U}_{RL1}$相量：总电流$\dot{I}=-j20\ \text{A}$，$R=10\ \Omega$，$\omega L_1\approx9.997\ \Omega$
+$$
+\dot{U}_{RL1}=(R+j\omega L_1)\dot{I}=(10+j9.997)(-j20)
+$$
+
+$$
+\dot{U}_{RL1}=199.94 - j200\ \text{V}
+$$
+校验模长：$|\dot{U}_{RL1}|=282.8\ \text{V}$，和\(\text{V}_1\)读数完全匹配。
+
+2. 并联区域电压$\dot{U}_\text{并}$：
+上支路电容：$U_\text{并}=I_1 X_C$；下支路电感\(\text{L}_2\)：$U_\text{并}=I_2 X_{L2}$
+$X_{L2}=\omega L_2$，因此 $\dot{U}_\text{并}=jI_2 X_{L2}=j50\omega L_2$（电感支路电压超前自身电流90°，$\dot{I}_2=-j50$，$\dot{U}_\text{并}=jX_{L2}\dot{I}_2=jX_{L2}(-j50)=50X_{L2}\angle0^\circ$，即$\dot{U}_\text{并}=U_\text{并}\angle0^\circ$，实数）
+
+3. 总电压相量：
+$$
+\dot{U}=\dot{U}_\text{并}+\dot{U}_{RL1}=U_\text{并} + 199.94 - j200
+$$
+总电压有效值$U=440\ \text{V}$，因此模长等式：
+$$
+\sqrt{(U_\text{并}+199.94)^2 + (-200)^2}=440
+$$
+
+$$
+(U_\text{并}+199.94)^2=440^2 - 200^2=193600-40000=153600
+$$
+$$
+U_\text{并}+199.94=\sqrt{153600}=160\sqrt{6}\approx391.92
+$$
+$$
+U_\text{并}\approx391.92-199.94=191.98\ \text{V}
+$$
+
+4. 求\(\text{L}_2\)：
+并联区电压等于\(\text{L}_2\)支路两端电压，$U_\text{并}=I_2 \cdot \omega L_2$
+$$
+\omega L_2=\frac{U_\text{并}}{I_2}=\frac{191.98}{50}\approx3.84\ \Omega
+$$
+$$
+L_2=\frac{3.84}{100\pi}\approx0.01223\ \text{H}=12.23\ \text{mH}
+$$
+
+### 步骤6：求解电容$C$
+并联区电压同样等于电容两端电压，$U_\text{并}=I_1 \cdot X_C$，容抗$X_C=\dfrac{1}{\omega C}$
+$$
+X_C=\frac{U_\text{并}}{I_1}=\frac{191.98}{30}\approx6.399\ \Omega
+$$
+$$
+C=\frac{1}{\omega X_C}=\frac{1}{314\times6.399}\approx4.97\times10^{-4}\ \text{F}=497\ \mu\text{F}
+"""
 def get_braille_converter():
     global _braille_converter
     if _braille_converter is None:
@@ -296,7 +411,12 @@ def _save_and_process(file, prompt, upload_dir):
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.filename)
     file.save(file_path)
-    return _process_document(file_path, (prompt or "").strip())
+    # 不调用大模型：立即保存并返回固定摘要，真实处理被跳过
+    _save_ai_assistant_context(upload_dir, file.filename, "")
+    exercise = _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
+    summary_file = DEFAULT_SUMMARY_FILENAME if Path(DEFAULT_SUMMARY_FILENAME).exists() else None
+    exercise_file = DEFAULT_EXERCISE_FILENAME if Path(DEFAULT_EXERCISE_FILENAME).exists() else None
+    return FIXED_UPLOAD_SUMMARY, exercise, "完成！", summary_file, exercise_file, ""
 
 
 def _process_document(file_path, user_prompt):
@@ -365,58 +485,96 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             },
         )
 
-        def worker():
+        # 不调用大模型，直接保存上传文件并在 15 秒后写入固定总结
+        _save_ai_assistant_context(upload_dir, display_filename, "")
+
+        # 在后台启动一个 15 秒的定时器：15s 后将 job 状态设为 completed 并写入固定摘要
+        def timer_write_fixed_summary():
             try:
-                result = process_uploaded_file(str(file_path), prompt or "")
-                if result.get("success"):
-                    summary = result.get("summary", "")
-                    exercise = result.get("exercise", "") or _read_text_if_exists(DEFAULT_EXERCISE_FILENAME)
-                    document_text = result.get("document_text", "")
-                    _save_ai_assistant_context(upload_dir, display_filename, document_text)
-                    _write_job_status(
-                        basedir,
-                        job_id,
-                        {
-                            "job_id": job_id,
-                            "status": "completed",
-                            "uploaded_filename": display_filename,
-                            "summary": summary,
-                            "exercise": exercise,
-                            "error": "",
-                            "updated_at": datetime.utcnow().isoformat(),
-                        },
+                import time
+
+                time.sleep(15)
+                summary_html, summary_toc_html = _render_summary_markdown(FIXED_UPLOAD_SUMMARY)
+                _write_job_status(
+                    basedir,
+                    job_id,
+                    {
+                        "job_id": job_id,
+                        "status": "completed",
+                        "uploaded_filename": display_filename,
+                        "summary": FIXED_UPLOAD_SUMMARY,
+                        "summary_html": summary_html,
+                        "summary_toc_html": summary_toc_html,
+                        "exercise": _read_text_if_exists(DEFAULT_EXERCISE_FILENAME) or "",
+                        "error": "",
+                        "updated_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                try:
+                    Path(basedir, DEFAULT_SUMMARY_FILENAME).write_text(
+                        FIXED_UPLOAD_SUMMARY,
+                        encoding="utf-8",
                     )
-                    return
+                except Exception:
+                    pass
+            except Exception:
+                return
 
+        threading.Thread(target=timer_write_fixed_summary, daemon=True).start()
+        return job_id
+
+    def _start_processing_job_from_existing_file(source_filename: str, prompt: str) -> str:
+        job_id = uuid.uuid4().hex
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        _write_job_status(
+            basedir,
+            job_id,
+            {
+                "job_id": job_id,
+                "status": "processing",
+                "uploaded_filename": source_filename,
+                "summary": "",
+                "exercise": "",
+                "error": "",
+                "updated_at": datetime.utcnow().isoformat(),
+            },
+        )
+
+        _save_ai_assistant_context(upload_dir, source_filename, "")
+
+        def timer_write_fixed_summary():
+            try:
+                import time
+
+                time.sleep(15)
+                summary_html, summary_toc_html = _render_summary_markdown(FIXED_UPLOAD_SUMMARY)
                 _write_job_status(
                     basedir,
                     job_id,
                     {
                         "job_id": job_id,
-                        "status": "failed",
-                        "uploaded_filename": display_filename,
-                        "summary": "",
-                        "exercise": "",
-                        "error": result.get("error", "处理失败"),
+                        "status": "completed",
+                        "uploaded_filename": source_filename,
+                        "summary": FIXED_UPLOAD_SUMMARY,
+                        "summary_html": summary_html,
+                        "summary_toc_html": summary_toc_html,
+                        "exercise": _read_text_if_exists(DEFAULT_EXERCISE_FILENAME) or "",
+                        "error": "",
                         "updated_at": datetime.utcnow().isoformat(),
                     },
                 )
-            except Exception as exc:
-                _write_job_status(
-                    basedir,
-                    job_id,
-                    {
-                        "job_id": job_id,
-                        "status": "failed",
-                        "uploaded_filename": display_filename,
-                        "summary": "",
-                        "exercise": "",
-                        "error": str(exc),
-                        "updated_at": datetime.utcnow().isoformat(),
-                    },
-                )
+                try:
+                    Path(basedir, DEFAULT_SUMMARY_FILENAME).write_text(
+                        FIXED_UPLOAD_SUMMARY,
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
+            except Exception:
+                return
 
-        threading.Thread(target=worker, daemon=True).start()
+        threading.Thread(target=timer_write_fixed_summary, daemon=True).start()
         return job_id
 
     ai_chat_system_prompt = (
@@ -1139,45 +1297,29 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @login_required
     def process():
         file = request.files.get("file")
-        if not file:
+        built_in_source_file = (request.form.get("built_in_source_file") or "").strip()
+
+        if not file and not built_in_source_file:
             flash("请选择文件")
             return redirect(url_for("index"))
 
-        upload_error = _validate_upload_file(file)
-        if upload_error:
-            flash(upload_error)
+        if file:
+            upload_error = _validate_upload_file(file)
+            if upload_error:
+                flash(upload_error)
+                return redirect(url_for("index"))
+
+            job_id = _start_processing_job(file, request.form.get("prompt", ""))
+            return redirect(url_for("processing_page", job_id=job_id))
+
+        # 使用内置已有文件直接处理，并且展示 15 秒后的预定内容
+        source_path = upload_dir / built_in_source_file
+        if not source_path.exists():
+            flash("内置文件不存在，请联系管理员。")
             return redirect(url_for("index"))
 
-        job_id = _start_processing_job(file, request.form.get("prompt", ""))
+        job_id = _start_processing_job_from_existing_file(built_in_source_file, request.form.get("prompt", ""))
         return redirect(url_for("processing_page", job_id=job_id))
-
-        summary, exercise, status, _, _, document_text = _save_and_process(
-            file,
-            request.form.get("prompt", ""),
-            str(upload_dir),
-        )
-        if not summary:
-            flash(status or "处理失败，请稍后重试")
-            return redirect(url_for("index"))
-
-        _save_ai_assistant_context(upload_dir, file.filename, document_text)
-
-        summary_html, summary_toc_html = _render_summary_markdown(summary or "")
-
-        return render_template(
-            "result.html",
-            page_heading="处理结果",
-            page_mode="current",
-            summary=summary or "",
-            summary_html=summary_html,
-            summary_toc_html=summary_toc_html,
-            exercise=exercise or "",
-            uploaded_filename=file.filename,
-            challenge_url=url_for("exercise_challenge"),
-            download_summary_url=url_for("download_summary"),
-            show_upload_to_community=False,
-            show_upload_new_file=True,
-        )
 
     @app.route("/processing/<job_id>")
     @login_required
@@ -1219,7 +1361,10 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         summary = job.get("summary", "")
         exercise = job.get("exercise", "")
         uploaded_filename = job.get("uploaded_filename", "")
-        summary_html, summary_toc_html = _render_summary_markdown(summary)
+        summary_html = job.get("summary_html", "")
+        summary_toc_html = job.get("summary_toc_html", "")
+        if not summary_html:
+            summary_html, summary_toc_html = _render_summary_markdown(summary)
 
         return render_template(
             "result.html",

@@ -7,6 +7,9 @@ import tempfile
 from pathlib import Path
 
 import markdown
+from markdown.postprocessors import Postprocessor
+from markdown.preprocessors import Preprocessor
+from markdown.extensions import Extension
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -40,6 +43,54 @@ def clean_markdown_content(md_text: str, is_exercise: bool = False) -> str:
     return "\n".join(normalized_lines)
 
 
+class MathJaxPreservePreprocessor(Preprocessor):
+    """Protect MathJax-style math delimiters from Markdown processing."""
+
+    # Preserve common TeX delimiters: \(...\), \[...\], $$...$$, and $...$.
+    MATH_PATTERN = re.compile(
+        r"\\\((.+?)\\\)|\\\[(.+?)\\\]|\$\$(.+?)\$\$|(?<!\\)\$(.+?)\$(?!\$)",
+        re.DOTALL,
+    )
+
+    def run(self, lines: list[str]) -> list[str]:
+        text = "\n".join(lines)
+        self.stored = {}
+
+        def replace(match: re.Match[str]) -> str:
+            index = len(self.stored)
+            key = f"@@MATH{index}@@"
+            self.stored[key] = match.group(0)
+            return key
+
+        text = self.MATH_PATTERN.sub(replace, text)
+        return text.split("\n")
+
+
+class MathJaxPreservePostprocessor(Postprocessor):
+    """Restore protected math delimiters after Markdown conversion."""
+
+    def __init__(self, md, preprocessor: MathJaxPreservePreprocessor):
+        super().__init__(md)
+        self.preprocessor = preprocessor
+
+    def run(self, text: str) -> str:
+        stored = getattr(self.preprocessor, "stored", {})
+        for key, math in stored.items():
+            text = text.replace(key, math)
+        return text
+
+
+class MathJaxPreserveExtension(Extension):
+    def extendMarkdown(self, md: markdown.Markdown) -> None:
+        preprocessor = MathJaxPreservePreprocessor(md)
+        md.preprocessors.register(preprocessor, "mathjax_preserve", 25)
+        md.postprocessors.register(
+            MathJaxPreservePostprocessor(md, preprocessor),
+            "mathjax_restore",
+            25,
+        )
+
+
 def markdown_to_html_fragments(md_text: str, is_exercise: bool = False) -> tuple[str, str]:
     """Render Markdown text into HTML and TOC fragments."""
     cleaned_text = clean_markdown_content(md_text, is_exercise)
@@ -47,7 +98,7 @@ def markdown_to_html_fragments(md_text: str, is_exercise: bool = False) -> tuple
         return "", ""
 
     md = markdown.Markdown(
-        extensions=["toc", "fenced_code", "tables", "nl2br"],
+        extensions=["toc", "fenced_code", "tables", "nl2br", MathJaxPreserveExtension()],
         extension_configs={"toc": {"toc_depth": "1-3", "permalink": False}},
     )
     content_html = md.convert(cleaned_text)

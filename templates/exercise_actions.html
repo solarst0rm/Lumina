@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
             target.isContentEditable
         );
 
-        if (inInput || event.repeat) {
+        if (inInput || event.repeat || !event.altKey || event.ctrlKey || event.metaKey) {
             return;
         }
 

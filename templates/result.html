@@ -748,7 +748,7 @@ function initResultSpeechController() {
             return;
         }
 
-        if (hasModifierKey(event)) {
+        if (!event.altKey || event.ctrlKey || event.metaKey) {
             return;
         }
 
