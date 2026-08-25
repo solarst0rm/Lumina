@@ -416,8 +416,12 @@ def save_exercises(
     markdown_path: str | Path = DEFAULT_EXERCISE_FILENAME,
     json_path: str | Path = DEFAULT_EXERCISE_JSON_FILENAME,
 ) -> None:
-    Path(markdown_path).write_text(markdown_content, encoding="utf-8")
-    Path(json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    markdown_file = Path(markdown_path)
+    json_file = Path(json_path)
+    markdown_file.parent.mkdir(parents=True, exist_ok=True)
+    json_file.parent.mkdir(parents=True, exist_ok=True)
+    markdown_file.write_text(markdown_content, encoding="utf-8")
+    json_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"练习题 Markdown 已保存到：{markdown_path}")
     print(f"练习题 JSON 已保存到：{json_path}")
     render_markdown_to_html(markdown_path, is_exercise=True)

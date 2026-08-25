@@ -1,0 +1,31 @@
+services:
+  lumina-lingsight:
+    build: .
+    image: lumina-lingsight:latest
+    ports:
+      - "${PORT:-7860}:7860"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 7860
+      DATA_DIR: /home/user/app/data
+      UPLOAD_FOLDER: /home/user/app/data/uploads
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+      xxx_KEY: ${xxx_KEY:-}
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://api-inference.modelscope.cn/v1}
+      MODEL_NAME: ${MODEL_NAME:-Qwen/Qwen3-VL-8B-Instruct}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      WEB_THREADS: ${WEB_THREADS:-1}
+      WEB_TIMEOUT: ${WEB_TIMEOUT:-300}
+    volumes:
+      - lumina_data:/home/user/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  lumina_data:

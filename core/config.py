@@ -5,17 +5,32 @@ from __future__ import annotations
 import os
 
 
-API_KEY = os.environ.get("xxx_KEY", "").strip()
+API_KEY = (os.environ.get("xxx_KEY") or os.environ.get("API_KEY", "")).strip()
 if not API_KEY:
-    print("Warning: environment variable xxx_KEY is not set; AI features will be unavailable.")
+    print("Warning: environment variable xxx_KEY/API_KEY is not set; AI features will be unavailable.")
 
 BASE_URL = os.environ.get("BASE_URL", "https://api-inference.modelscope.cn/v1").rstrip("/")
 MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen3-VL-8B-Instruct")
 
-UPLOAD_FOLDER = "uploads"
-DEFAULT_SUMMARY_FILENAME = "summary.md"
-DEFAULT_EXERCISE_FILENAME = "exercise.md"
-DEFAULT_EXERCISE_JSON_FILENAME = "exercise.json"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+DATA_DIR = os.path.abspath(os.environ.get("DATA_DIR", PROJECT_ROOT))
+
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(DATA_DIR, "uploads"))
+if not os.path.isabs(UPLOAD_FOLDER):
+    UPLOAD_FOLDER = os.path.join(DATA_DIR, UPLOAD_FOLDER)
+
+DEFAULT_SUMMARY_FILENAME = os.environ.get(
+    "DEFAULT_SUMMARY_FILENAME",
+    os.path.join(DATA_DIR, "summary.md"),
+)
+DEFAULT_EXERCISE_FILENAME = os.environ.get(
+    "DEFAULT_EXERCISE_FILENAME",
+    os.path.join(DATA_DIR, "exercise.md"),
+)
+DEFAULT_EXERCISE_JSON_FILENAME = os.environ.get(
+    "DEFAULT_EXERCISE_JSON_FILENAME",
+    os.path.join(DATA_DIR, "exercise.json"),
+)
 
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {

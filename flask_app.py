@@ -26,9 +26,15 @@ else:
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-in-production")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "notes.db")
+data_dir = os.path.abspath(os.environ.get("DATA_DIR", basedir))
+os.makedirs(data_dir, exist_ok=True)
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    os.environ.get("DATABASE_URL")
+    or "sqlite:///" + os.path.join(data_dir, "notes.db")
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["BASEDIR"] = basedir
+app.config["DATA_DIR"] = data_dir
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)

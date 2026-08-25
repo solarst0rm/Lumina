@@ -338,7 +338,11 @@ def _render_summary_markdown(summary_text: str) -> tuple[str, str]:
 
 def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     basedir = app.config["BASEDIR"]
-    upload_dir = Path(basedir) / UPLOAD_FOLDER
+    data_dir = Path(app.config.get("DATA_DIR", basedir))
+    upload_folder = Path(UPLOAD_FOLDER)
+    upload_dir = upload_folder if upload_folder.is_absolute() else data_dir / upload_folder
+    data_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir.mkdir(parents=True, exist_ok=True)
     ai_client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
     def _start_processing_job(file_storage, prompt: str) -> str:
@@ -352,7 +356,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         file_storage.save(file_path)
 
         _write_job_status(
-            basedir,
+            data_dir,
             job_id,
             {
                 "job_id": job_id,
@@ -374,7 +378,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
                     document_text = result.get("document_text", "")
                     _save_ai_assistant_context(upload_dir, display_filename, document_text)
                     _write_job_status(
-                        basedir,
+                        data_dir,
                         job_id,
                         {
                             "job_id": job_id,
@@ -389,7 +393,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
                     return
 
                 _write_job_status(
-                    basedir,
+                    data_dir,
                     job_id,
                     {
                         "job_id": job_id,
@@ -403,7 +407,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
                 )
             except Exception as exc:
                 _write_job_status(
-                    basedir,
+                    data_dir,
                     job_id,
                     {
                         "job_id": job_id,
@@ -1047,6 +1051,16 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
             next_url=_get_safe_next_url() if next_url is None else next_url,
         )
 
+    @app.route("/api/health")
+    def api_health():
+        return jsonify(
+            {
+                "success": True,
+                "status": "ok",
+                "service": "lumina-lingsight",
+            }
+        )
+
     @app.route("/")
     def index():
         if not current_user.is_authenticated:
@@ -1182,7 +1196,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @app.route("/processing/<job_id>")
     @login_required
     def processing_page(job_id):
-        job = _read_job_status(basedir, job_id)
+        job = _read_job_status(data_dir, job_id)
         if not job:
             flash("处理任务不存在或已过期")
             return redirect(url_for("index"))
@@ -1196,7 +1210,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @app.route("/api/process-status/<job_id>")
     @login_required
     def process_status(job_id):
-        job = _read_job_status(basedir, job_id)
+        job = _read_job_status(data_dir, job_id)
         if not job:
             return jsonify({"success": False, "error": "任务不存在"}), 404
         return jsonify({"success": True, **job})
@@ -1204,7 +1218,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     @app.route("/process-result/<job_id>")
     @login_required
     def process_result(job_id):
-        job = _read_job_status(basedir, job_id)
+        job = _read_job_status(data_dir, job_id)
         if not job:
             flash("处理任务不存在或已过期")
             return redirect(url_for("index"))
@@ -1444,7 +1458,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     def braille_summary():
         braille, brf = _convert_to_braille(
             request.form.get("text", ""),
-            os.path.join(basedir, "output.brf"),
+            data_dir / "output.brf",
         )
         return render_template("braille.html", braille=braille, brf=brf, type="summary")
 
@@ -1453,7 +1467,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
     def braille_exercise():
         braille, brf = _convert_to_braille(
             request.form.get("text", ""),
-            os.path.join(basedir, "output.brf"),
+            data_dir / "output.brf",
         )
         return render_template("braille.html", braille=braille, brf=brf, type="exercise")
 
@@ -1472,14 +1486,15 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
 
         braille, brf = _convert_to_braille(
             exercise_markdown,
-            os.path.join(basedir, "output.brf"),
+            data_dir / "output.brf",
         )
         return render_template("braille.html", braille=braille, brf=brf, type="exercise")
 
     @app.route("/download/<path:filename>")
     @login_required
     def download_file(filename):
-        return send_file(os.path.join(basedir, filename), as_attachment=True)
+        safe_filename = os.path.basename(filename)
+        return send_file(data_dir / safe_filename, as_attachment=True)
 
     @app.route("/download/summary")
     @login_required
@@ -2207,7 +2222,7 @@ def register_routes(app, db, User, Note, NoteFolder, MistakeRecord):
         try:
             result = get_braille_converter().convert_to_braille(content)
             brf_filename = f"braille_{current_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.brf"
-            brf_path = os.path.join(basedir, brf_filename)
+            brf_path = data_dir / brf_filename
             generate_brf_file(result["brf_content"], brf_path)
             return jsonify(
                 {

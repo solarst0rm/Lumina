@@ -66,7 +66,9 @@ def clean_plain_text(text: str) -> str:
 
 def save_markdown(content: str, filename: str | Path) -> None:
     """Save Markdown content to disk."""
-    Path(filename).write_text(content, encoding="utf-8")
+    markdown_path = Path(filename)
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown_path.write_text(content, encoding="utf-8")
 
 
 def _looks_security_sensitive(text: str) -> bool:
